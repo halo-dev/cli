@@ -13,7 +13,7 @@ import dayjs from "dayjs";
 import prettyBytes from "pretty-bytes";
 import stringWidth from "string-width";
 
-import type { HaloProfile } from "../types.js";
+import type { HaloProfile, ListedMomentList, Moment } from "../types.js";
 import type { PluginUpdateInfo } from "./app-store.js";
 
 export function printJson(value: unknown): void {
@@ -147,6 +147,19 @@ function getBackupListWidths(): number[] {
   return [nameWidth, phaseWidth, sizeWidth, filenameWidth, createdAtWidth];
 }
 
+function getMomentListWidths(): number[] {
+  const width = resolveTerminalWidth();
+  const nameWidth = 28;
+  const visibleWidth = 9;
+  const releaseTimeWidth = 17;
+  const approvedWidth = 10;
+  const tagsWidth = Math.min(Math.max(18, Math.floor(width * 0.18)), 24);
+  const reservedWidth =
+    nameWidth + visibleWidth + releaseTimeWidth + approvedWidth + tagsWidth + 10;
+  const contentWidth = Math.min(Math.max(28, width - reservedWidth), 60);
+  return [nameWidth, contentWidth, visibleWidth, tagsWidth, releaseTimeWidth, approvedWidth];
+}
+
 function getDetailTableWidths(): number[] {
   const width = resolveTerminalWidth();
   const fieldWidth = Math.min(Math.max(22, Math.floor(width * 0.28)), 36);
@@ -197,6 +210,23 @@ function formatTimestamp(value: string | undefined): string {
   }
 
   return date.format("YYYY-MM-DD HH:mm");
+}
+
+function stripHtmlTags(value: string | undefined): string {
+  if (!value) {
+    return "";
+  }
+
+  return value
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/p>/gi, "\n")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function flattenValue(prefix: string, value: unknown, rows: Array<Array<string>>): void {
@@ -424,4 +454,44 @@ export function printBackup(backup: Backup, json = false): void {
   }
 
   printDetailObject(backup as unknown as Record<string, unknown>);
+}
+
+export function printMomentList(list: ListedMomentList, json = false): void {
+  if (json) {
+    printJson(list);
+    return;
+  }
+
+  const widths = getMomentListWidths();
+  const rows = list.items.map((item) => [
+    item.moment.metadata.name,
+    truncateDisplayText(stripHtmlTags(item.moment.spec.content.raw), widths[1]!),
+    item.moment.spec.visible ?? "PUBLIC",
+    truncateDisplayText((item.moment.spec.tags ?? []).join(", "), widths[3]!),
+    formatTimestamp(item.moment.spec.releaseTime),
+    item.moment.spec.approved ? "approved" : "pending",
+  ]);
+
+  printTable(
+    ["NAME", "CONTENT", "VISIBLE", "TAGS", "RELEASED AT", "APPROVAL"],
+    rows,
+    widths,
+    false,
+  );
+  process.stdout.write(`\n${list.total} moment(s)\n`);
+}
+
+export function printMoment(moment: Moment, json = false): void {
+  if (json) {
+    printJson(moment);
+    return;
+  }
+
+  printDetailObject({
+    ...moment,
+    spec: {
+      ...moment.spec,
+      contentPreview: stripHtmlTags(moment.spec.content.raw),
+    },
+  } as Record<string, unknown>);
 }

@@ -4,6 +4,7 @@ import packageJson from "../package.json";
 import { registerAttachmentCommands, tryRunAttachmentCommand } from "./commands/attachment.js";
 import { registerAuthCommands, tryRunAuthCommand } from "./commands/auth.js";
 import { registerBackupCommands, tryRunBackupCommand } from "./commands/backup.js";
+import { registerMomentCommands, tryRunMomentCommand } from "./commands/moment.js";
 import { registerPluginCommands, tryRunPluginCommand } from "./commands/plugin.js";
 import { registerPostCommands, tryRunPostCommand } from "./commands/post.js";
 import { formatError } from "./utils/errors.js";
@@ -17,6 +18,7 @@ registerPostCommands(cli);
 registerPluginCommands(cli);
 registerAttachmentCommands(cli);
 registerBackupCommands(cli);
+registerMomentCommands(cli);
 
 cli.help();
 cli.version(packageJson.version);
@@ -46,6 +48,10 @@ async function main(): Promise<void> {
   }
 
   if (await tryRunBackupCommand(args, runtime)) {
+    return;
+  }
+
+  if (await tryRunMomentCommand(args, runtime)) {
     return;
   }
 
