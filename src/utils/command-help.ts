@@ -56,7 +56,9 @@ export function printCommandHelp(options: CommandHelpOptions): void {
   }
 
   if (options.inheritedFlags?.length !== 0) {
-    const inheritedFlags = options.inheritedFlags ?? [{ name: "--help", description: "Show help for command" }];
+    const inheritedFlags = options.inheritedFlags ?? [
+      { name: "--help", description: "Show help for command" },
+    ];
     writeSectionTitle("INHERITED FLAGS");
     const width = Math.max(...inheritedFlags.map((flag) => flag.name.length), 0) + 2;
 

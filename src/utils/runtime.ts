@@ -1,16 +1,16 @@
 import { readFile } from "node:fs/promises";
 import { basename } from "node:path";
 
-import axios, { type AxiosInstance } from "axios";
 import {
   createConsoleApiClient,
   createCoreApiClient,
   type DetailedUser,
 } from "@halo-dev/api-client";
+import axios, { type AxiosInstance } from "axios";
 
 import type { CommandOptions, HaloProfile } from "../types.js";
-import { CliError } from "./errors.js";
 import { ConfigStore } from "./config-store.js";
+import { CliError } from "./errors.js";
 
 export interface HaloClients {
   axios: AxiosInstance;
@@ -28,7 +28,9 @@ export function normalizeBaseUrl(baseUrl: string): string {
 
 export function buildAuthHeader(profile: HaloProfile): string {
   if (profile.auth.type === "basic") {
-    const token = Buffer.from(`${profile.auth.username}:${profile.auth.password}`, "utf8").toString("base64");
+    const token = Buffer.from(`${profile.auth.username}:${profile.auth.password}`, "utf8").toString(
+      "base64",
+    );
     return `Basic ${token}`;
   }
 
@@ -74,7 +76,9 @@ export class RuntimeContext {
     };
   }
 
-  async getClientsForOptions(options?: CommandOptions): Promise<{ profile: HaloProfile; clients: HaloClients }> {
+  async getClientsForOptions(
+    options?: CommandOptions,
+  ): Promise<{ profile: HaloProfile; clients: HaloClients }> {
     const profile = await this.getProfile(options);
     return {
       profile,

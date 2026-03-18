@@ -90,178 +90,188 @@ export function registerPostCommands(cli: CAC, runtime: RuntimeContext): void {
     .option("--allow-comment <true|false>", "Whether comments are allowed")
     .option("--priority <number>", "Post priority")
     .option("--force", "Delete without confirmation")
-    .action(async (action: string | undefined, name: string | undefined, options: PostCommandOptions) => {
-      if (!action) {
-        printCommandHelp({
-          summary: "Work with Halo posts.",
-          usage: "halo post <command> [flags]",
-          sections: [
-            {
-              title: "COMMANDS",
-              commands: [
-                { name: "list", description: "List posts" },
-                { name: "get", description: "Show post details" },
-                { name: "open", description: "Open a post in the browser" },
-                { name: "create", description: "Create a new post" },
-                { name: "update", description: "Update an existing post" },
-                { name: "delete", description: "Delete a post" },
-              ],
-            },
-          ],
-          flags: [
-            { name: "--profile <name>", description: "Halo profile name" },
-            { name: "--json", description: "Output JSON" },
-          ],
-          examples: [
-            "halo post list",
-            "halo post get <name>",
-            "halo post open <name>",
-            'halo post create --title "Hello Halo" --content "# Hello"',
-          ],
-          learnMore: [
-            "Use `halo post <subcommand> --help` for more information about a command.",
-          ],
-        });
-        return;
-      }
-
-      const { profile, clients } = await runtime.getClientsForOptions(options);
-
-      if (action === "list") {
-        const response = await clients.console.content.post.listPosts({
-          page: parseNumberOption(options.page),
-          size: parseNumberOption(options.size),
-          keyword: options.keyword,
-          publishPhase: options.publishPhase as never,
-          categoryWithChildren: options.category,
-        });
-
-        printPostList(response.data, options.json);
-        return;
-      }
-
-      if (action === "get") {
-        if (!name) {
-          throw new CliError("`halo post get` requires a post name.");
+    .action(
+      async (action: string | undefined, name: string | undefined, options: PostCommandOptions) => {
+        if (!action) {
+          printCommandHelp({
+            summary: "Work with Halo posts.",
+            usage: "halo post <command> [flags]",
+            sections: [
+              {
+                title: "COMMANDS",
+                commands: [
+                  { name: "list", description: "List posts" },
+                  { name: "get", description: "Show post details" },
+                  { name: "open", description: "Open a post in the browser" },
+                  { name: "create", description: "Create a new post" },
+                  { name: "update", description: "Update an existing post" },
+                  { name: "delete", description: "Delete a post" },
+                ],
+              },
+            ],
+            flags: [
+              { name: "--profile <name>", description: "Halo profile name" },
+              { name: "--json", description: "Output JSON" },
+            ],
+            examples: [
+              "halo post list",
+              "halo post get <name>",
+              "halo post open <name>",
+              'halo post create --title "Hello Halo" --content "# Hello"',
+            ],
+            learnMore: [
+              "Use `halo post <subcommand> --help` for more information about a command.",
+            ],
+          });
+          return;
         }
 
-        const [postResponse, contentResponse] = await Promise.all([
-          clients.core.content.post.getPost({ name }),
-          clients.console.content.post.fetchPostHeadContent({ name }),
-        ]);
+        const { profile, clients } = await runtime.getClientsForOptions(options);
 
-        if (options.json) {
-          printJson({
+        if (action === "list") {
+          const response = await clients.console.content.post.listPosts({
+            page: parseNumberOption(options.page),
+            size: parseNumberOption(options.size),
+            keyword: options.keyword,
+            publishPhase: options.publishPhase as never,
+            categoryWithChildren: options.category,
+          });
+
+          printPostList(response.data, options.json);
+          return;
+        }
+
+        if (action === "get") {
+          if (!name) {
+            throw new CliError("`halo post get` requires a post name.");
+          }
+
+          const [postResponse, contentResponse] = await Promise.all([
+            clients.core.content.post.getPost({ name }),
+            clients.console.content.post.fetchPostHeadContent({ name }),
+          ]);
+
+          if (options.json) {
+            printJson({
+              post: postResponse.data,
+              content: contentResponse.data,
+            });
+            return;
+          }
+
+          printDetailObject({
             post: postResponse.data,
             content: contentResponse.data,
           });
           return;
         }
 
-        printDetailObject({
-          post: postResponse.data,
-          content: contentResponse.data,
-        });
-        return;
-      }
+        if (action === "open") {
+          if (!name) {
+            throw new CliError("`halo post open` requires a post name.");
+          }
 
-      if (action === "open") {
-        if (!name) {
-          throw new CliError("`halo post open` requires a post name.");
-        }
+          const response = await clients.core.content.post.getPost({ name });
+          const permalink = response.data.status?.permalink;
 
-        const response = await clients.core.content.post.getPost({ name });
-        const permalink = response.data.status?.permalink;
+          if (!permalink) {
+            throw new CliError("This post does not have a permalink yet. It may not be published.");
+          }
 
-        if (!permalink) {
-          throw new CliError("This post does not have a permalink yet. It may not be published.");
-        }
+          const url = resolvePostOpenUrl(profile.baseUrl, permalink);
 
-        const url = resolvePostOpenUrl(profile.baseUrl, permalink);
+          if (options.json) {
+            printJson({ name, url });
+            return;
+          }
 
-        if (options.json) {
-          printJson({ name, url });
+          await openUrlInBrowser(url);
+          process.stdout.write(`Opened ${url}\n`);
           return;
         }
 
-        await openUrlInBrowser(url);
-        process.stdout.write(`Opened ${url}\n`);
-        return;
-      }
+        if (action === "create") {
+          const postRequest = await normalizeCreatePostInput(toMutationInput(options));
 
-      if (action === "create") {
-        const postRequest = await normalizeCreatePostInput(toMutationInput(options));
+          const createResponse = await clients.core.content.post.createPost({
+            post: postRequest.post,
+          });
 
-        const createResponse = await clients.core.content.post.createPost({
-          post: postRequest.post,
-        });
+          const updateResponse = await clients.console.content.post.updateDraftPost({
+            name: createResponse.data.metadata.name,
+            postRequest: {
+              post: createResponse.data,
+              content: postRequest.content,
+            },
+          });
 
-        const updateResponse = await clients.console.content.post.updateDraftPost({
-          name: createResponse.data.metadata.name,
-          postRequest: {
-            post: createResponse.data,
-            content: postRequest.content,
-          },
-        });
+          if (options.json) {
+            printJson(updateResponse.data);
+            return;
+          }
 
-        if (options.json) {
-          printJson(updateResponse.data);
+          process.stdout.write(`Created post ${updateResponse.data.metadata.name}.\n`);
           return;
         }
 
-        process.stdout.write(`Created post ${updateResponse.data.metadata.name}.\n`);
-        return;
-      }
+        if (action === "update") {
+          if (!name) {
+            throw new CliError("`halo post update` requires a post name.");
+          }
 
-      if (action === "update") {
-        if (!name) {
-          throw new CliError("`halo post update` requires a post name.");
-        }
+          const [currentPost, currentContent] = await Promise.all([
+            clients.core.content.post.getPost({ name }),
+            clients.console.content.post.fetchPostHeadContent({ name }),
+          ]);
 
-        const [currentPost, currentContent] = await Promise.all([
-          clients.core.content.post.getPost({ name }),
-          clients.console.content.post.fetchPostHeadContent({ name }),
-        ]);
+          const postRequest = await normalizeUpdatePostInput(
+            currentPost.data,
+            currentContent.data,
+            {
+              ...toMutationInput(options),
+              name: options.newName,
+            },
+          );
 
-        const postRequest = await normalizeUpdatePostInput(currentPost.data, currentContent.data, {
-          ...toMutationInput(options),
-          name: options.newName,
-        });
+          const response = await clients.console.content.post.updateDraftPost({
+            name,
+            postRequest,
+          });
 
-        const response = await clients.console.content.post.updateDraftPost({
-          name,
-          postRequest,
-        });
+          if (options.json) {
+            printJson(response.data);
+            return;
+          }
 
-        if (options.json) {
-          printJson(response.data);
+          process.stdout.write(`Updated post ${response.data.metadata.name}.\n`);
           return;
         }
 
-        process.stdout.write(`Updated post ${response.data.metadata.name}.\n`);
-        return;
-      }
+        if (action === "delete") {
+          if (!name) {
+            throw new CliError("`halo post delete` requires a post name.");
+          }
 
-      if (action === "delete") {
-        if (!name) {
-          throw new CliError("`halo post delete` requires a post name.");
-        }
+          if (!options.force && process.stdin.isTTY) {
+            throw new CliError(
+              "`halo post delete` requires --force in this MVP to avoid accidental deletion.",
+            );
+          }
 
-        if (!options.force && process.stdin.isTTY) {
-          throw new CliError("`halo post delete` requires --force in this MVP to avoid accidental deletion.");
-        }
+          await clients.core.content.post.deletePost({ name });
 
-        await clients.core.content.post.deletePost({ name });
+          if (options.json) {
+            printJson({ deleted: true, name });
+            return;
+          }
 
-        if (options.json) {
-          printJson({ deleted: true, name });
+          process.stdout.write(`Deleted post ${name}.\n`);
           return;
         }
 
-        process.stdout.write(`Deleted post ${name}.\n`);
-        return;
-      }
-
-      throw new CliError(`Unsupported post action: ${action}. Supported actions: list, get, open, create, update, delete.`);
-    });
+        throw new CliError(
+          `Unsupported post action: ${action}. Supported actions: list, get, open, create, update, delete.`,
+        );
+      },
+    );
 }

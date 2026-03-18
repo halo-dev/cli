@@ -2,35 +2,34 @@
   "name": "@halo-dev/cli",
   "version": "1.0.0",
   "description": "CLI for managing Halo instances.",
-  "type": "module",
+  "keywords": [
+    "cli",
+    "cms",
+    "halo"
+  ],
+  "license": "ISC",
+  "author": "",
   "bin": {
     "halo": "dist/cli.mjs"
   },
-  "main": "./dist/cli.mjs",
-  "types": "./dist/cli.d.mts",
   "files": [
     "dist"
   ],
+  "type": "module",
+  "types": "./dist/cli.d.mts",
   "publishConfig": {
     "access": "public"
   },
   "scripts": {
-    "build": "tsdown",
+    "prepare": "vp config",
+    "build": "vp pack",
     "dev": "tsx src/cli.ts",
+    "test": "vp test",
     "typecheck": "tsc --noEmit",
-    "test": "tsx --test test/*.test.ts"
+    "check": "vp check --fix",
+    "fmt": "vp fmt",
+    "lint": "vp lint"
   },
-  "keywords": [
-    "halo",
-    "cli",
-    "cms"
-  ],
-  "author": "",
-  "license": "ISC",
-  "engines": {
-    "node": ">=20.0.0"
-  },
-  "packageManager": "pnpm@10.32.1",
   "dependencies": {
     "@halo-dev/api-client": "^2.23.0",
     "@inquirer/prompts": "^8.3.2",
@@ -44,8 +43,13 @@
   "devDependencies": {
     "@types/node": "^24.12.0",
     "@types/semver": "^7.7.1",
-    "tsdown": "^0.21.4",
     "tsx": "^4.21.0",
-    "typescript": "^5.9.3"
-  }
+    "typescript": "^5.9.3",
+    "vite-plus": "catalog:",
+    "vitest": "catalog:"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "packageManager": "pnpm@10.32.1"
 }

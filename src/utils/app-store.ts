@@ -1,5 +1,5 @@
-import axios, { type AxiosInstance } from "axios";
 import type { Plugin } from "@halo-dev/api-client";
+import axios, { type AxiosInstance } from "axios";
 import semver from "semver";
 
 import { CliError } from "./errors.js";
@@ -82,7 +82,9 @@ export type PluginUpgradeSource =
   | { kind: "file"; file: string }
   | { kind: "online" };
 
-export function resolvePluginUpgradeSource(options: PluginUpgradeSourceOptions): PluginUpgradeSource {
+export function resolvePluginUpgradeSource(
+  options: PluginUpgradeSourceOptions,
+): PluginUpgradeSource {
   const url = options.url?.trim() || options.uri?.trim();
   const file = options.file?.trim();
   const online = Boolean(options.online);
@@ -175,7 +177,9 @@ export function resolvePluginUpdateInfo(
   };
 }
 
-export async function getHaloSystemInfo(clients: HaloClients): Promise<HaloActuatorInfo | undefined> {
+export async function getHaloSystemInfo(
+  clients: HaloClients,
+): Promise<HaloActuatorInfo | undefined> {
   try {
     const response = await clients.axios.get<HaloActuatorInfo>("/actuator/info");
     return response.data;
@@ -184,7 +188,9 @@ export async function getHaloSystemInfo(clients: HaloClients): Promise<HaloActua
   }
 }
 
-export async function getHaloProAuthorizationToken(clients: HaloClients): Promise<string | undefined> {
+export async function getHaloProAuthorizationToken(
+  clients: HaloClients,
+): Promise<string | undefined> {
   try {
     const info = await getHaloSystemInfo(clients);
     if (info?.build?.name !== "halo-pro") {
@@ -195,7 +201,8 @@ export async function getHaloProAuthorizationToken(clients: HaloClients): Promis
       "/apis/console.api.license.pro.halo.run/v1alpha1/activations",
     );
 
-    const activationCode = activationResponse.data.find((item) => item.status?.state === "active")?.status?.activationCode;
+    const activationCode = activationResponse.data.find((item) => item.status?.state === "active")
+      ?.status?.activationCode;
     if (!activationCode) {
       return undefined;
     }
@@ -266,7 +273,13 @@ export async function resolvePluginUpdates(
   clients: HaloClients,
   plugins: Plugin[],
 ): Promise<Map<string, PluginUpdateInfo>> {
-  const appIds = [...new Set(plugins.map((plugin) => plugin.metadata.annotations?.[STORE_APP_ID_ANNOTATION]).filter(Boolean))];
+  const appIds = [
+    ...new Set(
+      plugins
+        .map((plugin) => plugin.metadata.annotations?.[STORE_APP_ID_ANNOTATION])
+        .filter(Boolean),
+    ),
+  ];
   if (appIds.length === 0) {
     return new Map();
   }
@@ -306,7 +319,12 @@ export async function resolvePluginUpdates(
 
       const latestVersion = app.latestRelease?.spec?.version;
       const requires = app.latestRelease?.spec?.requires;
-      const update = resolvePluginUpdateInfo(plugin.spec.version, latestVersion, haloVersion, requires);
+      const update = resolvePluginUpdateInfo(
+        plugin.spec.version,
+        latestVersion,
+        haloVersion,
+        requires,
+      );
 
       if (update) {
         updates.set(plugin.metadata.name, update);

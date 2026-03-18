@@ -31,7 +31,10 @@ export function resolvePostOpenUrl(baseUrl: string, permalink: string): string {
   return new URL(normalizedPermalink, `${normalizedBaseUrl}/`).toString();
 }
 
-export function getBrowserOpenCommand(url: string, platform = process.platform): BrowserOpenCommand {
+export function getBrowserOpenCommand(
+  url: string,
+  platform = process.platform,
+): BrowserOpenCommand {
   if (platform === "darwin") {
     return { command: "open", args: [url] };
   }

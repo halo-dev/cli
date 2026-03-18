@@ -1,5 +1,4 @@
-import test from "node:test";
-import assert from "node:assert/strict";
+import { expect, test } from "vitest";
 
 import { normalizeCreatePostInput, normalizeUpdatePostInput } from "../src/utils/post-input.js";
 
@@ -18,13 +17,13 @@ test("normalizeCreatePostInput builds a complete PostRequest", async () => {
     tags: ["intro"],
   });
 
-  assert.equal(request.post.metadata.name, "hello-world");
-  assert.equal(request.post.spec.title, "Hello World");
-  assert.equal(request.post.spec.slug, "hello-world");
-  assert.equal(request.post.spec.publish, true);
-  assert.equal(request.post.spec.excerpt.autoGenerate, false);
-  assert.equal(request.content.raw, "# Hello World");
-  assert.equal(request.content.rawType, "markdown");
+  expect(request.post.metadata.name).toBe("hello-world");
+  expect(request.post.spec.title).toBe("Hello World");
+  expect(request.post.spec.slug).toBe("hello-world");
+  expect(request.post.spec.publish).toBe(true);
+  expect(request.post.spec.excerpt.autoGenerate).toBe(false);
+  expect(request.content.raw).toBe("# Hello World");
+  expect(request.content.rawType).toBe("markdown");
 });
 
 test("normalizeUpdatePostInput merges provided fields over current remote state", async () => {
@@ -58,8 +57,8 @@ test("normalizeUpdatePostInput merges provided fields over current remote state"
     },
   );
 
-  assert.equal(request.post.spec.title, "Updated Title");
-  assert.equal(request.post.spec.publish, true);
-  assert.equal(request.post.spec.pinned, true);
-  assert.equal(request.content.raw, "new content");
+  expect(request.post.spec.title).toBe("Updated Title");
+  expect(request.post.spec.publish).toBe(true);
+  expect(request.post.spec.pinned).toBe(true);
+  expect(request.content.raw).toBe("new content");
 });

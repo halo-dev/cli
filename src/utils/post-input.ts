@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 
-import { confirm, input } from "@inquirer/prompts";
 import type { ContentWrapper, Post, PostRequest } from "@halo-dev/api-client";
+import { confirm, input } from "@inquirer/prompts";
 
 import type { PostMutationInput } from "../types.js";
 import { CliError } from "./errors.js";
@@ -64,14 +64,19 @@ export function parseCsvOption(value: unknown): string[] | undefined {
 }
 
 export function slugify(value: string): string {
-  return value
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "") || "post";
+  return (
+    value
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "") || "post"
+  );
 }
 
-async function resolveContent(inputValue?: string, contentFile?: string): Promise<string | undefined> {
+async function resolveContent(
+  inputValue?: string,
+  contentFile?: string,
+): Promise<string | undefined> {
   if (contentFile) {
     return readFile(contentFile, "utf8");
   }
@@ -79,7 +84,11 @@ async function resolveContent(inputValue?: string, contentFile?: string): Promis
   return inputValue;
 }
 
-async function promptForMissing(inputState: PostMutationInput, mode: "create" | "update", current?: { post: Post; content?: ContentWrapper }): Promise<PostMutationInput> {
+async function promptForMissing(
+  inputState: PostMutationInput,
+  mode: "create" | "update",
+  current?: { post: Post; content?: ContentWrapper },
+): Promise<PostMutationInput> {
   if (!isInteractive()) {
     return inputState;
   }
@@ -145,7 +154,9 @@ async function promptForMissing(inputState: PostMutationInput, mode: "create" | 
   return result;
 }
 
-export async function normalizeCreatePostInput(inputState: PostMutationInput): Promise<PostRequest> {
+export async function normalizeCreatePostInput(
+  inputState: PostMutationInput,
+): Promise<PostRequest> {
   const prompted = await promptForMissing(inputState, "create");
   const title = prompted.title?.trim();
   const slug = prompted.slug?.trim();
@@ -153,7 +164,9 @@ export async function normalizeCreatePostInput(inputState: PostMutationInput): P
   const raw = (await resolveContent(prompted.content, prompted.contentFile))?.trim();
 
   if (!title || !slug || !name || !raw) {
-    throw new CliError("`halo post create` requires title, slug/name, and content. Use flags or run it interactively.");
+    throw new CliError(
+      "`halo post create` requires title, slug/name, and content. Use flags or run it interactively.",
+    );
   }
 
   return {
@@ -225,7 +238,8 @@ export async function normalizeUpdatePostInput(
         tags: prompted.tags ?? currentPost.spec.tags,
         template: prompted.template ?? currentPost.spec.template,
         title: prompted.title?.trim() ?? currentPost.spec.title,
-        visible: (prompted.visible?.toUpperCase() as Post["spec"]["visible"]) ?? currentPost.spec.visible,
+        visible:
+          (prompted.visible?.toUpperCase() as Post["spec"]["visible"]) ?? currentPost.spec.visible,
       },
     },
     content: {

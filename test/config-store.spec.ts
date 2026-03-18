@@ -1,11 +1,11 @@
-import test from "node:test";
-import assert from "node:assert/strict";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { ConfigStore } from "../src/utils/config-store.js";
+import { expect, test } from "vitest";
+
 import type { HaloProfile } from "../src/types.js";
+import { ConfigStore } from "../src/utils/config-store.js";
 
 async function withTempStore(run: (store: ConfigStore) => Promise<void>): Promise<void> {
   const root = await mkdtemp(join(tmpdir(), "halo-cli-test-"));
@@ -36,11 +36,11 @@ test("ConfigStore persists profiles and active profile", async () => {
     await store.upsertProfile(createProfile("default"), true);
 
     const loaded = await store.load();
-    assert.equal(loaded.activeProfile, "default");
-    assert.equal(loaded.profiles.default?.baseUrl, "https://demo.halo.run");
+    expect(loaded.activeProfile).toBe("default");
+    expect(loaded.profiles.default?.baseUrl).toBe("https://demo.halo.run");
 
     const active = await store.getActiveProfile();
-    assert.equal(active.name, "default");
+    expect(active.name).toBe("default");
   });
 });
 
@@ -50,7 +50,7 @@ test("ConfigStore resolves explicit profiles without using active profile", asyn
     await store.upsertProfile(createProfile("staging"), false);
 
     const active = await store.getActiveProfile("staging");
-    assert.equal(active.name, "staging");
+    expect(active.name).toBe("staging");
   });
 });
 
@@ -60,10 +60,10 @@ test("ConfigStore lists profiles and marks the active profile", async () => {
     await store.upsertProfile(createProfile("staging"), false);
 
     const result = await store.listProfiles();
-    assert.equal(result.activeProfile, "prod");
+    expect(result.activeProfile).toBe("prod");
     const names = result.profiles.map((profile) => profile.name);
-    assert.ok(names.includes("prod"));
-    assert.ok(names.includes("staging"));
+    expect(names).toContain("prod");
+    expect(names).toContain("staging");
   });
 });
 
@@ -73,9 +73,9 @@ test("ConfigStore switches the active profile", async () => {
     await store.upsertProfile(createProfile("staging"), false);
 
     const profile = await store.setActiveProfile("staging");
-    assert.equal(profile.name, "staging");
+    expect(profile.name).toBe("staging");
 
     const result = await store.listProfiles();
-    assert.equal(result.activeProfile, "staging");
+    expect(result.activeProfile).toBe("staging");
   });
 });

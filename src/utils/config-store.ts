@@ -69,7 +69,9 @@ export class ConfigStore {
 
   async listProfiles(): Promise<{ activeProfile?: string; profiles: HaloProfile[] }> {
     const config = await this.load();
-    const profiles = Object.values(config.profiles).sort((left, right) => left.name.localeCompare(right.name));
+    const profiles = Object.values(config.profiles).sort((left, right) =>
+      left.name.localeCompare(right.name),
+    );
 
     return {
       activeProfile: config.activeProfile,
@@ -82,7 +84,7 @@ export class ConfigStore {
     const profile = config.profiles[name];
 
     if (!profile) {
-      throw new CliError(`Halo profile \"${name}\" does not exist.`);
+      throw new CliError(`Halo profile "${name}" does not exist.`);
     }
 
     config.activeProfile = name;
@@ -100,14 +102,17 @@ export class ConfigStore {
 
     const profile = config.profiles[profileName];
     if (!profile) {
-      throw new CliError(`Halo profile \"${profileName}\" does not exist.`);
+      throw new CliError(`Halo profile "${profileName}" does not exist.`);
     }
 
     return profile;
   }
 }
 
-export function createProfileTimestamp(existing?: HaloProfile): { createdAt: string; updatedAt: string } {
+export function createProfileTimestamp(existing?: HaloProfile): {
+  createdAt: string;
+  updatedAt: string;
+} {
   const now = new Date().toISOString();
   return {
     createdAt: existing?.createdAt ?? now,

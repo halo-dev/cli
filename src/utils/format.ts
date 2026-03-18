@@ -1,9 +1,9 @@
-import Table from "cli-table3";
 import type { DetailedUser, ListedPostList, Plugin, PluginList } from "@halo-dev/api-client";
+import Table from "cli-table3";
 import stringWidth from "string-width";
 
-import type { PluginUpdateInfo } from "./app-store.js";
 import type { HaloProfile } from "../types.js";
+import type { PluginUpdateInfo } from "./app-store.js";
 
 export function printJson(value: unknown): void {
   process.stdout.write(`${JSON.stringify(value, null, 2)}\n`);
@@ -17,7 +17,12 @@ function normalizeCell(value: string | undefined): string {
   return value ?? "";
 }
 
-function printTable(headers: string[], rows: Array<Array<string>>, colWidths?: number[], truncate = true): void {
+function printTable(
+  headers: string[],
+  rows: Array<Array<string>>,
+  colWidths?: number[],
+  truncate = true,
+): void {
   const table = new Table({
     head: headers,
     colWidths,
@@ -27,8 +32,8 @@ function printTable(headers: string[], rows: Array<Array<string>>, colWidths?: n
       compact: true,
       head: [],
       border: [],
-      'padding-left': 0,
-      'padding-right': 0,
+      "padding-left": 0,
+      "padding-right": 0,
     },
     wordWrap: false,
     chars: {
@@ -133,7 +138,11 @@ function formatLeafValue(value: unknown): string {
   }
 
   if (Array.isArray(value)) {
-    if (value.every((item) => item == null || ["string", "number", "boolean", "bigint"].includes(typeof item))) {
+    if (
+      value.every(
+        (item) => item == null || ["string", "number", "boolean", "bigint"].includes(typeof item),
+      )
+    ) {
       return value.map((item) => formatLeafValue(item)).join(", ");
     }
 
@@ -187,7 +196,11 @@ export function printDetailObject(value: Record<string, unknown>): void {
   printTable(["FIELD", "VALUE"], rows, getDetailTableWidths());
 }
 
-export function printAuthLoginSuccess(profile: HaloProfile, user: DetailedUser, json = false): void {
+export function printAuthLoginSuccess(
+  profile: HaloProfile,
+  user: DetailedUser,
+  json = false,
+): void {
   if (json) {
     printJson({
       profile: profile.name,
@@ -197,10 +210,16 @@ export function printAuthLoginSuccess(profile: HaloProfile, user: DetailedUser, 
     return;
   }
 
-  process.stdout.write(`Logged in to ${profile.baseUrl} as ${user.user.spec.displayName ?? user.user.metadata.name} using profile ${profile.name}.\n`);
+  process.stdout.write(
+    `Logged in to ${profile.baseUrl} as ${user.user.spec.displayName ?? user.user.metadata.name} using profile ${profile.name}.\n`,
+  );
 }
 
-export function printProfileList(activeProfile: string | undefined, profiles: HaloProfile[], json = false): void {
+export function printProfileList(
+  activeProfile: string | undefined,
+  profiles: HaloProfile[],
+  json = false,
+): void {
   if (json) {
     printJson({ activeProfile, profiles });
     return;
@@ -261,7 +280,11 @@ export function printPostList(list: ListedPostList, json = false): void {
   process.stdout.write(`\n${list.total} post(s)\n`);
 }
 
-export function printPluginList(list: PluginList, json = false, updates?: Map<string, PluginUpdateInfo>): void {
+export function printPluginList(
+  list: PluginList,
+  json = false,
+  updates?: Map<string, PluginUpdateInfo>,
+): void {
   if (json) {
     printJson(list);
     return;
@@ -271,7 +294,11 @@ export function printPluginList(list: PluginList, json = false, updates?: Map<st
 
   const rows = list.items.map((item) => {
     const update = updates?.get(item.metadata.name);
-    const updateText = update ? (update.compatible ? update.latestVersion : `${update.latestVersion} !compat`) : "";
+    const updateText = update
+      ? update.compatible
+        ? update.latestVersion
+        : `${update.latestVersion} !compat`
+      : "";
 
     return [
       item.metadata.name,

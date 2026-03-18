@@ -1,8 +1,7 @@
-import test from "node:test";
-import assert from "node:assert/strict";
+import { expect, test } from "vitest";
 
-import { buildAuthHeader, normalizeBaseUrl } from "../src/utils/runtime.js";
 import type { HaloProfile } from "../src/types.js";
+import { buildAuthHeader, normalizeBaseUrl } from "../src/utils/runtime.js";
 
 test("buildAuthHeader returns Basic authorization header", () => {
   const profile: HaloProfile = {
@@ -17,7 +16,7 @@ test("buildAuthHeader returns Basic authorization header", () => {
     updatedAt: "2026-03-18T00:00:00.000Z",
   };
 
-  assert.equal(buildAuthHeader(profile), `Basic ${Buffer.from("admin:secret").toString("base64")}`);
+  expect(buildAuthHeader(profile)).toBe(`Basic ${Buffer.from("admin:secret").toString("base64")}`);
 });
 
 test("buildAuthHeader returns Bearer authorization header", () => {
@@ -32,9 +31,9 @@ test("buildAuthHeader returns Bearer authorization header", () => {
     updatedAt: "2026-03-18T00:00:00.000Z",
   };
 
-  assert.equal(buildAuthHeader(profile), "Bearer personal-access-token");
+  expect(buildAuthHeader(profile)).toBe("Bearer personal-access-token");
 });
 
 test("normalizeBaseUrl trims trailing slashes", () => {
-  assert.equal(normalizeBaseUrl("https://demo.halo.run///"), "https://demo.halo.run");
+  expect(normalizeBaseUrl("https://demo.halo.run///")).toBe("https://demo.halo.run");
 });

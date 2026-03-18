@@ -12,8 +12,8 @@ import {
   printProfileList,
   printProfileUseSuccess,
 } from "../utils/format.js";
-import { normalizeBaseUrl, RuntimeContext } from "../utils/runtime.js";
 import { isInteractive } from "../utils/post-input.js";
+import { normalizeBaseUrl, RuntimeContext } from "../utils/runtime.js";
 
 interface AuthLoginOptions {
   profile?: string;
@@ -25,23 +25,38 @@ interface AuthLoginOptions {
   json?: boolean;
 }
 
-async function resolveLoginInput(options: AuthLoginOptions): Promise<Required<Pick<AuthLoginOptions, "profile" | "url" | "authType">> & AuthLoginOptions> {
+async function resolveLoginInput(
+  options: AuthLoginOptions,
+): Promise<Required<Pick<AuthLoginOptions, "profile" | "url" | "authType">> & AuthLoginOptions> {
   const interactive = isInteractive();
 
-  const profile = options.profile ?? (interactive ? await input({ message: "Profile name", default: "default" }) : undefined);
-  const url = options.url ?? (interactive ? await input({ message: "Halo base URL", validate: (value) => (value.trim().length > 0 ? true : "Base URL is required.") }) : undefined);
-  const authType = options.authType ?? (interactive
-    ? ((await select({
-        message: "Authentication type",
-        choices: [
-          { name: "Basic Auth", value: "basic" },
-          { name: "Bearer token", value: "bearer" },
-        ],
-      })) as AuthType)
-    : undefined);
+  const profile =
+    options.profile ??
+    (interactive ? await input({ message: "Profile name", default: "default" }) : undefined);
+  const url =
+    options.url ??
+    (interactive
+      ? await input({
+          message: "Halo base URL",
+          validate: (value) => (value.trim().length > 0 ? true : "Base URL is required."),
+        })
+      : undefined);
+  const authType =
+    options.authType ??
+    (interactive
+      ? ((await select({
+          message: "Authentication type",
+          choices: [
+            { name: "Basic Auth", value: "basic" },
+            { name: "Bearer token", value: "bearer" },
+          ],
+        })) as AuthType)
+      : undefined);
 
   if (!profile || !url || !authType) {
-    throw new CliError("`halo auth login` requires --profile, --url, and --auth-type in non-interactive mode.");
+    throw new CliError(
+      "`halo auth login` requires --profile, --url, and --auth-type in non-interactive mode.",
+    );
   }
 
   let username = options.username;
@@ -88,136 +103,146 @@ export function registerAuthCommands(cli: CAC, runtime: RuntimeContext): void {
     .option("--password <password>", "Basic Auth password")
     .option("--token <token>", "Bearer personal access token")
     .option("--json", "Output JSON")
-    .action(async (action: string | undefined, name: string | undefined, target: string | undefined, options: AuthLoginOptions) => {
-      if (!action) {
-        printCommandHelp({
-          summary: "Manage Halo authentication and profiles.",
-          usage: "halo auth <command> [flags]",
-          sections: [
-            {
-              title: "COMMANDS",
-              commands: [
-                { name: "login", description: "Log in and save a profile" },
-                { name: "current", description: "Show the current profile" },
-                { name: "profile", description: "Manage saved profiles" },
-              ],
-            },
-          ],
-          flags: [
-            { name: "--profile <name>", description: "Profile name to use or save" },
-            { name: "--json", description: "Output JSON" },
-          ],
-          examples: [
-            "halo auth login --profile local --url http://127.0.0.1:8090 --auth-type bearer --token <token>",
-            "halo auth current",
-            "halo auth profile list",
-            "halo auth profile use local",
-          ],
-          learnMore: [
-            "Use `halo auth <subcommand> --help` for more information about a command.",
-          ],
-        });
-        return;
-      }
-
-      if (action === "login") {
-        const resolved = await resolveLoginInput(options);
-        const existing = await runtime.configStore.getProfile(resolved.profile);
-        const timestamps = createProfileTimestamp(existing);
-        const profile: HaloProfile = {
-          name: resolved.profile,
-          baseUrl: normalizeBaseUrl(resolved.url),
-          auth: resolved.authType === "basic"
-            ? {
-                type: "basic",
-                username: resolved.username!,
-                password: resolved.password!,
-              }
-            : {
-                type: "bearer",
-                token: resolved.token!,
-              },
-          ...timestamps,
-        };
-
-        const user = await runtime.validateProfile(profile);
-        await runtime.configStore.upsertProfile(profile, true);
-
-        if (options.json) {
-          printJson({
-            profile,
-            user,
-          });
-          return;
-        }
-
-        printAuthLoginSuccess(profile, user, false);
-        return;
-      }
-
-      if (action === "profile") {
-        if (!name) {
+    .action(
+      async (
+        action: string | undefined,
+        name: string | undefined,
+        target: string | undefined,
+        options: AuthLoginOptions,
+      ) => {
+        if (!action) {
           printCommandHelp({
-            summary: "Manage saved Halo profiles.",
-            usage: "halo auth profile <command> [flags]",
+            summary: "Manage Halo authentication and profiles.",
+            usage: "halo auth <command> [flags]",
             sections: [
               {
                 title: "COMMANDS",
                 commands: [
-                  { name: "list", description: "List saved profiles" },
-                  { name: "current", description: "Show the active profile" },
-                  { name: "use", description: "Switch the active profile" },
+                  { name: "login", description: "Log in and save a profile" },
+                  { name: "current", description: "Show the current profile" },
+                  { name: "profile", description: "Manage saved profiles" },
                 ],
               },
             ],
             flags: [
-              { name: "--profile <name>", description: "Profile name used by `use`" },
+              { name: "--profile <name>", description: "Profile name to use or save" },
               { name: "--json", description: "Output JSON" },
             ],
             examples: [
+              "halo auth login --profile local --url http://127.0.0.1:8090 --auth-type bearer --token <token>",
+              "halo auth current",
               "halo auth profile list",
-              "halo auth profile current",
               "halo auth profile use local",
             ],
             learnMore: [
-              "Use `halo auth profile <subcommand> --help` for more information about a command.",
+              "Use `halo auth <subcommand> --help` for more information about a command.",
             ],
           });
           return;
         }
 
-        if (name === "list") {
-          const { activeProfile, profiles } = await runtime.configStore.listProfiles();
-          printProfileList(activeProfile, profiles, options.json);
+        if (action === "login") {
+          const resolved = await resolveLoginInput(options);
+          const existing = await runtime.configStore.getProfile(resolved.profile);
+          const timestamps = createProfileTimestamp(existing);
+          const profile: HaloProfile = {
+            name: resolved.profile,
+            baseUrl: normalizeBaseUrl(resolved.url),
+            auth:
+              resolved.authType === "basic"
+                ? {
+                    type: "basic",
+                    username: resolved.username!,
+                    password: resolved.password!,
+                  }
+                : {
+                    type: "bearer",
+                    token: resolved.token!,
+                  },
+            ...timestamps,
+          };
+
+          const user = await runtime.validateProfile(profile);
+          await runtime.configStore.upsertProfile(profile, true);
+
+          if (options.json) {
+            printJson({
+              profile,
+              user,
+            });
+            return;
+          }
+
+          printAuthLoginSuccess(profile, user, false);
           return;
         }
 
-        if (name === "current") {
-          const profile = await runtime.configStore.getActiveProfile();
+        if (action === "profile") {
+          if (!name) {
+            printCommandHelp({
+              summary: "Manage saved Halo profiles.",
+              usage: "halo auth profile <command> [flags]",
+              sections: [
+                {
+                  title: "COMMANDS",
+                  commands: [
+                    { name: "list", description: "List saved profiles" },
+                    { name: "current", description: "Show the active profile" },
+                    { name: "use", description: "Switch the active profile" },
+                  ],
+                },
+              ],
+              flags: [
+                { name: "--profile <name>", description: "Profile name used by `use`" },
+                { name: "--json", description: "Output JSON" },
+              ],
+              examples: [
+                "halo auth profile list",
+                "halo auth profile current",
+                "halo auth profile use local",
+              ],
+              learnMore: [
+                "Use `halo auth profile <subcommand> --help` for more information about a command.",
+              ],
+            });
+            return;
+          }
+
+          if (name === "list") {
+            const { activeProfile, profiles } = await runtime.configStore.listProfiles();
+            printProfileList(activeProfile, profiles, options.json);
+            return;
+          }
+
+          if (name === "current") {
+            const profile = await runtime.configStore.getActiveProfile();
+            printCurrentProfile(profile, options.json);
+            return;
+          }
+
+          if (name === "use") {
+            const profileName = target ?? options.profile;
+            if (!profileName) {
+              throw new CliError(
+                "`halo auth profile use` requires a profile name, for example: `halo auth profile use local`. You can also use `--profile <name>`.",
+              );
+            }
+
+            const profile = await runtime.configStore.setActiveProfile(profileName);
+            printProfileUseSuccess(profile, options.json);
+            return;
+          }
+
+          throw new CliError("`halo auth profile` supports: list, current, use.");
+        }
+
+        if (action === "current") {
+          const profile = await runtime.configStore.getActiveProfile(options.profile);
           printCurrentProfile(profile, options.json);
           return;
         }
 
-        if (name === "use") {
-          const profileName = target ?? options.profile;
-          if (!profileName) {
-            throw new CliError("`halo auth profile use` requires a profile name, for example: `halo auth profile use local`. You can also use `--profile <name>`.");
-          }
-
-          const profile = await runtime.configStore.setActiveProfile(profileName);
-          printProfileUseSuccess(profile, options.json);
-          return;
-        }
-
-        throw new CliError("`halo auth profile` supports: list, current, use.");
-      }
-
-      if (action === "current") {
-        const profile = await runtime.configStore.getActiveProfile(options.profile);
-        printCurrentProfile(profile, options.json);
-        return;
-      }
-
-      throw new CliError("Unsupported auth action. Supported actions: login, profile, current.");
-    });
+        throw new CliError("Unsupported auth action. Supported actions: login, profile, current.");
+      },
+    );
 }

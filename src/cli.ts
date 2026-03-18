@@ -19,49 +19,43 @@ cli.help();
 cli.version(packageJson.version);
 
 function printRootHelp(): void {
-	printCommandHelp({
-		summary: "Work with Halo instances.",
-		usage: "halo <command> [flags]",
-		sections: [
-			{
-				title: "COMMANDS",
-				commands: [
-					{ name: "auth", description: "Manage authentication and profiles" },
-					{ name: "post", description: "Work with posts" },
-					{ name: "plugin", description: "Work with plugins" },
-				],
-			},
-		],
-		flags: [
-			{ name: "--help", description: "Show help for command" },
-			{ name: "--version", description: "Show version number" },
-		],
-		inheritedFlags: [],
-		examples: [
-			"halo auth login",
-			"halo post list",
-			"halo plugin upgrade <name> --online",
-		],
-		learnMore: [
-			"Use `halo <command> --help` for more information about a command.",
-		],
-	});
+  printCommandHelp({
+    summary: "Work with Halo instances.",
+    usage: "halo <command> [flags]",
+    sections: [
+      {
+        title: "COMMANDS",
+        commands: [
+          { name: "auth", description: "Manage authentication and profiles" },
+          { name: "post", description: "Work with posts" },
+          { name: "plugin", description: "Work with plugins" },
+        ],
+      },
+    ],
+    flags: [
+      { name: "--help", description: "Show help for command" },
+      { name: "--version", description: "Show version number" },
+    ],
+    inheritedFlags: [],
+    examples: ["halo auth login", "halo post list", "halo plugin upgrade <name> --online"],
+    learnMore: ["Use `halo <command> --help` for more information about a command."],
+  });
 }
 
 async function main(): Promise<void> {
-	const args = process.argv.slice(2);
-	if (args.length === 0 || args.every((arg) => arg === "--help" || arg === "-h")) {
-		printRootHelp();
-		return;
-	}
+  const args = process.argv.slice(2);
+  if (args.length === 0 || args.every((arg) => arg === "--help" || arg === "-h")) {
+    printRootHelp();
+    return;
+  }
 
-	cli.parse(process.argv, { run: false });
-	await cli.runMatchedCommand();
+  cli.parse(process.argv, { run: false });
+  await cli.runMatchedCommand();
 }
 
 try {
-	await main();
+  await main();
 } catch (error) {
-	process.stderr.write(`${formatError(error)}\n`);
-	process.exitCode = 1;
+  process.stderr.write(`${formatError(error)}\n`);
+  process.exitCode = 1;
 }
