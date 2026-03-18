@@ -3,10 +3,15 @@ import type {
   AttachmentList,
   Backup,
   BackupList,
+  Comment,
   DetailedUser,
+  ListedCommentList,
   ListedPostList,
+  ListedReply,
+  ListedReplyList,
   Plugin,
   PluginList,
+  Reply,
 } from "@halo-dev/api-client";
 import Table from "cli-table3";
 import dayjs from "dayjs";
@@ -158,6 +163,30 @@ function getMomentListWidths(): number[] {
     nameWidth + visibleWidth + releaseTimeWidth + approvedWidth + tagsWidth + 10;
   const contentWidth = Math.min(Math.max(28, width - reservedWidth), 60);
   return [nameWidth, contentWidth, visibleWidth, tagsWidth, releaseTimeWidth, approvedWidth];
+}
+
+function getCommentListWidths(): number[] {
+  const width = resolveTerminalWidth();
+  const nameWidth = 26;
+  const ownerWidth = 18;
+  const approvedWidth = 9;
+  const hiddenWidth = 8;
+  const createdAtWidth = 17;
+  const reservedWidth = nameWidth + ownerWidth + approvedWidth + hiddenWidth + createdAtWidth + 10;
+  const contentWidth = Math.min(Math.max(26, width - reservedWidth), 56);
+  return [nameWidth, ownerWidth, contentWidth, approvedWidth, hiddenWidth, createdAtWidth];
+}
+
+function getReplyListWidths(): number[] {
+  const width = resolveTerminalWidth();
+  const nameWidth = 26;
+  const ownerWidth = 18;
+  const approvedWidth = 9;
+  const hiddenWidth = 8;
+  const createdAtWidth = 17;
+  const reservedWidth = nameWidth + ownerWidth + approvedWidth + hiddenWidth + createdAtWidth + 10;
+  const contentWidth = Math.min(Math.max(26, width - reservedWidth), 56);
+  return [nameWidth, ownerWidth, contentWidth, approvedWidth, hiddenWidth, createdAtWidth];
 }
 
 function getDetailTableWidths(): number[] {
@@ -492,6 +521,91 @@ export function printMoment(moment: Moment, json = false): void {
     spec: {
       ...moment.spec,
       contentPreview: stripHtmlTags(moment.spec.content.raw),
+    },
+  } as Record<string, unknown>);
+}
+
+function resolveCommentOwnerName(value: {
+  owner?: { displayName?: string };
+  comment?: { spec?: { owner?: { displayName?: string } } };
+  reply?: { spec?: { owner?: { displayName?: string } } };
+}): string {
+  return (
+    value.owner?.displayName ??
+    value.comment?.spec?.owner?.displayName ??
+    value.reply?.spec?.owner?.displayName ??
+    ""
+  );
+}
+
+export function printCommentList(list: ListedCommentList, json = false): void {
+  if (json) {
+    printJson(list);
+    return;
+  }
+
+  const widths = getCommentListWidths();
+  const rows = list.items.map((item) => [
+    item.comment.metadata.name,
+    truncateDisplayText(resolveCommentOwnerName(item), widths[1]!),
+    truncateDisplayText(stripHtmlTags(item.comment.spec.content), widths[2]!),
+    item.comment.spec.approved ? "yes" : "no",
+    item.comment.spec.hidden ? "yes" : "no",
+    formatTimestamp(item.comment.metadata.creationTimestamp ?? undefined),
+  ]);
+
+  printTable(["NAME", "OWNER", "CONTENT", "APPROVED", "HIDDEN", "CREATED AT"], rows, widths, false);
+  process.stdout.write(`\n${list.total} comment(s)\n`);
+}
+
+export function printComment(comment: Comment, json = false): void {
+  if (json) {
+    printJson(comment);
+    return;
+  }
+
+  printDetailObject({
+    ...comment,
+    spec: {
+      ...comment.spec,
+      contentPreview: stripHtmlTags(comment.spec.content),
+    },
+  } as Record<string, unknown>);
+}
+
+export function printReplyList(list: ListedReplyList | ListedReply[], json = false): void {
+  if (json) {
+    printJson(list);
+    return;
+  }
+
+  const items = Array.isArray(list) ? list : list.items;
+  const total = Array.isArray(list) ? list.length : list.total;
+  const widths = getReplyListWidths();
+  const rows = items.map((item) => [
+    item.reply.metadata.name,
+    truncateDisplayText(resolveCommentOwnerName(item), widths[1]!),
+    truncateDisplayText(stripHtmlTags(item.reply.spec.content), widths[2]!),
+    item.reply.spec.approved ? "yes" : "no",
+    item.reply.spec.hidden ? "yes" : "no",
+    formatTimestamp(item.reply.metadata.creationTimestamp ?? undefined),
+  ]);
+
+  printTable(["NAME", "OWNER", "CONTENT", "APPROVED", "HIDDEN", "CREATED AT"], rows, widths, false);
+  process.stdout.write(`\n${total} repl${total === 1 ? "y" : "ies"}\n`);
+}
+
+export function printReply(reply: Reply, json = false): void {
+  if (json) {
+    printJson(reply);
+    return;
+  }
+
+  printDetailObject({
+    ...reply,
+    spec: {
+      ...reply.spec,
+      contentPreview: stripHtmlTags(reply.spec.content),
     },
   } as Record<string, unknown>);
 }

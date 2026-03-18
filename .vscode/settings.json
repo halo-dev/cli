@@ -1,14 +1,21 @@
 {
   "prettier.enable": false,
   "biome.enabled": false,
+  "i18n-ally.disabled": true,
   "editor.defaultFormatter": "oxc.oxc-vscode",
   "oxc.fmt.configPath": "./vite.config.ts",
   "editor.formatOnSave": true,
   "editor.formatOnSaveMode": "file",
   "editor.codeActionsOnSave": {
-    "source.fixAll.oxc": "explicit"
+    "source.fixAll.oxc": "explicit",
   },
   "[typescript]": {
-    "editor.defaultFormatter": "oxc.oxc-vscode"
-  }
+    "editor.defaultFormatter": "oxc.oxc-vscode",
+  },
+  "[json]": {
+    "editor.defaultFormatter": "oxc.oxc-vscode",
+  },
+  "[jsonc]": {
+    "editor.defaultFormatter": "oxc.oxc-vscode",
+  },
 }

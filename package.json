@@ -1,14 +1,18 @@
 {
   "name": "@halo-dev/cli",
   "version": "1.0.0",
-  "description": "CLI for managing Halo instances.",
+  "description": "CLI for managing Halo(https://www.halo.run) instances.",
   "keywords": [
     "cli",
     "cms",
-    "halo"
+    "halo",
+    "halo-cli"
   ],
   "license": "ISC",
-  "author": "",
+  "author": {
+    "name": "Halo",
+    "url": "https://github.com/halo-dev"
+  },
   "bin": {
     "halo": "dist/cli.mjs"
   },
