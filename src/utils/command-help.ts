@@ -8,6 +8,7 @@ interface CommandHelpOptions {
   usage: string;
   sections: CommandHelpSection[];
   flags?: Array<{ name: string; description: string }>;
+  inheritedFlags?: Array<{ name: string; description: string }>;
   examples?: string[];
   learnMore?: string[];
 }
@@ -54,9 +55,17 @@ export function printCommandHelp(options: CommandHelpOptions): void {
     writeLine();
   }
 
-  writeSectionTitle("INHERITED FLAGS");
-  writeLine("  --help   Show help for command");
-  writeLine();
+  if (options.inheritedFlags?.length !== 0) {
+    const inheritedFlags = options.inheritedFlags ?? [{ name: "--help", description: "Show help for command" }];
+    writeSectionTitle("INHERITED FLAGS");
+    const width = Math.max(...inheritedFlags.map((flag) => flag.name.length), 0) + 2;
+
+    for (const flag of inheritedFlags) {
+      writeLine(`  ${padCommandName(flag.name, width)}${flag.description}`);
+    }
+
+    writeLine();
+  }
 
   if (options.examples?.length) {
     writeSectionTitle("EXAMPLES");

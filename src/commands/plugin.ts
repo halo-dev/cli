@@ -1,5 +1,11 @@
 import type { CAC } from "cac";
 
+import {
+  createAppStoreClient,
+  resolveLatestAppStoreDownloadUrl,
+  resolvePluginAppStoreAppId,
+  resolvePluginUpgradeSource,
+} from "../utils/app-store.js";
 import { printCommandHelp } from "../utils/command-help.js";
 import { CliError } from "../utils/errors.js";
 import { printJson, printPlugin, printPluginList } from "../utils/format.js";
@@ -13,23 +19,25 @@ interface PluginCommandOptions {
   size?: string;
   keyword?: string;
   enabled?: string;
+  url?: string;
   uri?: string;
   file?: string;
+  online?: boolean;
 }
 
-function ensureSingleSource(options: PluginCommandOptions): { uri?: string; file?: string } {
-  if (!options.uri && !options.file) {
-    throw new CliError("Provide either --uri or --file.");
+function resolvePluginInstallSource(options: PluginCommandOptions): { url?: string; file?: string } {
+  const url = options.url?.trim() || options.uri?.trim();
+  const file = options.file?.trim();
+
+  if (!url && !file) {
+    throw new CliError("Provide either --url or --file.");
   }
 
-  if (options.uri && options.file) {
-    throw new CliError("Use only one plugin source: --uri or --file.");
+  if (url && file) {
+    throw new CliError("Use only one plugin source: --url or --file.");
   }
 
-  return {
-    uri: options.uri,
-    file: options.file,
-  };
+  return { url, file };
 }
 
 export function registerPluginCommands(cli: CAC, runtime: RuntimeContext): void {
@@ -41,8 +49,10 @@ export function registerPluginCommands(cli: CAC, runtime: RuntimeContext): void 
     .option("--size <number>", "Page size")
     .option("--keyword <keyword>", "Filter by keyword")
     .option("--enabled <true|false>", "Filter by running state")
+    .option("--url <url>", "Remote JAR URL")
     .option("--uri <uri>", "Remote JAR URI")
     .option("--file <path>", "Local JAR file path")
+    .option("--online", "Upgrade from the Halo App Store")
     .action(async (action: string | undefined, name: string | undefined, options: PluginCommandOptions) => {
       if (!action) {
         printCommandHelp({
@@ -54,20 +64,24 @@ export function registerPluginCommands(cli: CAC, runtime: RuntimeContext): void 
               commands: [
                 { name: "list", description: "List plugins" },
                 { name: "get", description: "Show plugin details" },
-                { name: "install", description: "Install a plugin from URI or file" },
-                { name: "upgrade", description: "Upgrade a plugin from URI or file" },
+                { name: "install", description: "Install a plugin from URL or file" },
+                { name: "upgrade", description: "Upgrade a plugin from URL, file, or Halo App Store" },
               ],
             },
           ],
           flags: [
             { name: "--profile <name>", description: "Halo profile name" },
             { name: "--json", description: "Output JSON" },
+            { name: "--url <url>", description: "Remote JAR URL" },
+            { name: "--file <path>", description: "Local JAR file path" },
+            { name: "--online", description: "Upgrade from the Halo App Store" },
           ],
           examples: [
             "halo plugin list",
             "halo plugin get <name>",
-            "halo plugin install --uri https://example.com/plugin.jar",
+            "halo plugin install --url https://example.com/plugin.jar",
             "halo plugin upgrade <name> --file ./plugin.jar",
+            "halo plugin upgrade <name> --online",
           ],
           learnMore: [
             "Use `halo plugin <subcommand> --help` for more information about a command.",
@@ -101,10 +115,14 @@ export function registerPluginCommands(cli: CAC, runtime: RuntimeContext): void 
       }
 
       if (action === "install") {
-        const source = ensureSingleSource(options);
-        const response = source.uri
+        if (options.online) {
+          throw new CliError("`halo plugin install` does not support --online. Use --url or --file.");
+        }
+
+        const source = resolvePluginInstallSource(options);
+        const response = source.url
           ? await clients.console.plugin.plugin.installPluginFromUri({
-              installFromUriRequest: { uri: source.uri },
+              installFromUriRequest: { uri: source.url },
             })
           : await clients.console.plugin.plugin.installPlugin({
               file: await loadFileAsJar(source.file!),
@@ -124,17 +142,31 @@ export function registerPluginCommands(cli: CAC, runtime: RuntimeContext): void 
           throw new CliError("`halo plugin upgrade` requires a plugin name.");
         }
 
-        const source = ensureSingleSource(options);
+        const source = resolvePluginUpgradeSource(options);
 
-        const response = source.uri
-          ? await clients.console.plugin.plugin.upgradePluginFromUri({
-              name,
-              upgradeFromUriRequest: { uri: source.uri },
-            })
-          : await clients.console.plugin.plugin.upgradePlugin({
-              name,
-              file: await loadFileAsJar(source.file!),
-            });
+        let response;
+
+        if (source.kind === "url") {
+          response = await clients.console.plugin.plugin.upgradePluginFromUri({
+            name,
+            upgradeFromUriRequest: { uri: source.url },
+          });
+        } else if (source.kind === "file") {
+          response = await clients.console.plugin.plugin.upgradePlugin({
+            name,
+            file: await loadFileAsJar(source.file),
+          });
+        } else {
+          const pluginResponse = await clients.core.plugin.plugin.getPlugin({ name });
+          const appId = resolvePluginAppStoreAppId(pluginResponse.data);
+          const appStoreClient = await createAppStoreClient(clients);
+          const downloadUrl = await resolveLatestAppStoreDownloadUrl(appStoreClient, appId);
+
+          response = await clients.console.plugin.plugin.upgradePluginFromUri({
+            name,
+            upgradeFromUriRequest: { uri: downloadUrl },
+          });
+        }
 
         if (options.json) {
           printJson(response.data ?? { upgraded: true, name });
