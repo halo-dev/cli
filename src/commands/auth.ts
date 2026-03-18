@@ -2,6 +2,7 @@ import { input, password, select } from "@inquirer/prompts";
 import cac, { type CAC } from "cac";
 
 import type { AuthType, HaloProfile } from "../types.js";
+import { tryRunCommandCliRoute, tryRunNestedCliRoute } from "../utils/command-router.js";
 import { createProfileTimestamp } from "../utils/config-store.js";
 import { CliError } from "../utils/errors.js";
 import {
@@ -85,7 +86,7 @@ export function validateResolvedLoginInput(
   };
 }
 
-function createAuthProfileCli(runtime: RuntimeContext): CAC {
+function buildAuthProfileCli(runtime: RuntimeContext): CAC {
   const profileCli = cac("halo auth profile");
 
   profileCli
@@ -123,7 +124,7 @@ function createAuthProfileCli(runtime: RuntimeContext): CAC {
   return profileCli;
 }
 
-function createAuthCli(runtime: RuntimeContext): CAC {
+function buildAuthCli(runtime: RuntimeContext): CAC {
   const authCli = cac("halo auth");
 
   authCli
@@ -199,29 +200,23 @@ export async function tryRunAuthCommand(args: string[], runtime: RuntimeContext)
     return false;
   }
 
-  if (args[1] === "profile") {
-    const profileCli = createAuthProfileCli(runtime);
-
-    if (args.length === 2) {
-      profileCli.outputHelp();
-      return true;
-    }
-
-    profileCli.parse(["node", "halo auth profile", ...args.slice(2)], { run: false });
-    await profileCli.runMatchedCommand();
+  if (
+    await tryRunNestedCliRoute({
+      branch: "profile",
+      cliName: "halo auth profile",
+      args,
+      buildCli: () => buildAuthProfileCli(runtime),
+    })
+  ) {
     return true;
   }
 
-  const authCli = createAuthCli(runtime);
-
-  if (args.length === 1) {
-    authCli.outputHelp();
-    return true;
-  }
-
-  authCli.parse(["node", "halo auth", ...args.slice(1)], { run: false });
-  await authCli.runMatchedCommand();
-  return true;
+  return tryRunCommandCliRoute({
+    command: "auth",
+    cliName: "halo auth",
+    args,
+    buildCli: () => buildAuthCli(runtime),
+  });
 }
 
 async function resolveLoginInput(

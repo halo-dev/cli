@@ -10,6 +10,7 @@ import {
   resolveThemeUpdates,
   resolvePluginUpgradeSource,
 } from "../utils/app-store.js";
+import { tryRunCommandCliRoute } from "../utils/command-router.js";
 import { confirmDangerousAction } from "../utils/confirmation.js";
 import { CliError } from "../utils/errors.js";
 import { printJson, printTheme, printThemeList } from "../utils/format.js";
@@ -475,7 +476,7 @@ export function registerThemeCommands(cli: CAC): void {
   cli.command("theme", "Theme management commands");
 }
 
-function createThemeCli(runtime: RuntimeContext): CAC {
+function buildThemeCli(runtime: RuntimeContext): CAC {
   const themeCli = cac("halo theme");
 
   themeCli
@@ -699,18 +700,10 @@ export async function tryRunThemeCommand(
   args: string[],
   runtime: RuntimeContext,
 ): Promise<boolean> {
-  if (args[0] !== "theme") {
-    return false;
-  }
-
-  const themeCli = createThemeCli(runtime);
-
-  if (args.length === 1) {
-    themeCli.outputHelp();
-    return true;
-  }
-
-  themeCli.parse(["node", "halo theme", ...args.slice(1)], { run: false });
-  await themeCli.runMatchedCommand();
-  return true;
+  return tryRunCommandCliRoute({
+    command: "theme",
+    cliName: "halo theme",
+    args,
+    buildCli: () => buildThemeCli(runtime),
+  });
 }

@@ -7,6 +7,7 @@ import axios from "axios";
 import cac, { type CAC } from "cac";
 
 import { openUrlInBrowser, resolvePostOpenUrl } from "../utils/browser.js";
+import { tryRunCommandCliRoute } from "../utils/command-router.js";
 import { confirmDangerousAction } from "../utils/confirmation.js";
 import { CliError } from "../utils/errors.js";
 import { printDetailObject, printJson, printPostList } from "../utils/format.js";
@@ -444,7 +445,7 @@ export function registerPostCommands(cli: CAC): void {
   cli.command("post", "Post management commands");
 }
 
-function createPostCli(runtime: RuntimeContext): CAC {
+function buildPostCli(runtime: RuntimeContext): CAC {
   const postCli = cac("halo post");
 
   postCli
@@ -818,18 +819,10 @@ function createPostCli(runtime: RuntimeContext): CAC {
 }
 
 export async function tryRunPostCommand(args: string[], runtime: RuntimeContext): Promise<boolean> {
-  if (args[0] !== "post") {
-    return false;
-  }
-
-  const postCli = createPostCli(runtime);
-
-  if (args.length === 1) {
-    postCli.outputHelp();
-    return true;
-  }
-
-  postCli.parse(["node", "halo post", ...args.slice(1)], { run: false });
-  await postCli.runMatchedCommand();
-  return true;
+  return tryRunCommandCliRoute({
+    command: "post",
+    cliName: "halo post",
+    args,
+    buildCli: () => buildPostCli(runtime),
+  });
 }

@@ -2,6 +2,7 @@ import { type SearchOption, IndexV1alpha1PublicApi } from "@halo-dev/api-client"
 import axios from "axios";
 import cac, { type CAC } from "cac";
 
+import { tryRunCommandCliRoute } from "../utils/command-router.js";
 import { CliError } from "../utils/errors.js";
 import { printSearchResult } from "../utils/format.js";
 import { parseNumberOption } from "../utils/post-input.js";
@@ -44,7 +45,7 @@ export async function resolveSearchBaseUrl(
   return normalizeBaseUrl(profile.baseUrl);
 }
 
-function createSearchCli(runtime: RuntimeContext): CAC {
+function buildSearchCli(runtime: RuntimeContext): CAC {
   const searchCli = cac("halo search");
 
   searchCli
@@ -87,14 +88,12 @@ export async function tryRunSearchCommand(
   args: string[],
   runtime: RuntimeContext,
 ): Promise<boolean> {
-  if (args[0] !== "search") {
-    return false;
-  }
-
-  const searchCli = createSearchCli(runtime);
-  searchCli.parse(["node", "halo search", ...args.slice(1)], { run: false });
-  await searchCli.runMatchedCommand();
-  return true;
+  return tryRunCommandCliRoute({
+    command: "search",
+    cliName: "halo search",
+    args,
+    buildCli: () => buildSearchCli(runtime),
+  });
 }
 
 export function registerSearchCommands(cli: CAC): void {

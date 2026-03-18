@@ -9,6 +9,7 @@ import {
 import { input } from "@inquirer/prompts";
 import cac, { type CAC } from "cac";
 
+import { tryRunCommandCliRoute, tryRunNestedCliRoute } from "../utils/command-router.js";
 import { confirmDangerousAction } from "../utils/confirmation.js";
 import { CliError } from "../utils/errors.js";
 import {
@@ -124,7 +125,7 @@ async function resolveReplyContent(
   });
 }
 
-function createReplyCli(runtime: RuntimeContext): CAC {
+function buildReplyCli(runtime: RuntimeContext): CAC {
   const replyCli = cac("halo comment reply");
 
   replyCli
@@ -217,7 +218,7 @@ function createReplyCli(runtime: RuntimeContext): CAC {
   return replyCli;
 }
 
-function createCommentCli(runtime: RuntimeContext): CAC {
+function buildCommentCli(runtime: RuntimeContext): CAC {
   const commentCli = cac("halo comment");
 
   commentCli
@@ -357,38 +358,23 @@ export async function tryRunCommentCommand(
     return false;
   }
 
-  if (args[1] === "reply") {
-    const replyCli = createReplyCli(runtime);
-
-    if (args.length === 2) {
-      replyCli.outputHelp();
-      return true;
-    }
-
-    const isReplySubcommand = ["list", "get", "delete", "approve"].includes(args[2] ?? "");
-
-    if (isReplySubcommand) {
-      replyCli.parse(["node", "halo comment reply", ...args.slice(2)], { run: false });
-      await replyCli.runMatchedCommand();
-      return true;
-    }
-
-    if (args[2] === "--help" || args[2] === "-h") {
-      replyCli.outputHelp();
-      return true;
-    }
-  }
-
-  const commentCli = createCommentCli(runtime);
-
-  if (args.length === 1) {
-    commentCli.outputHelp();
+  if (
+    await tryRunNestedCliRoute({
+      branch: "reply",
+      cliName: "halo comment reply",
+      args,
+      buildCli: () => buildReplyCli(runtime),
+    })
+  ) {
     return true;
   }
 
-  commentCli.parse(["node", "halo comment", ...args.slice(1)], { run: false });
-  await commentCli.runMatchedCommand();
-  return true;
+  return tryRunCommandCliRoute({
+    command: "comment",
+    cliName: "halo comment",
+    args,
+    buildCli: () => buildCommentCli(runtime),
+  });
 }
 
 export function registerCommentCommands(cli: CAC): void {

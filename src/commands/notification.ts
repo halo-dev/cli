@@ -1,6 +1,7 @@
 import { NotificationV1alpha1UcApi, type Notification } from "@halo-dev/api-client";
 import cac, { type CAC } from "cac";
 
+import { tryRunCommandCliRoute } from "../utils/command-router.js";
 import { confirmDangerousAction } from "../utils/confirmation.js";
 import { CliError } from "../utils/errors.js";
 import { printJson, printNotification, printNotificationList } from "../utils/format.js";
@@ -86,7 +87,7 @@ async function getNotificationByName(
   const response = await api.listUserNotifications({
     username,
     size: 1,
-    fieldSelector: [`metadata.name=${name}`],
+    fieldSelector: [`metadata.name==${name}`],
   });
   const notification = response.data.items[0];
 
@@ -110,7 +111,7 @@ async function listUnreadNotificationNames(
   return response.data.items.map((item) => item.metadata.name);
 }
 
-function createNotificationCli(runtime: RuntimeContext): CAC {
+function buildNotificationCli(runtime: RuntimeContext): CAC {
   const notificationCli = cac("halo notification");
 
   notificationCli
@@ -236,18 +237,10 @@ export async function tryRunNotificationCommand(
   args: string[],
   runtime: RuntimeContext,
 ): Promise<boolean> {
-  if (args[0] !== "notification") {
-    return false;
-  }
-
-  const notificationCli = createNotificationCli(runtime);
-
-  if (args.length === 1) {
-    notificationCli.outputHelp();
-    return true;
-  }
-
-  notificationCli.parse(["node", "halo notification", ...args.slice(1)], { run: false });
-  await notificationCli.runMatchedCommand();
-  return true;
+  return tryRunCommandCliRoute({
+    command: "notification",
+    cliName: "halo notification",
+    args,
+    buildCli: () => buildNotificationCli(runtime),
+  });
 }

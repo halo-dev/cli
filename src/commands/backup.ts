@@ -6,6 +6,7 @@ import ora from "ora";
 import prettyBytes from "pretty-bytes";
 
 import { ensureBackupFilename, resolveBackupDownloadFilePath } from "../utils/backup.js";
+import { tryRunCommandCliRoute } from "../utils/command-router.js";
 import { confirmDangerousAction } from "../utils/confirmation.js";
 import { CliError } from "../utils/errors.js";
 import { printBackup, printBackupList, printJson } from "../utils/format.js";
@@ -121,7 +122,7 @@ async function waitForBackupCompletion(
   }
 }
 
-function createBackupCli(runtime: RuntimeContext): CAC {
+function buildBackupCli(runtime: RuntimeContext): CAC {
   const backupCli = cac("halo backup");
 
   backupCli
@@ -343,20 +344,12 @@ export async function tryRunBackupCommand(
   args: string[],
   runtime: RuntimeContext,
 ): Promise<boolean> {
-  if (args[0] !== "backup") {
-    return false;
-  }
-
-  const backupCli = createBackupCli(runtime);
-
-  if (args.length === 1) {
-    backupCli.outputHelp();
-    return true;
-  }
-
-  backupCli.parse(["node", "halo backup", ...args.slice(1)], { run: false });
-  await backupCli.runMatchedCommand();
-  return true;
+  return tryRunCommandCliRoute({
+    command: "backup",
+    cliName: "halo backup",
+    args,
+    buildCli: () => buildBackupCli(runtime),
+  });
 }
 
 export function registerBackupCommands(cli: CAC): void {

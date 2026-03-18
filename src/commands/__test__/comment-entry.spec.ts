@@ -111,3 +111,9 @@ test("tryRunCommentCommand dispatches reply list subcommands", async () => {
     size: 10,
   });
 });
+
+test("tryRunCommentCommand shows help for bare reply subcommands", async () => {
+  silenceStdout();
+
+  await expect(tryRunCommentCommand(["comment", "reply"], {} as never)).resolves.toBe(true);
+});

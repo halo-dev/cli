@@ -9,6 +9,7 @@ import {
   resolvePluginUpdates,
   resolvePluginUpgradeSource,
 } from "../utils/app-store.js";
+import { tryRunCommandCliRoute } from "../utils/command-router.js";
 import { confirmDangerousAction } from "../utils/confirmation.js";
 import { CliError } from "../utils/errors.js";
 import { printJson, printPlugin, printPluginList } from "../utils/format.js";
@@ -488,7 +489,7 @@ export function registerPluginCommands(cli: CAC): void {
   cli.command("plugin", "Plugin management commands");
 }
 
-function createPluginCli(runtime: RuntimeContext): CAC {
+function buildPluginCli(runtime: RuntimeContext): CAC {
   const pluginCli = cac("halo plugin");
 
   pluginCli
@@ -717,18 +718,10 @@ export async function tryRunPluginCommand(
   args: string[],
   runtime: RuntimeContext,
 ): Promise<boolean> {
-  if (args[0] !== "plugin") {
-    return false;
-  }
-
-  const pluginCli = createPluginCli(runtime);
-
-  if (args.length === 1) {
-    pluginCli.outputHelp();
-    return true;
-  }
-
-  pluginCli.parse(["node", "halo plugin", ...args.slice(1)], { run: false });
-  await pluginCli.runMatchedCommand();
-  return true;
+  return tryRunCommandCliRoute({
+    command: "plugin",
+    cliName: "halo plugin",
+    args,
+    buildCli: () => buildPluginCli(runtime),
+  });
 }

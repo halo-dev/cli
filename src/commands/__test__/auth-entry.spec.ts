@@ -37,3 +37,9 @@ test("tryRunAuthCommand dispatches profile list subcommands", async () => {
   ).resolves.toBe(true);
   expect(runtimeMock.configStore.listProfiles).toHaveBeenCalledOnce();
 });
+
+test("tryRunAuthCommand shows help for bare profile subcommands", async () => {
+  silenceStdout();
+
+  await expect(tryRunAuthCommand(["auth", "profile"], {} as never)).resolves.toBe(true);
+});

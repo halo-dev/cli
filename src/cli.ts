@@ -20,16 +20,52 @@ import { RuntimeContext } from "./utils/runtime.js";
 const cli = cac("halo");
 const runtime = new RuntimeContext();
 
-registerAuthCommands(cli);
-registerPostCommands(cli);
-registerSearchCommands(cli);
-registerPluginCommands(cli);
-registerThemeCommands(cli);
-registerAttachmentCommands(cli);
-registerBackupCommands(cli);
-registerMomentCommands(cli);
-registerCommentCommands(cli);
-registerNotificationCommands(cli);
+const commandModules = [
+  {
+    register: registerAuthCommands,
+    tryRun: tryRunAuthCommand,
+  },
+  {
+    register: registerPostCommands,
+    tryRun: tryRunPostCommand,
+  },
+  {
+    register: registerSearchCommands,
+    tryRun: tryRunSearchCommand,
+  },
+  {
+    register: registerPluginCommands,
+    tryRun: tryRunPluginCommand,
+  },
+  {
+    register: registerThemeCommands,
+    tryRun: tryRunThemeCommand,
+  },
+  {
+    register: registerAttachmentCommands,
+    tryRun: tryRunAttachmentCommand,
+  },
+  {
+    register: registerBackupCommands,
+    tryRun: tryRunBackupCommand,
+  },
+  {
+    register: registerMomentCommands,
+    tryRun: tryRunMomentCommand,
+  },
+  {
+    register: registerCommentCommands,
+    tryRun: tryRunCommentCommand,
+  },
+  {
+    register: registerNotificationCommands,
+    tryRun: tryRunNotificationCommand,
+  },
+] as const;
+
+for (const commandModule of commandModules) {
+  commandModule.register(cli);
+}
 
 cli.help();
 cli.version(packageJson.version);
@@ -42,44 +78,10 @@ async function main(): Promise<void> {
     return;
   }
 
-  if (await tryRunAuthCommand(args, runtime)) {
-    return;
-  }
-
-  if (await tryRunAttachmentCommand(args, runtime)) {
-    return;
-  }
-
-  if (await tryRunPluginCommand(args, runtime)) {
-    return;
-  }
-
-  if (await tryRunThemeCommand(args, runtime)) {
-    return;
-  }
-
-  if (await tryRunSearchCommand(args, runtime)) {
-    return;
-  }
-
-  if (await tryRunPostCommand(args, runtime)) {
-    return;
-  }
-
-  if (await tryRunBackupCommand(args, runtime)) {
-    return;
-  }
-
-  if (await tryRunMomentCommand(args, runtime)) {
-    return;
-  }
-
-  if (await tryRunCommentCommand(args, runtime)) {
-    return;
-  }
-
-  if (await tryRunNotificationCommand(args, runtime)) {
-    return;
+  for (const commandModule of commandModules) {
+    if (await commandModule.tryRun(args, runtime)) {
+      return;
+    }
   }
 
   cli.parse(process.argv, { run: false });

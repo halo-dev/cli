@@ -12,6 +12,7 @@ import {
   resolveDownloadFilePath,
   resolveUploadFilename,
 } from "../utils/attachment.js";
+import { tryRunCommandCliRoute } from "../utils/command-router.js";
 import { confirmDangerousAction } from "../utils/confirmation.js";
 import { CliError } from "../utils/errors.js";
 import { printAttachment, printAttachmentList, printJson } from "../utils/format.js";
@@ -74,7 +75,7 @@ function createSpinner(enabled: boolean, text: string) {
   return enabled ? ora(text).start() : undefined;
 }
 
-function createAttachmentCli(runtime: RuntimeContext): CAC {
+function buildAttachmentCli(runtime: RuntimeContext): CAC {
   const attachmentCli = cac("halo attachment");
 
   attachmentCli
@@ -293,20 +294,12 @@ export async function tryRunAttachmentCommand(
   args: string[],
   runtime: RuntimeContext,
 ): Promise<boolean> {
-  if (args[0] !== "attachment") {
-    return false;
-  }
-
-  const attachmentCli = createAttachmentCli(runtime);
-
-  if (args.length === 1) {
-    attachmentCli.outputHelp();
-    return true;
-  }
-
-  attachmentCli.parse(["node", "halo attachment", ...args.slice(1)], { run: false });
-  await attachmentCli.runMatchedCommand();
-  return true;
+  return tryRunCommandCliRoute({
+    command: "attachment",
+    cliName: "halo attachment",
+    args,
+    buildCli: () => buildAttachmentCli(runtime),
+  });
 }
 
 export function registerAttachmentCommands(cli: CAC): void {

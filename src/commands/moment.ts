@@ -4,6 +4,7 @@ import { input } from "@inquirer/prompts";
 import cac, { type CAC } from "cac";
 
 import type { ListedMomentList, Moment, MomentVisible } from "../types.js";
+import { tryRunCommandCliRoute } from "../utils/command-router.js";
 import { confirmDangerousAction } from "../utils/confirmation.js";
 import { CliError } from "../utils/errors.js";
 import { printJson, printMoment, printMomentList } from "../utils/format.js";
@@ -147,7 +148,7 @@ export function buildMomentPayload(
   };
 }
 
-async function createMomentCli(runtime: RuntimeContext): Promise<CAC> {
+async function buildMomentCli(runtime: RuntimeContext): Promise<CAC> {
   const momentCli = cac("halo moment");
 
   momentCli
@@ -312,20 +313,12 @@ export async function tryRunMomentCommand(
   args: string[],
   runtime: RuntimeContext,
 ): Promise<boolean> {
-  if (args[0] !== "moment") {
-    return false;
-  }
-
-  const momentCli = await createMomentCli(runtime);
-
-  if (args.length === 1) {
-    momentCli.outputHelp();
-    return true;
-  }
-
-  momentCli.parse(["node", "halo moment", ...args.slice(1)], { run: false });
-  await momentCli.runMatchedCommand();
-  return true;
+  return tryRunCommandCliRoute({
+    command: "moment",
+    cliName: "halo moment",
+    args,
+    buildCli: () => buildMomentCli(runtime),
+  });
 }
 
 export function registerMomentCommands(cli: CAC): void {
