@@ -13,7 +13,6 @@ import {
   resolveDownloadFilePath,
   resolveUploadFilename,
 } from "../utils/attachment.js";
-import { printCommandHelp } from "../utils/command-help.js";
 import { CliError } from "../utils/errors.js";
 import { printAttachment, printAttachmentList, printJson } from "../utils/format.js";
 import { parseNumberOption } from "../utils/post-input.js";
@@ -46,6 +45,7 @@ function createSpinner(enabled: boolean, text: string) {
 export function registerAttachmentCommands(cli: CAC, runtime: RuntimeContext): void {
   cli
     .command("attachment [action] [name]", "Attachment management commands")
+    .usage("attachment <command> [flags]")
     .option("--profile <name>", "Halo profile name")
     .option("--json", "Output JSON")
     .option("--page <number>", "Page number")
@@ -55,6 +55,13 @@ export function registerAttachmentCommands(cli: CAC, runtime: RuntimeContext): v
     .option("--url <url>", "Remote URL to upload")
     .option("--output <path>", "Output path for download")
     .option("--force", "Delete without confirmation")
+    .example((bin) => `${bin} attachment list`)
+    .example((bin) => `${bin} attachment get <name>`)
+    .example((bin) => `${bin} attachment delete <name>`)
+    .example((bin) => `${bin} attachment delete <name> --force`)
+    .example((bin) => `${bin} attachment upload --file ./image.png`)
+    .example((bin) => `${bin} attachment upload --url https://example.com/image.png`)
+    .example((bin) => `${bin} attachment download <name>`)
     .action(
       async (
         action: string | undefined,
@@ -62,51 +69,7 @@ export function registerAttachmentCommands(cli: CAC, runtime: RuntimeContext): v
         options: AttachmentCommandOptions,
       ) => {
         if (!action) {
-          printCommandHelp({
-            summary: "Work with Halo attachments.",
-            usage: "halo attachment <command> [flags]",
-            sections: [
-              {
-                title: "COMMANDS",
-                commands: [
-                  { name: "list", description: "List attachments" },
-                  { name: "get", description: "Show attachment details" },
-                  { name: "delete", description: "Delete an attachment" },
-                  {
-                    name: "upload",
-                    description: "Upload an attachment from file or URL",
-                  },
-                  {
-                    name: "download",
-                    description: "Download an attachment file",
-                  },
-                ],
-              },
-            ],
-            flags: [
-              { name: "--profile <name>", description: "Halo profile name" },
-              { name: "--json", description: "Output JSON" },
-              {
-                name: "--file <path>",
-                description: "Local file path to upload",
-              },
-              { name: "--url <url>", description: "Remote URL to upload" },
-              {
-                name: "--output <path>",
-                description: "Output path for download",
-              },
-            ],
-            examples: [
-              "halo attachment list",
-              "halo attachment get <name>",
-              "halo attachment upload --file ./image.png",
-              "halo attachment upload --url https://example.com/image.png",
-              "halo attachment download <name>",
-            ],
-            learnMore: [
-              "Use `halo attachment <subcommand> --help` for more information about a command.",
-            ],
-          });
+          cli.outputHelp();
           return;
         }
 

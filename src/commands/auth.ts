@@ -1,8 +1,7 @@
 import { input, password, select } from "@inquirer/prompts";
-import type { CAC } from "cac";
+import cac, { type CAC } from "cac";
 
 import type { AuthType, HaloProfile } from "../types.js";
-import { printCommandHelp } from "../utils/command-help.js";
 import { createProfileTimestamp } from "../utils/config-store.js";
 import { CliError } from "../utils/errors.js";
 import {
@@ -96,6 +95,7 @@ async function resolveLoginInput(
 export function registerAuthCommands(cli: CAC, runtime: RuntimeContext): void {
   cli
     .command("auth [action] [name] [target]", "Authentication commands")
+    .usage("auth <command> [flags]")
     .option("--profile <name>", "Profile name to save")
     .option("--url <url>", "Halo base URL")
     .option("--auth-type <type>", "Authentication type: basic or bearer")
@@ -103,6 +103,13 @@ export function registerAuthCommands(cli: CAC, runtime: RuntimeContext): void {
     .option("--password <password>", "Basic Auth password")
     .option("--token <token>", "Bearer personal access token")
     .option("--json", "Output JSON")
+    .example(
+      (bin) =>
+        `${bin} auth login --profile local --url http://127.0.0.1:8090 --auth-type bearer --token <token>`,
+    )
+    .example((bin) => `${bin} auth current`)
+    .example((bin) => `${bin} auth profile list`)
+    .example((bin) => `${bin} auth profile use local`)
     .action(
       async (
         action: string | undefined,
@@ -111,33 +118,7 @@ export function registerAuthCommands(cli: CAC, runtime: RuntimeContext): void {
         options: AuthLoginOptions,
       ) => {
         if (!action) {
-          printCommandHelp({
-            summary: "Manage Halo authentication and profiles.",
-            usage: "halo auth <command> [flags]",
-            sections: [
-              {
-                title: "COMMANDS",
-                commands: [
-                  { name: "login", description: "Log in and save a profile" },
-                  { name: "current", description: "Show the current profile" },
-                  { name: "profile", description: "Manage saved profiles" },
-                ],
-              },
-            ],
-            flags: [
-              { name: "--profile <name>", description: "Profile name to use or save" },
-              { name: "--json", description: "Output JSON" },
-            ],
-            examples: [
-              "halo auth login --profile local --url http://127.0.0.1:8090 --auth-type bearer --token <token>",
-              "halo auth current",
-              "halo auth profile list",
-              "halo auth profile use local",
-            ],
-            learnMore: [
-              "Use `halo auth <subcommand> --help` for more information about a command.",
-            ],
-          });
+          outputAuthHelp();
           return;
         }
 
@@ -179,32 +160,7 @@ export function registerAuthCommands(cli: CAC, runtime: RuntimeContext): void {
 
         if (action === "profile") {
           if (!name) {
-            printCommandHelp({
-              summary: "Manage saved Halo profiles.",
-              usage: "halo auth profile <command> [flags]",
-              sections: [
-                {
-                  title: "COMMANDS",
-                  commands: [
-                    { name: "list", description: "List saved profiles" },
-                    { name: "current", description: "Show the active profile" },
-                    { name: "use", description: "Switch the active profile" },
-                  ],
-                },
-              ],
-              flags: [
-                { name: "--profile <name>", description: "Profile name used by `use`" },
-                { name: "--json", description: "Output JSON" },
-              ],
-              examples: [
-                "halo auth profile list",
-                "halo auth profile current",
-                "halo auth profile use local",
-              ],
-              learnMore: [
-                "Use `halo auth profile <subcommand> --help` for more information about a command.",
-              ],
-            });
+            outputAuthProfileHelp();
             return;
           }
 

@@ -9,7 +9,6 @@ import {
   resolvePluginUpdates,
   resolvePluginUpgradeSource,
 } from "../utils/app-store.js";
-import { printCommandHelp } from "../utils/command-help.js";
 import { CliError } from "../utils/errors.js";
 import { printJson, printPlugin, printPluginList } from "../utils/format.js";
 import { parseBooleanOption, parseNumberOption } from "../utils/post-input.js";
@@ -428,6 +427,13 @@ function printBatchUpgradeResult(result: BatchUpgradeResult, json = false): void
 export function registerPluginCommands(cli: CAC, runtime: RuntimeContext): void {
   cli
     .command("plugin [action] [name]", "Plugin management commands")
+    .usage("plugin <command> [flags]")
+    .example((bin) => `${bin} plugin list --page 1 --size 20`)
+    .example((bin) => `${bin} plugin get PluginName`)
+    .example((bin) => `${bin} plugin install --uri file:///tmp/example.jar`)
+    .example((bin) => `${bin} plugin install --url https://example.com/plugin.jar`)
+    .example((bin) => `${bin} plugin upgrade PluginName --online`)
+    .example((bin) => `${bin} plugin upgrade --all --online --yes`)
     .option("--profile <name>", "Halo profile name")
     .option("--json", "Output JSON")
     .option("--page <number>", "Page number")
@@ -449,57 +455,7 @@ export function registerPluginCommands(cli: CAC, runtime: RuntimeContext): void 
         const spinner = createSpinnerReporter(options.json);
 
         if (!action) {
-          printCommandHelp({
-            summary: "Work with Halo plugins.",
-            usage: "halo plugin <command> [flags]",
-            sections: [
-              {
-                title: "COMMANDS",
-                commands: [
-                  { name: "list", description: "List plugins" },
-                  { name: "get", description: "Show plugin details" },
-                  {
-                    name: "install",
-                    description: "Install a plugin from URL or file",
-                  },
-                  {
-                    name: "upgrade",
-                    description: "Upgrade a plugin from URL, file, or Halo App Store",
-                  },
-                ],
-              },
-            ],
-            flags: [
-              { name: "--profile <name>", description: "Halo profile name" },
-              { name: "--json", description: "Output JSON" },
-              { name: "--url <url>", description: "Remote JAR URL" },
-              { name: "--file <path>", description: "Local JAR file path" },
-              {
-                name: "--online",
-                description: "Upgrade from the Halo App Store",
-              },
-              {
-                name: "--all",
-                description: "Upgrade all compatible App Store plugins",
-              },
-              {
-                name: "-y, --yes",
-                description: "Skip selection and upgrade all compatible plugins",
-              },
-            ],
-            examples: [
-              "halo plugin list",
-              "halo plugin get <name>",
-              "halo plugin install --url https://example.com/plugin.jar",
-              "halo plugin upgrade <name> --file ./plugin.jar",
-              "halo plugin upgrade <name> --online",
-              "halo plugin upgrade --all",
-              "halo plugin upgrade --all --yes",
-            ],
-            learnMore: [
-              "Use `halo plugin <subcommand> --help` for more information about a command.",
-            ],
-          });
+          cli.outputHelp();
           return;
         }
 

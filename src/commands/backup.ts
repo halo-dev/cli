@@ -7,7 +7,6 @@ import ora from "ora";
 import prettyBytes from "pretty-bytes";
 
 import { ensureBackupFilename, resolveBackupDownloadFilePath } from "../utils/backup.js";
-import { printCommandHelp } from "../utils/command-help.js";
 import { CliError } from "../utils/errors.js";
 import { printBackup, printBackupList, printJson } from "../utils/format.js";
 import { parseNumberOption } from "../utils/post-input.js";
@@ -110,6 +109,12 @@ async function waitForBackupCompletion(
 export function registerBackupCommands(cli: CAC, runtime: RuntimeContext): void {
   cli
     .command("backup [action] [name]", "Backup management commands")
+    .usage("backup <command> [flags]")
+    .example((bin) => `${bin} backup list --page 1 --size 20`)
+    .example((bin) => `${bin} backup get backup-abc123`)
+    .example((bin) => `${bin} backup create --wait --wait-timeout 600`)
+    .example((bin) => `${bin} backup download backup-abc123 --output ./backups`)
+    .example((bin) => `${bin} backup delete backup-abc123 --force`)
     .option("--profile <name>", "Halo profile name")
     .option("--json", "Output JSON")
     .option("--page <number>", "Page number")
@@ -127,51 +132,7 @@ export function registerBackupCommands(cli: CAC, runtime: RuntimeContext): void 
         options: BackupCommandOptions,
       ) => {
         if (!action) {
-          printCommandHelp({
-            summary: "Work with Halo backups.",
-            usage: "halo backup <command> [flags]",
-            sections: [
-              {
-                title: "COMMANDS",
-                commands: [
-                  { name: "list", description: "List backups" },
-                  { name: "get", description: "Show backup details" },
-                  { name: "create", description: "Create a new backup" },
-                  { name: "download", description: "Download a backup file" },
-                  { name: "delete", description: "Delete a backup" },
-                ],
-              },
-            ],
-            flags: [
-              { name: "--profile <name>", description: "Halo profile name" },
-              { name: "--json", description: "Output JSON" },
-              { name: "--page <number>", description: "Page number" },
-              { name: "--size <number>", description: "Page size" },
-              { name: "--format <type>", description: "Backup format, default is zip" },
-              {
-                name: "--expires-at <datetime>",
-                description: "Backup expiration time in ISO-8601 format",
-              },
-              { name: "--wait", description: "Wait for backup completion after create" },
-              {
-                name: "--wait-timeout <seconds>",
-                description: "Maximum seconds to wait for backup completion",
-              },
-              { name: "--output <path>", description: "Output path for downloaded backup file" },
-              { name: "--force", description: "Delete without confirmation" },
-            ],
-            examples: [
-              "halo backup list",
-              "halo backup get <name>",
-              "halo backup create",
-              "halo backup create --wait",
-              "halo backup create daily-backup --expires-at 2026-03-31T00:00:00Z",
-              "halo backup download <name>",
-            ],
-            learnMore: [
-              "Use `halo backup <subcommand> --help` for more information about a command.",
-            ],
-          });
+          cli.outputHelp();
           return;
         }
 
