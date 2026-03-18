@@ -6,9 +6,10 @@ import {
   type JsonPatchInner,
   type ReplyRequest,
 } from "@halo-dev/api-client";
-import { confirm, input } from "@inquirer/prompts";
+import { input } from "@inquirer/prompts";
 import cac, { type CAC } from "cac";
 
+import { confirmDangerousAction } from "../utils/confirmation.js";
 import { CliError } from "../utils/errors.js";
 import {
   printComment,
@@ -181,27 +182,19 @@ function createReplyCli(runtime: RuntimeContext): CAC {
       const { profile, clients } = await runtime.getClientsForOptions(options);
       const replyApi = new ReplyV1alpha1Api(undefined, profile.baseUrl, clients.axios);
 
-      if (!options.force) {
-        if (!process.stdin.isTTY || !process.stdout.isTTY) {
-          throw new CliError(
-            "`halo comment reply delete` requires confirmation in interactive mode or use --force.",
-          );
-        }
-
-        const confirmed = await confirm({
-          message: `Delete reply ${name}?`,
-          default: false,
-        });
-
-        if (!confirmed) {
-          if (options.json) {
-            printJson({ deleted: false, name, cancelled: true });
-            return;
-          }
-
-          process.stdout.write(`Cancelled deleting reply ${name}.\n`);
-          return;
-        }
+      if (
+        !(await confirmDangerousAction(
+          {
+            commandPath: "halo comment reply delete",
+            actionLabel: "Delete",
+            resourceLabel: "reply",
+            resourceName: name,
+            cancellationVerb: "deleting",
+          },
+          options,
+        ))
+      ) {
+        return;
       }
 
       await replyApi.deleteReply({ name });
@@ -283,27 +276,19 @@ function createCommentCli(runtime: RuntimeContext): CAC {
       const { profile, clients } = await runtime.getClientsForOptions(options);
       const commentApi = new CommentV1alpha1Api(undefined, profile.baseUrl, clients.axios);
 
-      if (!options.force) {
-        if (!process.stdin.isTTY || !process.stdout.isTTY) {
-          throw new CliError(
-            "`halo comment delete` requires confirmation in interactive mode or use --force.",
-          );
-        }
-
-        const confirmed = await confirm({
-          message: `Delete comment ${name}?`,
-          default: false,
-        });
-
-        if (!confirmed) {
-          if (options.json) {
-            printJson({ deleted: false, name, cancelled: true });
-            return;
-          }
-
-          process.stdout.write(`Cancelled deleting comment ${name}.\n`);
-          return;
-        }
+      if (
+        !(await confirmDangerousAction(
+          {
+            commandPath: "halo comment delete",
+            actionLabel: "Delete",
+            resourceLabel: "comment",
+            resourceName: name,
+            cancellationVerb: "deleting",
+          },
+          options,
+        ))
+      ) {
+        return;
       }
 
       await commentApi.deleteComment({ name });

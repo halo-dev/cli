@@ -10,6 +10,7 @@ import {
   resolveThemeUpdates,
   resolvePluginUpgradeSource,
 } from "../utils/app-store.js";
+import { confirmDangerousAction } from "../utils/confirmation.js";
 import { CliError } from "../utils/errors.js";
 import { printJson, printTheme, printThemeList } from "../utils/format.js";
 import { parseNumberOption } from "../utils/post-input.js";
@@ -27,6 +28,10 @@ interface ThemeCommandOptions {
   all?: boolean;
   yes?: boolean;
   uninstalled?: boolean;
+}
+
+interface ThemeMutationOptions extends ThemeCommandOptions {
+  force?: boolean;
 }
 
 interface BatchUpgradeResult {
@@ -145,7 +150,28 @@ function createSpinnerReporter(json = false): SpinnerReporter {
   return new SpinnerReporter(process.stdout.isTTY && !json);
 }
 
-function resolveThemeInstallSource(options: ThemeCommandOptions): {
+function getThemeMutationVerb(_action: "delete"): string {
+  return "deleting";
+}
+
+export async function confirmThemeMutation(
+  action: "delete",
+  name: string,
+  options: ThemeMutationOptions,
+): Promise<boolean> {
+  return confirmDangerousAction(
+    {
+      commandPath: `halo theme ${action}`,
+      actionLabel: `${action[0]!.toUpperCase()}${action.slice(1)}`,
+      resourceLabel: "theme",
+      resourceName: name,
+      cancellationVerb: getThemeMutationVerb(action),
+    },
+    options,
+  );
+}
+
+export function resolveThemeInstallSource(options: ThemeCommandOptions): {
   url?: string;
   file?: string;
 } {
@@ -638,7 +664,12 @@ function createThemeCli(runtime: RuntimeContext): CAC {
     .command("delete <name>", "Delete a theme")
     .option("--profile <name>", "Halo profile name")
     .option("--json", "Output JSON")
-    .action(async (name: string, options: ThemeCommandOptions) => {
+    .option("--force", "Delete without confirmation")
+    .action(async (name: string, options: ThemeMutationOptions) => {
+      if (!(await confirmThemeMutation("delete", name, options))) {
+        return;
+      }
+
       const { clients } = await runtime.getClientsForOptions(options);
       await clients.core.theme.theme.deleteTheme({ name });
 
@@ -658,6 +689,7 @@ function createThemeCli(runtime: RuntimeContext): CAC {
   themeCli.example((bin) => `${bin} install --url https://example.com/theme.zip`);
   themeCli.example((bin) => `${bin} upgrade ThemeName --online`);
   themeCli.example((bin) => `${bin} activate ThemeName`);
+  themeCli.example((bin) => `${bin} delete ThemeName --force`);
   themeCli.help();
 
   return themeCli;

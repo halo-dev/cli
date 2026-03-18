@@ -1,4 +1,4 @@
-import { checkbox, confirm } from "@inquirer/prompts";
+import { checkbox } from "@inquirer/prompts";
 import cac, { type CAC } from "cac";
 import ora, { type Ora } from "ora";
 
@@ -9,6 +9,7 @@ import {
   resolvePluginUpdates,
   resolvePluginUpgradeSource,
 } from "../utils/app-store.js";
+import { confirmDangerousAction } from "../utils/confirmation.js";
 import { CliError } from "../utils/errors.js";
 import { printJson, printPlugin, printPluginList } from "../utils/format.js";
 import { parseBooleanOption, parseNumberOption } from "../utils/post-input.js";
@@ -209,32 +210,16 @@ export async function confirmPluginMutation(
   name: string,
   options: PluginMutationOptions,
 ): Promise<boolean> {
-  if (options.force) {
-    return true;
-  }
-
-  if (!process.stdin.isTTY || !process.stdout.isTTY) {
-    throw new CliError(
-      `\`halo plugin ${action}\` requires confirmation in interactive mode or use --force.`,
-    );
-  }
-
-  const confirmed = await confirm({
-    message: `${action[0]!.toUpperCase()}${action.slice(1)} plugin ${name}?`,
-    default: false,
-  });
-
-  if (confirmed) {
-    return true;
-  }
-
-  if (options.json) {
-    printJson({ name, cancelled: true });
-  } else {
-    process.stdout.write(`Cancelled ${getPluginMutationVerb(action)} plugin ${name}.\n`);
-  }
-
-  return false;
+  return confirmDangerousAction(
+    {
+      commandPath: `halo plugin ${action}`,
+      actionLabel: `${action[0]!.toUpperCase()}${action.slice(1)}`,
+      resourceLabel: "plugin",
+      resourceName: name,
+      cancellationVerb: getPluginMutationVerb(action),
+    },
+    options,
+  );
 }
 
 async function listAllPlugins(runtime: RuntimeContext, options: PluginCommandOptions) {

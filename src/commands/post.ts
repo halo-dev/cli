@@ -4,6 +4,7 @@ import { checkbox, input } from "@inquirer/prompts";
 import cac, { type CAC } from "cac";
 
 import { openUrlInBrowser, resolvePostOpenUrl } from "../utils/browser.js";
+import { confirmDangerousAction } from "../utils/confirmation.js";
 import { CliError } from "../utils/errors.js";
 import { printDetailObject, printJson, printPostList } from "../utils/format.js";
 import {
@@ -532,10 +533,19 @@ function createPostCli(runtime: RuntimeContext): CAC {
     .action(async (name: string, options: PostCommandOptions) => {
       const { clients } = await runtime.getClientsForOptions(options);
 
-      if (!options.force && process.stdin.isTTY) {
-        throw new CliError(
-          "`halo post delete` requires --force in this MVP to avoid accidental deletion.",
-        );
+      if (
+        !(await confirmDangerousAction(
+          {
+            commandPath: "halo post delete",
+            actionLabel: "Delete",
+            resourceLabel: "post",
+            resourceName: name,
+            cancellationVerb: "deleting",
+          },
+          options,
+        ))
+      ) {
+        return;
       }
 
       await clients.core.content.post.deletePost({ name });

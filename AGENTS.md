@@ -223,7 +223,8 @@ When adding a new business area, keep raw object printing out of command files a
 
 - Use `@inquirer/prompts` for interactive flows only when running in TTY mode
 - Use `CliError` for user-facing validation errors
-- Require `--force` for destructive operations in non-interactive mode
+- Any dangerous operation must require an explicit confirmation step in TTY mode before execution. This applies not only to delete/uninstall flows, but also to other risky state-changing actions such as disable or similar mutating operations.
+- Require `--force` for dangerous operations in non-interactive mode so confirmation can be skipped explicitly and consistently.
 - Prefer consistent success/cancel/delete messaging with existing commands
 - For long-running upload/download/polling flows, use `ora` when stdout is a TTY and `--json` is not enabled
 

@@ -1,12 +1,12 @@
 import { writeFile } from "node:fs/promises";
 
 import { type Backup, BackupV1alpha1Api, MigrationV1alpha1ConsoleApi } from "@halo-dev/api-client";
-import { confirm } from "@inquirer/prompts";
 import cac, { type CAC } from "cac";
 import ora from "ora";
 import prettyBytes from "pretty-bytes";
 
 import { ensureBackupFilename, resolveBackupDownloadFilePath } from "../utils/backup.js";
+import { confirmDangerousAction } from "../utils/confirmation.js";
 import { CliError } from "../utils/errors.js";
 import { printBackup, printBackupList, printJson } from "../utils/format.js";
 import { parseNumberOption } from "../utils/post-input.js";
@@ -303,27 +303,19 @@ function createBackupCli(runtime: RuntimeContext): CAC {
       const { profile, clients } = await runtime.getClientsForOptions(options);
       const backupApi = new BackupV1alpha1Api(undefined, profile.baseUrl, clients.axios);
 
-      if (!options.force) {
-        if (!process.stdin.isTTY || !process.stdout.isTTY) {
-          throw new CliError(
-            "`halo backup delete` requires confirmation in interactive mode or use --force.",
-          );
-        }
-
-        const confirmed = await confirm({
-          message: `Delete backup ${name}?`,
-          default: false,
-        });
-
-        if (!confirmed) {
-          if (options.json) {
-            printJson({ deleted: false, name, cancelled: true });
-            return;
-          }
-
-          process.stdout.write(`Cancelled deleting backup ${name}.\n`);
-          return;
-        }
+      if (
+        !(await confirmDangerousAction(
+          {
+            commandPath: "halo backup delete",
+            actionLabel: "Delete",
+            resourceLabel: "backup",
+            resourceName: name,
+            cancellationVerb: "deleting",
+          },
+          options,
+        ))
+      ) {
+        return;
       }
 
       await backupApi.deleteBackup({ name });

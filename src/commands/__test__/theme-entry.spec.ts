@@ -108,3 +108,31 @@ test("tryRunThemeCommand fetches the active theme when listing in table mode", a
   });
   expect(fetchActivatedTheme).toHaveBeenCalledOnce();
 });
+
+test("tryRunThemeCommand dispatches delete subcommands", async () => {
+  silenceStdout();
+
+  const deleteTheme = vi.fn().mockResolvedValue({});
+  const runtimeMock = {
+    getClientsForOptions: vi.fn().mockResolvedValue({
+      clients: {
+        core: {
+          theme: {
+            theme: {
+              deleteTheme,
+            },
+          },
+        },
+      },
+    }),
+  };
+
+  await expect(
+    tryRunThemeCommand(
+      ["theme", "delete", "demo-theme", "--json", "--force"],
+      runtimeMock as never,
+    ),
+  ).resolves.toBe(true);
+
+  expect(deleteTheme).toHaveBeenCalledWith({ name: "demo-theme" });
+});

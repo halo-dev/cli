@@ -183,7 +183,7 @@ test("tryRunPostCommand dispatches delete subcommands in json mode", async () =>
   };
 
   await expect(
-    tryRunPostCommand(["post", "delete", "post-1", "--json"], runtimeMock as never),
+    tryRunPostCommand(["post", "delete", "post-1", "--json", "--force"], runtimeMock as never),
   ).resolves.toBe(true);
 
   expect(deletePost).toHaveBeenCalledWith({ name: "post-1" });

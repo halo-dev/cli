@@ -3,7 +3,6 @@ import { readFile, writeFile } from "node:fs/promises";
 import { basename } from "node:path";
 
 import { AttachmentV1alpha1Api, AttachmentV1alpha1ConsoleApi } from "@halo-dev/api-client";
-import { confirm } from "@inquirer/prompts";
 import cac, { type CAC } from "cac";
 import ora from "ora";
 import prettyBytes from "pretty-bytes";
@@ -13,6 +12,7 @@ import {
   resolveDownloadFilePath,
   resolveUploadFilename,
 } from "../utils/attachment.js";
+import { confirmDangerousAction } from "../utils/confirmation.js";
 import { CliError } from "../utils/errors.js";
 import { printAttachment, printAttachmentList, printJson } from "../utils/format.js";
 import { parseNumberOption } from "../utils/post-input.js";
@@ -119,27 +119,19 @@ function createAttachmentCli(runtime: RuntimeContext): CAC {
       const { profile, clients } = await runtime.getClientsForOptions(options);
       const attachmentApi = new AttachmentV1alpha1Api(undefined, profile.baseUrl, clients.axios);
 
-      if (!options.force) {
-        if (!process.stdin.isTTY || !process.stdout.isTTY) {
-          throw new CliError(
-            "`halo attachment delete` requires confirmation in interactive mode or use --force.",
-          );
-        }
-
-        const confirmed = await confirm({
-          message: `Delete attachment ${name}?`,
-          default: false,
-        });
-
-        if (!confirmed) {
-          if (options.json) {
-            printJson({ deleted: false, name, cancelled: true });
-            return;
-          }
-
-          process.stdout.write(`Cancelled deleting attachment ${name}.\n`);
-          return;
-        }
+      if (
+        !(await confirmDangerousAction(
+          {
+            commandPath: "halo attachment delete",
+            actionLabel: "Delete",
+            resourceLabel: "attachment",
+            resourceName: name,
+            cancellationVerb: "deleting",
+          },
+          options,
+        ))
+      ) {
+        return;
       }
 
       await attachmentApi.deleteAttachment({ name });

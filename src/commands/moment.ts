@@ -1,9 +1,10 @@
 import { readFile } from "node:fs/promises";
 
-import { confirm, input } from "@inquirer/prompts";
+import { input } from "@inquirer/prompts";
 import cac, { type CAC } from "cac";
 
 import type { ListedMomentList, Moment, MomentVisible } from "../types.js";
+import { confirmDangerousAction } from "../utils/confirmation.js";
 import { CliError } from "../utils/errors.js";
 import { printJson, printMoment, printMomentList } from "../utils/format.js";
 import {
@@ -271,27 +272,19 @@ async function createMomentCli(runtime: RuntimeContext): Promise<CAC> {
     .action(async (name: string, options: MomentDeleteOptions) => {
       const { clients } = await runtime.getClientsForOptions(options);
 
-      if (!options.force) {
-        if (!process.stdin.isTTY || !process.stdout.isTTY) {
-          throw new CliError(
-            "`halo moment delete` requires confirmation in interactive mode or use --force.",
-          );
-        }
-
-        const confirmed = await confirm({
-          message: `Delete moment ${name}?`,
-          default: false,
-        });
-
-        if (!confirmed) {
-          if (options.json) {
-            printJson({ deleted: false, name, cancelled: true });
-            return;
-          }
-
-          process.stdout.write(`Cancelled deleting moment ${name}.\n`);
-          return;
-        }
+      if (
+        !(await confirmDangerousAction(
+          {
+            commandPath: "halo moment delete",
+            actionLabel: "Delete",
+            resourceLabel: "moment",
+            resourceName: name,
+            cancellationVerb: "deleting",
+          },
+          options,
+        ))
+      ) {
+        return;
       }
 
       await clients.axios.delete(`${MOMENT_API_BASE}/${encodeURIComponent(name)}`);
