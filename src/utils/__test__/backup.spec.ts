@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
 
-import { ensureBackupFilename, resolveBackupDownloadFilePath } from "../src/utils/backup.js";
+import { ensureBackupFilename, resolveBackupDownloadFilePath } from "../backup.js";
 
 test("resolveBackupDownloadFilePath prefers an explicit output path", () => {
   expect(resolveBackupDownloadFilePath("demo.zip", "./downloads/demo.zip")).toMatch(
@@ -10,6 +10,10 @@ test("resolveBackupDownloadFilePath prefers an explicit output path", () => {
 
 test("resolveBackupDownloadFilePath falls back to backup filename", () => {
   expect(resolveBackupDownloadFilePath("demo.zip")).toMatch(/demo\.zip$/);
+});
+
+test("ensureBackupFilename trims the filename", () => {
+  expect(ensureBackupFilename(" demo.zip ")).toBe("demo.zip");
 });
 
 test("ensureBackupFilename rejects empty filename", () => {

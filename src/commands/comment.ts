@@ -52,7 +52,7 @@ interface ReplyListOptions extends CommentCommandOptions {
   size?: string;
 }
 
-function buildApprovePatch(): JsonPatchInner[] {
+export function buildApprovePatch(): JsonPatchInner[] {
   return [
     {
       op: "add",
@@ -65,6 +65,39 @@ function buildApprovePatch(): JsonPatchInner[] {
       value: new Date().toISOString(),
     },
   ];
+}
+
+export function buildCommentListRequest(options: CommentListOptions): {
+  page?: number;
+  size?: number;
+  keyword?: string;
+  ownerKind?: string;
+  ownerName?: string;
+  fieldSelector?: string[];
+  sort?: string[];
+} {
+  return {
+    page: parseNumberOption(options.page),
+    size: parseNumberOption(options.size),
+    keyword: options.keyword,
+    ownerKind: options.ownerKind,
+    ownerName: options.ownerName,
+    fieldSelector: options.approved == null ? undefined : [`spec.approved=${options.approved}`],
+    sort: options.sort?.trim() ? [options.sort.trim()] : undefined,
+  };
+}
+
+export function buildReplyRequestPayload(
+  content: string,
+  options: CommentReplyCreateOptions,
+): ReplyRequest {
+  return {
+    raw: content,
+    content,
+    allowNotification: options.allowNotification ?? true,
+    hidden: options.hidden ?? false,
+    quoteReply: options.quoteReply,
+  };
 }
 
 async function resolveReplyContent(
@@ -212,18 +245,7 @@ function createCommentCli(runtime: RuntimeContext): CAC {
         profile.baseUrl,
         clients.axios,
       );
-      const fieldSelector =
-        options.approved == null ? undefined : [`spec.approved=${options.approved}`];
-      const sort = options.sort?.trim() ? [options.sort.trim()] : undefined;
-      const response = await commentConsoleApi.listComments({
-        page: parseNumberOption(options.page),
-        size: parseNumberOption(options.size),
-        keyword: options.keyword,
-        ownerKind: options.ownerKind,
-        ownerName: options.ownerName,
-        fieldSelector,
-        sort,
-      });
+      const response = await commentConsoleApi.listComments(buildCommentListRequest(options));
       printCommentList(response.data, options.json);
     });
 
@@ -318,17 +340,9 @@ function createCommentCli(runtime: RuntimeContext): CAC {
         );
       }
 
-      const replyRequest: ReplyRequest = {
-        raw: content,
-        content,
-        allowNotification: options.allowNotification ?? true,
-        hidden: options.hidden ?? false,
-        quoteReply: options.quoteReply,
-      };
-
       const response = await commentConsoleApi.createReply({
         name: commentName,
-        replyRequest,
+        replyRequest: buildReplyRequestPayload(content, options),
       });
 
       printReply(response.data, options.json);

@@ -34,6 +34,57 @@ interface AuthProfileUseOptions {
   json?: boolean;
 }
 
+export function resolveAuthProfileUseName(
+  name: string | undefined,
+  profile: string | undefined,
+): string {
+  const profileName = name ?? profile;
+  if (!profileName) {
+    throw new CliError(
+      "`halo auth profile use` requires a profile name, for example: `halo auth profile use local`. You can also use `--profile <name>`.",
+    );
+  }
+
+  return profileName;
+}
+
+export function validateResolvedLoginInput(
+  options: AuthLoginOptions,
+  profile: string | undefined,
+  url: string | undefined,
+  authType: AuthType | undefined,
+): Required<Pick<AuthLoginOptions, "profile" | "url" | "authType">> & AuthLoginOptions {
+  if (!profile || !url || !authType) {
+    throw new CliError(
+      "`halo auth login` requires --profile, --url, and --auth-type in non-interactive mode.",
+    );
+  }
+
+  let username = options.username;
+  let passwordValue = options.password;
+  let token = options.token;
+
+  if (authType === "basic") {
+    if (!username || !passwordValue) {
+      throw new CliError("Basic Auth requires --username and --password.");
+    }
+  } else {
+    if (!token) {
+      throw new CliError("Bearer Auth requires --token.");
+    }
+  }
+
+  return {
+    ...options,
+    profile,
+    url,
+    authType,
+    username,
+    password: passwordValue,
+    token,
+  };
+}
+
 function createAuthProfileCli(runtime: RuntimeContext): CAC {
   const profileCli = cac("halo auth profile");
 
@@ -58,13 +109,7 @@ function createAuthProfileCli(runtime: RuntimeContext): CAC {
     .option("--profile <name>", "Profile name to activate")
     .option("--json", "Output JSON")
     .action(async (name: string | undefined, options: AuthProfileUseOptions) => {
-      const profileName = name ?? options.profile;
-      if (!profileName) {
-        throw new CliError(
-          "`halo auth profile use` requires a profile name, for example: `halo auth profile use local`. You can also use `--profile <name>`.",
-        );
-      }
-
+      const profileName = resolveAuthProfileUseName(name, options.profile);
       const profile = await runtime.configStore.setActiveProfile(profileName);
       printProfileUseSuccess(profile, options.json);
     });
@@ -207,44 +252,20 @@ async function resolveLoginInput(
         })) as AuthType)
       : undefined);
 
-  if (!profile || !url || !authType) {
-    throw new CliError(
-      "`halo auth login` requires --profile, --url, and --auth-type in non-interactive mode.",
-    );
-  }
-
-  let username = options.username;
-  let passwordValue = options.password;
-  let token = options.token;
-
   if (authType === "basic") {
-    if (!username && interactive) {
-      username = await input({ message: "Username" });
+    if (!options.username && interactive) {
+      options.username = await input({ message: "Username" });
     }
-    if (!passwordValue && interactive) {
-      passwordValue = await password({ message: "Password" });
-    }
-    if (!username || !passwordValue) {
-      throw new CliError("Basic Auth requires --username and --password.");
+    if (!options.password && interactive) {
+      options.password = await password({ message: "Password" });
     }
   } else {
-    if (!token && interactive) {
-      token = await password({ message: "Personal access token" });
-    }
-    if (!token) {
-      throw new CliError("Bearer Auth requires --token.");
+    if (!options.token && interactive) {
+      options.token = await password({ message: "Personal access token" });
     }
   }
 
-  return {
-    ...options,
-    profile,
-    url,
-    authType,
-    username,
-    password: passwordValue,
-    token,
-  };
+  return validateResolvedLoginInput(options, profile, url, authType);
 }
 
 export function registerAuthCommands(cli: CAC): void {

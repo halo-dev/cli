@@ -52,7 +52,7 @@ function sleep(ms: number): Promise<void> {
   });
 }
 
-function resolveWaitTimeoutMs(value: string | undefined): number {
+export function resolveWaitTimeoutMs(value: string | undefined): number {
   const timeoutSeconds = parseNumberOption(value) ?? DEFAULT_WAIT_TIMEOUT_SECONDS;
   if (!timeoutSeconds || timeoutSeconds <= 0) {
     throw new CliError("`--wait-timeout` must be a positive number of seconds.");
@@ -61,7 +61,10 @@ function resolveWaitTimeoutMs(value: string | undefined): number {
   return timeoutSeconds * 1_000;
 }
 
-function buildBackupCreatePayload(name: string | undefined, options: BackupCreateOptions): Backup {
+export function buildBackupCreatePayload(
+  name: string | undefined,
+  options: BackupCreateOptions,
+): Backup {
   const format = options.format?.trim();
   const expiresAt = options.expiresAt?.trim();
   const normalizedName = name?.trim();

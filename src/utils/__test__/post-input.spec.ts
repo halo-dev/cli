@@ -2,11 +2,48 @@ import { expect, test } from "vitest";
 
 import {
   CONTENT_JSON_ANNOTATION,
+  PATCHED_CONTENT_ANNOTATION,
+  PATCHED_RAW_ANNOTATION,
   extractDraftContent,
   normalizeCreatePostInput,
   normalizeUpdatePostInput,
+  parseBooleanOption,
+  parseCsvOption,
+  parseNumberOption,
   serializeDraftContent,
-} from "../src/utils/post-input.js";
+  slugify,
+} from "../post-input.js";
+
+test("parseBooleanOption handles common truthy and falsy values", () => {
+  expect(parseBooleanOption(" yes ")).toBe(true);
+  expect(parseBooleanOption("0")).toBe(false);
+  expect(parseBooleanOption(true)).toBe(true);
+  expect(parseBooleanOption(undefined)).toBeUndefined();
+});
+
+test("parseBooleanOption rejects invalid values", () => {
+  expect(() => parseBooleanOption("maybe")).toThrow(/Invalid boolean value/);
+});
+
+test("parseNumberOption parses strings and ignores empty values", () => {
+  expect(parseNumberOption(" 2 ")).toBe(2);
+  expect(parseNumberOption(3)).toBe(3);
+  expect(parseNumberOption(" ")).toBeUndefined();
+});
+
+test("parseNumberOption rejects invalid values", () => {
+  expect(() => parseNumberOption("many")).toThrow(/Invalid number value/);
+});
+
+test("parseCsvOption trims items and removes empties", () => {
+  expect(parseCsvOption(" news, halo ,, cli ")).toEqual(["news", "halo", "cli"]);
+  expect(parseCsvOption("")).toBeUndefined();
+});
+
+test("slugify normalizes text and falls back for blank titles", () => {
+  expect(slugify(" Hello, Halo CLI! ")).toBe("hello-halo-cli");
+  expect(slugify("%%%")).toBe("post");
+});
 
 test("normalizeCreatePostInput builds a complete PostRequest", async () => {
   const request = await normalizeCreatePostInput({
@@ -100,4 +137,35 @@ test("extractDraftContent prefers serialized content annotation from draft snaps
   });
 
   expect(extracted).toEqual(content);
+});
+
+test("extractDraftContent falls back to patched annotations", () => {
+  const extracted = extractDraftContent({
+    apiVersion: "snapshot.halo.run/v1alpha1",
+    kind: "Snapshot",
+    metadata: {
+      name: "snapshot-1",
+      annotations: {
+        [CONTENT_JSON_ANNOTATION]: "{invalid json",
+        [PATCHED_RAW_ANNOTATION]: "# Draft",
+        [PATCHED_CONTENT_ANNOTATION]: "<p>Draft</p>",
+      },
+    },
+    spec: {
+      owner: "test-user",
+      rawType: "markdown",
+      subjectRef: {
+        group: "content.halo.run",
+        kind: "Post",
+        name: "hello-world",
+        version: "v1alpha1",
+      },
+    },
+  });
+
+  expect(extracted).toEqual({
+    raw: "# Draft",
+    content: "<p>Draft</p>",
+    rawType: "markdown",
+  });
 });

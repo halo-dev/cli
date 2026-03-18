@@ -1,7 +1,7 @@
 import { expect, test } from "vitest";
 
-import type { HaloProfile } from "../src/types.js";
-import { buildAuthHeader, normalizeBaseUrl } from "../src/utils/runtime.js";
+import type { HaloProfile } from "../../types.js";
+import { buildAuthHeader, normalizeBaseUrl } from "../runtime.js";
 
 test("buildAuthHeader returns Basic authorization header", () => {
   const profile: HaloProfile = {
@@ -36,4 +36,8 @@ test("buildAuthHeader returns Bearer authorization header", () => {
 
 test("normalizeBaseUrl trims trailing slashes", () => {
   expect(normalizeBaseUrl("https://demo.halo.run///")).toBe("https://demo.halo.run");
+});
+
+test("normalizeBaseUrl rejects URLs without protocol", () => {
+  expect(() => normalizeBaseUrl("demo.halo.run")).toThrow(/must start with http/);
 });

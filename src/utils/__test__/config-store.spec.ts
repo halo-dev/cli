@@ -4,8 +4,8 @@ import { join } from "node:path";
 
 import { expect, test } from "vitest";
 
-import type { HaloProfile } from "../src/types.js";
-import { ConfigStore } from "../src/utils/config-store.js";
+import type { HaloProfile } from "../../types.js";
+import { ConfigStore, createProfileTimestamp } from "../config-store.js";
 
 async function withTempStore(run: (store: ConfigStore) => Promise<void>): Promise<void> {
   const root = await mkdtemp(join(tmpdir(), "halo-cli-test-"));
@@ -78,4 +78,18 @@ test("ConfigStore switches the active profile", async () => {
     const result = await store.listProfiles();
     expect(result.activeProfile).toBe("staging");
   });
+});
+
+test("ConfigStore rejects missing active profiles", async () => {
+  await withTempStore(async (store) => {
+    await expect(store.getActiveProfile()).rejects.toThrow(/No active Halo profile found/);
+  });
+});
+
+test("createProfileTimestamp preserves createdAt and refreshes updatedAt", () => {
+  const existing = createProfile("prod");
+  const timestamp = createProfileTimestamp(existing);
+
+  expect(timestamp.createdAt).toBe(existing.createdAt);
+  expect(Date.parse(timestamp.updatedAt)).not.toBeNaN();
 });

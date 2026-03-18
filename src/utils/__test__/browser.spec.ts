@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
 
-import { getBrowserOpenCommand, resolvePostOpenUrl } from "../src/utils/browser.js";
+import { getBrowserOpenCommand, resolvePostOpenUrl } from "../browser.js";
 
 test("resolvePostOpenUrl keeps absolute permalinks", () => {
   expect(resolvePostOpenUrl("https://example.com", "https://blog.example.com/posts/hello")).toBe(
@@ -20,6 +20,10 @@ test("resolvePostOpenUrl joins relative permalinks with base URL", () => {
   );
 });
 
+test("resolvePostOpenUrl rejects empty permalinks", () => {
+  expect(() => resolvePostOpenUrl("https://example.com", "  ")).toThrow(/permalink is empty/i);
+});
+
 test("getBrowserOpenCommand returns macOS open command", () => {
   expect(getBrowserOpenCommand("https://example.com", "darwin")).toEqual({
     command: "open",
@@ -31,5 +35,12 @@ test("getBrowserOpenCommand returns Windows start command", () => {
   expect(getBrowserOpenCommand("https://example.com", "win32")).toEqual({
     command: "cmd",
     args: ["/c", "start", "", "https://example.com"],
+  });
+});
+
+test("getBrowserOpenCommand returns xdg-open on Linux", () => {
+  expect(getBrowserOpenCommand("https://example.com", "linux")).toEqual({
+    command: "xdg-open",
+    args: ["https://example.com"],
   });
 });

@@ -42,6 +42,26 @@ interface AttachmentDeleteOptions extends AttachmentCommandOptions {
   force?: boolean;
 }
 
+export function resolveAttachmentUploadSource(options: AttachmentUploadOptions): {
+  file?: string;
+  url?: string;
+  sourceLabel: string;
+} {
+  const file = options.file?.trim();
+  const url = options.url?.trim();
+  const sourceCount = Number(Boolean(file)) + Number(Boolean(url));
+
+  if (sourceCount !== 1) {
+    throw new CliError("Provide exactly one upload source: --file or --url.");
+  }
+
+  return {
+    file,
+    url,
+    sourceLabel: file ? basename(file) : url!,
+  };
+}
+
 async function loadFileAsAttachment(filePath: string): Promise<File> {
   const normalizedPath = filePath.trim();
   const buffer = await readFile(normalizedPath);
@@ -146,15 +166,7 @@ function createAttachmentCli(runtime: RuntimeContext): CAC {
         clients.axios,
       );
       const spinnerEnabled = Boolean(process.stdout.isTTY && !options.json);
-      const file = options.file?.trim();
-      const url = options.url?.trim();
-      const sourceCount = Number(Boolean(file)) + Number(Boolean(url));
-
-      if (sourceCount !== 1) {
-        throw new CliError("Provide exactly one upload source: --file or --url.");
-      }
-
-      const sourceLabel = file ? basename(file) : url!;
+      const { file, url, sourceLabel } = resolveAttachmentUploadSource(options);
       const spinner = createSpinner(spinnerEnabled, `Uploading attachment ${sourceLabel}...`);
 
       try {

@@ -48,7 +48,7 @@ interface PostCommandOptions {
   newName?: string;
 }
 
-function toMutationInput(options: PostCommandOptions) {
+export function toMutationInput(options: PostCommandOptions) {
   return {
     name: options.name,
     title: options.title,
@@ -69,7 +69,7 @@ function toMutationInput(options: PostCommandOptions) {
   };
 }
 
-function withSerializedContentAnnotation(
+export function withSerializedContentAnnotation(
   metadata: Post["metadata"],
   content: { content: string; raw: string; rawType: string },
 ): Post["metadata"] {
@@ -82,7 +82,7 @@ function withSerializedContentAnnotation(
   };
 }
 
-async function loadEditablePostState(ucPostApi: PostV1alpha1UcApi, name: string) {
+export async function loadEditablePostState(ucPostApi: PostV1alpha1UcApi, name: string) {
   const [postResponse, draftResponse] = await Promise.all([
     ucPostApi.getMyPost({ name }),
     ucPostApi.getMyPostDraft({ name, patched: true }),
@@ -95,7 +95,7 @@ async function loadEditablePostState(ucPostApi: PostV1alpha1UcApi, name: string)
   };
 }
 
-async function syncPostPublishState(
+export async function syncPostPublishState(
   ucPostApi: PostV1alpha1UcApi,
   name: string,
   publish: boolean | undefined,

@@ -18,7 +18,7 @@ export default defineConfig({
   },
   test: {
     environment: "node",
-    include: ["test/**/*.spec.ts"],
+    include: ["src/**/__test__/**/*.spec.ts"],
     root: fileURLToPath(new URL("./", import.meta.url)),
     exclude: [...configDefaults.exclude],
   },

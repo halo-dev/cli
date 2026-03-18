@@ -2,14 +2,21 @@ import { expect, test } from "vitest";
 
 import {
   formatHaloProAuthorizationToken,
-  resolvePluginUpdateInfo,
   resolvePluginAppStoreAppId,
+  resolvePluginUpdateInfo,
   resolvePluginUpgradeSource,
   satisfiesRequires,
-} from "../src/utils/app-store.js";
+} from "../app-store.js";
 
 test("resolvePluginUpgradeSource accepts url source", () => {
   expect(resolvePluginUpgradeSource({ url: "https://example.com/plugin.jar" })).toEqual({
+    kind: "url",
+    url: "https://example.com/plugin.jar",
+  });
+});
+
+test("resolvePluginUpgradeSource accepts uri alias", () => {
+  expect(resolvePluginUpgradeSource({ uri: "https://example.com/plugin.jar" })).toEqual({
     kind: "url",
     url: "https://example.com/plugin.jar",
   });
@@ -26,6 +33,10 @@ test("resolvePluginUpgradeSource accepts online source", () => {
   expect(resolvePluginUpgradeSource({ online: true })).toEqual({
     kind: "online",
   });
+});
+
+test("resolvePluginUpgradeSource rejects missing sources", () => {
+  expect(() => resolvePluginUpgradeSource({})).toThrow(/Provide exactly one plugin upgrade source/);
 });
 
 test("resolvePluginUpgradeSource rejects multiple sources", () => {
@@ -61,6 +72,10 @@ test("formatHaloProAuthorizationToken normalizes activation code for X-Authoriza
   expect(formatHaloProAuthorizationToken(" code=with=padding=\n")).toBe("lxl_codewithpadding");
 });
 
+test("formatHaloProAuthorizationToken rejects empty activation codes", () => {
+  expect(() => formatHaloProAuthorizationToken("  ")).toThrow(/activation code is empty/i);
+});
+
 test("satisfiesRequires matches plugin-app-store semantics", () => {
   expect(satisfiesRequires("2.0.0", ">=2.0.0")).toBe(true);
   expect(satisfiesRequires("2.0.0", "2.0.0")).toBe(true);
@@ -80,6 +95,10 @@ test("resolvePluginUpdateInfo reports incompatible updates", () => {
     latestVersion: "1.1.0",
     compatible: false,
   });
+});
+
+test("resolvePluginUpdateInfo ignores invalid semver versions", () => {
+  expect(resolvePluginUpdateInfo("main", "1.1.0", "2.20.0", ">=2.0.0")).toBeUndefined();
 });
 
 test("resolvePluginUpdateInfo ignores non-upgrades", () => {

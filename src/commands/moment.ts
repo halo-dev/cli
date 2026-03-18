@@ -57,7 +57,7 @@ async function resolveMomentContent(
   return content;
 }
 
-function escapeHtml(value: string): string {
+export function escapeHtml(value: string): string {
   return value
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
@@ -66,11 +66,11 @@ function escapeHtml(value: string): string {
     .replace(/'/g, "&#39;");
 }
 
-function looksLikeHtml(value: string): boolean {
+export function looksLikeHtml(value: string): boolean {
   return /<\/?[a-z][^>]*>/i.test(value);
 }
 
-function normalizeMomentHtml(value: string): string {
+export function normalizeMomentHtml(value: string): string {
   const trimmed = value.trim();
 
   if (!trimmed) {
@@ -87,7 +87,7 @@ function normalizeMomentHtml(value: string): string {
     .join("");
 }
 
-function normalizeVisible(value: string | undefined): MomentVisible | undefined {
+export function normalizeVisible(value: string | undefined): MomentVisible | undefined {
   if (!value?.trim()) {
     return undefined;
   }
@@ -114,7 +114,7 @@ async function promptForMomentContent(
   });
 }
 
-function buildMomentPayload(
+export function buildMomentPayload(
   content: string,
   options: MomentMutationOptions,
   name?: string,
