@@ -1,4 +1,5 @@
 import type { CAC } from "cac";
+import ora, { type Ora } from "ora";
 
 import {
   createAppStoreClient,
@@ -31,6 +32,102 @@ interface BatchUpgradeResult {
   upgraded: Array<{ name: string; fromVersion?: string; toVersion: string }>;
   skipped: Array<{ name: string; fromVersion?: string; toVersion: string; reason: string }>;
   failed: Array<{ name: string; error: string }>;
+}
+
+interface BatchUpgradeProgressEvent {
+  type: "checking" | "queued" | "upgrading" | "upgraded" | "skipped" | "failed";
+  name?: string;
+  fromVersion?: string;
+  toVersion?: string;
+  reason?: string;
+  error?: string;
+  count?: number;
+}
+
+class SpinnerReporter {
+  private spinner: Ora | undefined;
+  private readonly enabled: boolean;
+
+  constructor(enabled: boolean) {
+    this.enabled = enabled;
+  }
+
+  start(text: string): void {
+    if (!this.enabled) {
+      process.stdout.write(`${text}\n`);
+      return;
+    }
+
+    this.spinner = ora(text).start();
+  }
+
+  update(text: string): void {
+    if (!this.enabled) {
+      process.stdout.write(`${text}\n`);
+      return;
+    }
+
+    if (!this.spinner) {
+      this.spinner = ora(text).start();
+      return;
+    }
+
+    this.spinner.text = text;
+  }
+
+  succeed(text: string): void {
+    if (!this.enabled) {
+      process.stdout.write(`${text}\n`);
+      return;
+    }
+
+    if (this.spinner) {
+      this.spinner.succeed(text);
+      this.spinner = undefined;
+      return;
+    }
+
+    ora().succeed(text);
+  }
+
+  fail(text: string): void {
+    if (!this.enabled) {
+      process.stdout.write(`${text}\n`);
+      return;
+    }
+
+    if (this.spinner) {
+      this.spinner.fail(text);
+      this.spinner = undefined;
+      return;
+    }
+
+    ora().fail(text);
+  }
+
+  info(text: string): void {
+    if (!this.enabled) {
+      process.stdout.write(`${text}\n`);
+      return;
+    }
+
+    if (this.spinner) {
+      this.spinner.info(text);
+      this.spinner = undefined;
+      return;
+    }
+
+    ora().info(text);
+  }
+
+  stop(): void {
+    this.spinner?.stop();
+    this.spinner = undefined;
+  }
+}
+
+function createSpinnerReporter(json = false): SpinnerReporter {
+  return new SpinnerReporter(process.stdout.isTTY && !json);
 }
 
 function resolvePluginInstallSource(options: PluginCommandOptions): { url?: string; file?: string } {
@@ -70,10 +167,17 @@ async function listAllPlugins(runtime: RuntimeContext, options: PluginCommandOpt
   }
 }
 
-async function upgradeAllPlugins(runtime: RuntimeContext, options: PluginCommandOptions): Promise<BatchUpgradeResult> {
+async function upgradeAllPlugins(
+  runtime: RuntimeContext,
+  options: PluginCommandOptions,
+  onProgress?: (event: BatchUpgradeProgressEvent) => void,
+): Promise<BatchUpgradeResult> {
+  onProgress?.({ type: "checking" });
   const { clients, items } = await listAllPlugins(runtime, options);
   const updates = await resolvePluginUpdates(clients, items);
   const appStoreClient = await createAppStoreClient(clients);
+
+  onProgress?.({ type: "queued", count: updates.size });
 
   const result: BatchUpgradeResult = {
     upgraded: [],
@@ -88,6 +192,13 @@ async function upgradeAllPlugins(runtime: RuntimeContext, options: PluginCommand
     }
 
     if (!update.compatible) {
+      onProgress?.({
+        type: "skipped",
+        name: plugin.metadata.name,
+        fromVersion: plugin.spec.version,
+        toVersion: update.latestVersion,
+        reason: "incompatible-with-current-halo",
+      });
       result.skipped.push({
         name: plugin.metadata.name,
         fromVersion: plugin.spec.version,
@@ -98,11 +209,25 @@ async function upgradeAllPlugins(runtime: RuntimeContext, options: PluginCommand
     }
 
     try {
+      onProgress?.({
+        type: "upgrading",
+        name: plugin.metadata.name,
+        fromVersion: plugin.spec.version,
+        toVersion: update.latestVersion,
+      });
+
       const appId = resolvePluginAppStoreAppId(plugin);
       const downloadUrl = await resolveLatestAppStoreDownloadUrl(appStoreClient, appId);
       await clients.console.plugin.plugin.upgradePluginFromUri({
         name: plugin.metadata.name,
         upgradeFromUriRequest: { uri: downloadUrl },
+      });
+
+      onProgress?.({
+        type: "upgraded",
+        name: plugin.metadata.name,
+        fromVersion: plugin.spec.version,
+        toVersion: update.latestVersion,
       });
 
       result.upgraded.push({
@@ -115,10 +240,80 @@ async function upgradeAllPlugins(runtime: RuntimeContext, options: PluginCommand
         name: plugin.metadata.name,
         error: error instanceof Error ? error.message : "Unknown upgrade error.",
       });
+
+      onProgress?.({
+        type: "failed",
+        name: plugin.metadata.name,
+        fromVersion: plugin.spec.version,
+        toVersion: update.latestVersion,
+        error: error instanceof Error ? error.message : "Unknown upgrade error.",
+      });
     }
   }
 
   return result;
+}
+
+function printBatchUpgradeProgress(event: BatchUpgradeProgressEvent): void {
+  if (event.type === "checking") {
+    process.stdout.write("Checking App Store plugin updates...\n");
+    return;
+  }
+
+  if (event.type === "queued") {
+    process.stdout.write(`Found ${event.count ?? 0} plugin(s) with App Store updates.\n`);
+    return;
+  }
+
+  if (event.type === "upgrading") {
+    process.stdout.write(`Upgrading plugin ${event.name}: ${event.fromVersion ?? "unknown"} -> ${event.toVersion ?? "unknown"}...\n`);
+    return;
+  }
+
+  if (event.type === "upgraded") {
+    process.stdout.write(`Upgraded plugin ${event.name}: ${event.fromVersion ?? "unknown"} -> ${event.toVersion ?? "unknown"}.\n`);
+    return;
+  }
+
+  if (event.type === "skipped") {
+    process.stdout.write(`Skipped plugin ${event.name}: ${event.fromVersion ?? "unknown"} -> ${event.toVersion ?? "unknown"} (${event.reason}).\n`);
+    return;
+  }
+
+  if (event.type === "failed") {
+    process.stdout.write(`Failed plugin ${event.name}: ${event.error ?? "Unknown upgrade error."}\n`);
+  }
+}
+
+function reportBatchUpgradeProgress(spinner: SpinnerReporter, event: BatchUpgradeProgressEvent): void {
+  if (event.type === "checking") {
+    spinner.start("Checking App Store plugin updates...");
+    return;
+  }
+
+  if (event.type === "queued") {
+    spinner.info(`Found ${event.count ?? 0} plugin(s) with App Store updates.`);
+    return;
+  }
+
+  if (event.type === "upgrading") {
+    spinner.start(`Upgrading plugin ${event.name}: ${event.fromVersion ?? "unknown"} -> ${event.toVersion ?? "unknown"}...`);
+    return;
+  }
+
+  if (event.type === "upgraded") {
+    spinner.succeed(`Upgraded plugin ${event.name}: ${event.fromVersion ?? "unknown"} -> ${event.toVersion ?? "unknown"}.`);
+    return;
+  }
+
+  if (event.type === "skipped") {
+    spinner.info(`Skipped plugin ${event.name}: ${event.fromVersion ?? "unknown"} -> ${event.toVersion ?? "unknown"} (${event.reason}).`);
+    return;
+  }
+
+  if (event.type === "failed") {
+    spinner.fail(`Failed plugin ${event.name}: ${event.error ?? "Unknown upgrade error."}`);
+  }
 }
 
 function printBatchUpgradeResult(result: BatchUpgradeResult, json = false): void {
@@ -130,18 +325,6 @@ function printBatchUpgradeResult(result: BatchUpgradeResult, json = false): void
   if (result.upgraded.length === 0 && result.skipped.length === 0 && result.failed.length === 0) {
     process.stdout.write("No App Store plugin updates available.\n");
     return;
-  }
-
-  for (const item of result.upgraded) {
-    process.stdout.write(`Upgraded plugin ${item.name}: ${item.fromVersion ?? "unknown"} -> ${item.toVersion}.\n`);
-  }
-
-  for (const item of result.skipped) {
-    process.stdout.write(`Skipped plugin ${item.name}: ${item.fromVersion ?? "unknown"} -> ${item.toVersion} (${item.reason}).\n`);
-  }
-
-  for (const item of result.failed) {
-    process.stdout.write(`Failed plugin ${item.name}: ${item.error}\n`);
   }
 
   process.stdout.write(
@@ -164,6 +347,8 @@ export function registerPluginCommands(cli: CAC, runtime: RuntimeContext): void 
     .option("--online", "Upgrade from the Halo App Store")
     .option("--all", "Upgrade all compatible App Store plugins")
     .action(async (action: string | undefined, name: string | undefined, options: PluginCommandOptions) => {
+      const spinner = createSpinnerReporter(options.json);
+
       if (!action) {
         printCommandHelp({
           summary: "Work with Halo plugins.",
@@ -260,7 +445,10 @@ export function registerPluginCommands(cli: CAC, runtime: RuntimeContext): void 
             throw new CliError("`halo plugin upgrade --all` only supports App Store upgrades. Do not combine it with --url, --uri, or --file.");
           }
 
-          const result = await upgradeAllPlugins(runtime, options);
+          const progressHandler = options.json
+            ? undefined
+            : (event: BatchUpgradeProgressEvent) => reportBatchUpgradeProgress(spinner, event);
+          const result = await upgradeAllPlugins(runtime, options, progressHandler);
           printBatchUpgradeResult(result, options.json);
           return;
         }
@@ -274,33 +462,38 @@ export function registerPluginCommands(cli: CAC, runtime: RuntimeContext): void 
         let response;
 
         if (source.kind === "url") {
+          spinner.start(`Upgrading plugin ${name} from remote URL...`);
           response = await clients.console.plugin.plugin.upgradePluginFromUri({
             name,
             upgradeFromUriRequest: { uri: source.url },
           });
+          spinner.succeed(`Upgraded plugin ${name}.`);
         } else if (source.kind === "file") {
+          spinner.start(`Uploading local package for plugin ${name}...`);
           response = await clients.console.plugin.plugin.upgradePlugin({
             name,
             file: await loadFileAsJar(source.file),
           });
+          spinner.succeed(`Upgraded plugin ${name}.`);
         } else {
+          spinner.start(`Resolving App Store package for plugin ${name}...`);
           const pluginResponse = await clients.core.plugin.plugin.getPlugin({ name });
           const appId = resolvePluginAppStoreAppId(pluginResponse.data);
           const appStoreClient = await createAppStoreClient(clients);
           const downloadUrl = await resolveLatestAppStoreDownloadUrl(appStoreClient, appId);
 
+          spinner.update(`Upgrading plugin ${name} from Halo App Store...`);
           response = await clients.console.plugin.plugin.upgradePluginFromUri({
             name,
             upgradeFromUriRequest: { uri: downloadUrl },
           });
+          spinner.succeed(`Upgraded plugin ${name}.`);
         }
 
         if (options.json) {
           printJson(response.data ?? { upgraded: true, name });
           return;
         }
-
-        process.stdout.write(`Upgraded plugin ${name}.\n`);
         return;
       }
 
