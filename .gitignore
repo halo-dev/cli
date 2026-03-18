@@ -1,0 +1,9 @@
+# Node
+.pnpm-store
+node_modules
+dist
+
+# Mac
+.DS_Store
+
+example

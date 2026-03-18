@@ -1,0 +1,48 @@
+{
+  "name": "@halo-dev/cli",
+  "version": "1.0.0",
+  "description": "CLI for managing Halo instances.",
+  "type": "module",
+  "bin": {
+    "halo": "dist/cli.mjs"
+  },
+  "main": "./dist/cli.mjs",
+  "types": "./dist/cli.d.mts",
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsdown",
+    "dev": "tsx src/cli.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test test/*.test.ts"
+  },
+  "keywords": [
+    "halo",
+    "cli",
+    "cms"
+  ],
+  "author": "",
+  "license": "ISC",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "packageManager": "pnpm@10.32.1",
+  "dependencies": {
+    "@halo-dev/api-client": "^2.23.0",
+    "@inquirer/prompts": "^8.3.2",
+    "axios": "^1.13.6",
+    "cac": "^7.0.0",
+    "cli-table3": "^0.6.5",
+    "string-width": "^8.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.12.0",
+    "tsdown": "^0.21.4",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  }
+}
