@@ -74,3 +74,181 @@ These commands map to their corresponding tools. For example, `vp dev --port 300
 - [ ] Run `vp install` after pulling remote changes and before getting started.
 - [ ] Run `vp check` and `vp test` to validate changes.
 <!--VITE PLUS END-->
+
+# Project Status
+
+This repository is a TypeScript CLI for managing Halo instances.
+
+## Runtime and Packaging
+
+- Runtime: Node.js >= 20
+- Language: TypeScript, ESM
+- CLI entry: `src/cli.ts`
+- Published binary: `halo`
+- Local development entry: `tsx src/cli.ts`
+- Build output: `dist/cli.mjs`
+
+## Current Command Surface
+
+The root CLI currently registers these business areas:
+
+- `auth`
+- `post`
+- `search`
+- `plugin`
+- `attachment`
+- `backup`
+- `moment`
+- `comment`
+
+## Command Architecture
+
+This project no longer implements large nested command trees directly on the root `cac` instance.
+
+Use this pattern instead:
+
+1. Register a placeholder root command in `src/cli.ts` via `registerXxxCommands(cli)`.
+2. Implement a dedicated sub-CLI in `src/commands/xxx.ts` with its own `cac("halo xxx")` instance.
+3. Export `tryRunXxxCommand(args, runtime)`.
+4. In `src/cli.ts`, dispatch in order by calling `tryRunXxxCommand(...)` before the final root parse.
+
+This pattern is important because it gives correct help output for:
+
+- `halo xxx`
+- `halo xxx --help`
+- nested subcommands like `halo comment reply`
+
+If a business area has a nested namespace, create another dedicated sub-CLI for that nested branch instead of trying to handle help manually in a single root command.
+
+## Runtime and Auth Model
+
+Authentication and HTTP clients are centralized in `src/utils/runtime.ts`.
+
+- `RuntimeContext.getClientsForOptions(...)` returns:
+  - `clients.axios`
+  - `clients.console`
+  - `clients.core`
+- Auth supports:
+  - Basic Auth
+  - Bearer token
+- Profile storage is handled by `src/utils/config-store.ts`
+- Config path defaults to:
+  - `$HALO_CLI_CONFIG_DIR/config.json` if set
+  - otherwise `$XDG_CONFIG_HOME/halo/config.json`
+  - otherwise `~/.config/halo/config.json`
+
+## Implemented Business Areas
+
+### `auth`
+
+- login
+- current
+- profile list/current/use
+- supports multi-profile management
+
+### `post`
+
+- list/get/create/update/delete/open
+- uses Halo UC post APIs
+- draft content is persisted through content annotations
+- create/update support taxonomy resolution and creation for categories/tags
+
+### `search`
+
+- public site search
+- does not require authenticated console access when `--url` is provided
+
+### `plugin`
+
+- list/get/install/upgrade and related management flows
+- includes App Store-aware upgrade logic
+
+### `attachment`
+
+- list/get/delete/upload/download
+- upload/download include progress feedback in TTY mode
+
+### `backup`
+
+- list/get/create/download/delete
+- `create --wait` polls until completion
+
+### `moment`
+
+- list/get/create/update/delete
+- does not use `@halo-dev/api-client` for business APIs
+- uses manual `axios` requests against the moments plugin UC endpoints
+- this was necessary because the main Halo SDK does not expose moments business APIs
+
+### `comment`
+
+- `comment list`
+- `comment get`
+- `comment approve`
+- `comment delete`
+- `comment create-reply`
+- `comment reply list`
+- `comment reply get`
+- `comment reply approve`
+- `comment reply delete`
+
+Comment approval behavior follows the Halo console frontend:
+
+- approving a comment uses `core.content.comment.patchComment` with JSON Patch
+- approving a reply uses `core.content.reply.patchReply` with JSON Patch
+- creating a reply uses `console.content.comment.createReply`, which creates an already approved reply in console context
+
+## Formatting and Output Conventions
+
+Output helpers live in `src/utils/format.ts`.
+
+- Prefer adding business-specific `printXxxList(...)` and `printXxx(...)` helpers there
+- Table output is standardized via `cli-table3`
+- Time formatting uses `dayjs`
+- Byte formatting uses `pretty-bytes`
+- JSON output is controlled by `--json`
+
+When adding a new business area, keep raw object printing out of command files as much as possible and route formatting through `src/utils/format.ts`.
+
+## UX Conventions
+
+- Use `@inquirer/prompts` for interactive flows only when running in TTY mode
+- Use `CliError` for user-facing validation errors
+- Require `--force` for destructive operations in non-interactive mode
+- Prefer consistent success/cancel/delete messaging with existing commands
+- For long-running upload/download/polling flows, use `ora` when stdout is a TTY and `--json` is not enabled
+
+## Validation Workflow
+
+For dependency management and general project tooling, prefer Vite+ as described above.
+
+For this CLI specifically, the most useful validation commands are:
+
+- `pnpm typecheck`
+- `vp lint`
+- `vp check`
+- `vp test`
+
+`pnpm typecheck` is currently the fastest way to catch TypeScript regressions during command development.
+
+## Extension Guidance
+
+When implementing a new command area:
+
+1. Check whether `@halo-dev/api-client` already exposes the needed console/core/public API.
+2. If it does, prefer the SDK over manual HTTP.
+3. If it does not, inspect upstream Halo or plugin code under `current-repos/` and implement with manual `axios` requests.
+4. Keep root command registration minimal and put real logic in a dedicated sub-CLI file under `src/commands/`.
+5. Add list/detail printers in `src/utils/format.ts`.
+6. Validate with typecheck and lint before finishing.
+
+## Upstream Reference Repositories
+
+The workspace currently includes reference repos under `current-repos/`:
+
+- `halo/`
+- `plugin-app-store/`
+- `plugin-moments/`
+- `vscode-extension-halo/`
+
+These are used as implementation references for API behavior, frontend console behavior, and feature parity.
