@@ -3,6 +3,7 @@ import cac from "cac";
 import packageJson from "../package.json";
 import { registerAttachmentCommands } from "./commands/attachment.js";
 import { registerAuthCommands } from "./commands/auth.js";
+import { registerBackupCommands } from "./commands/backup.js";
 import { registerPluginCommands } from "./commands/plugin.js";
 import { registerPostCommands } from "./commands/post.js";
 import { printCommandHelp } from "./utils/command-help.js";
@@ -12,6 +13,7 @@ import { RuntimeContext } from "./utils/runtime.js";
 const cli = cac("halo");
 const runtime = new RuntimeContext();
 
+registerBackupCommands(cli, runtime);
 registerAuthCommands(cli, runtime);
 registerPostCommands(cli, runtime);
 registerPluginCommands(cli, runtime);
@@ -29,6 +31,7 @@ function printRootHelp(): void {
         title: "COMMANDS",
         commands: [
           { name: "attachment", description: "Work with attachments" },
+          { name: "backup", description: "Work with backups" },
           { name: "auth", description: "Manage authentication and profiles" },
           { name: "post", description: "Work with posts" },
           { name: "plugin", description: "Work with plugins" },
@@ -43,6 +46,7 @@ function printRootHelp(): void {
     examples: [
       "halo auth login",
       "halo attachment list",
+      "halo backup list",
       "halo post list",
       "halo plugin upgrade <name> --online",
     ],

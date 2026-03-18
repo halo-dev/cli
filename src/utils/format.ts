@@ -1,6 +1,8 @@
 import type {
   Attachment,
   AttachmentList,
+  Backup,
+  BackupList,
   DetailedUser,
   ListedPostList,
   Plugin,
@@ -132,6 +134,17 @@ function getAttachmentListWidths(): number[] {
     36,
   );
   return [nameWidth, displayNameWidth, sizeWidth, mediaTypeWidth];
+}
+
+function getBackupListWidths(): number[] {
+  const width = resolveTerminalWidth();
+  const nameWidth = 34;
+  const phaseWidth = 11;
+  const sizeWidth = 10;
+  const createdAtWidth = 17;
+  const reservedWidth = nameWidth + phaseWidth + sizeWidth + createdAtWidth + 8;
+  const filenameWidth = Math.min(Math.max(24, width - reservedWidth), 48);
+  return [nameWidth, phaseWidth, sizeWidth, filenameWidth, createdAtWidth];
 }
 
 function getDetailTableWidths(): number[] {
@@ -378,4 +391,37 @@ export function printAttachment(attachment: Attachment, json = false): void {
         }
       : undefined,
   } as Record<string, unknown>);
+}
+
+export function printBackupList(list: BackupList, json = false): void {
+  if (json) {
+    printJson(list);
+    return;
+  }
+
+  const widths = getBackupListWidths();
+  const rows = list.items.map((item) => [
+    item.metadata.name,
+    item.status?.phase ?? "",
+    item.status?.size == null
+      ? ""
+      : prettyBytes(item.status.size, {
+          binary: true,
+          maximumFractionDigits: 1,
+        }),
+    truncateDisplayText(item.status?.filename ?? "", widths[3]!),
+    formatTimestamp(item.metadata.creationTimestamp ?? undefined),
+  ]);
+
+  printTable(["NAME", "PHASE", "SIZE", "FILE", "CREATED AT"], rows, widths, false);
+  process.stdout.write(`\n${list.total} backup(s)\n`);
+}
+
+export function printBackup(backup: Backup, json = false): void {
+  if (json) {
+    printJson(backup);
+    return;
+  }
+
+  printDetailObject(backup as unknown as Record<string, unknown>);
 }
