@@ -9,6 +9,8 @@ import type {
   ListedPostList,
   ListedReply,
   ListedReplyList,
+  Notification,
+  NotificationList,
   Plugin,
   PluginList,
   Reply,
@@ -197,6 +199,16 @@ function getReplyListWidths(): number[] {
   const reservedWidth = nameWidth + ownerWidth + approvedWidth + hiddenWidth + createdAtWidth + 10;
   const contentWidth = Math.min(Math.max(26, width - reservedWidth), 56);
   return [nameWidth, ownerWidth, contentWidth, approvedWidth, hiddenWidth, createdAtWidth];
+}
+
+function getNotificationListWidths(): number[] {
+  const width = resolveTerminalWidth();
+  const nameWidth = 28;
+  const unreadWidth = 8;
+  const createdAtWidth = 17;
+  const reservedWidth = nameWidth + unreadWidth + createdAtWidth + 6;
+  const titleWidth = Math.min(Math.max(28, width - reservedWidth), 60);
+  return [nameWidth, titleWidth, unreadWidth, createdAtWidth];
 }
 
 function getDetailTableWidths(): number[] {
@@ -686,6 +698,40 @@ export function printReply(reply: Reply, json = false): void {
     spec: {
       ...reply.spec,
       contentPreview: stripHtmlTags(reply.spec.content),
+    },
+  } as Record<string, unknown>);
+}
+
+export function printNotificationList(list: NotificationList, json = false): void {
+  if (json) {
+    printJson(list);
+    return;
+  }
+
+  const widths = getNotificationListWidths();
+  const rows = list.items.map((item) => [
+    item.metadata.name,
+    truncateDisplayText(item.spec?.title ?? item.metadata.name, widths[1]!),
+    item.spec?.unread ? "yes" : "no",
+    formatTimestamp(item.metadata.creationTimestamp ?? undefined),
+  ]);
+
+  printTable(["NAME", "TITLE", "UNREAD", "CREATED AT"], rows, widths, false);
+  process.stdout.write(`\n${list.total} notification(s)\n`);
+}
+
+export function printNotification(notification: Notification, json = false): void {
+  if (json) {
+    printJson(notification);
+    return;
+  }
+
+  printDetailObject({
+    ...notification,
+    spec: {
+      ...notification.spec,
+      contentPreview:
+        notification.spec?.rawContent || stripHtmlTags(notification.spec?.htmlContent),
     },
   } as Record<string, unknown>);
 }

@@ -486,120 +486,6 @@ function createPostCli(runtime: RuntimeContext): CAC {
     });
 
   postCli
-    .command("export-json <name>", "Export a post as JSON")
-    .option("--profile <name>", "Halo profile name")
-    .option("--output <path>", "Write JSON to a specific file path")
-    .action(async (name: string, options: PostJsonCommandOptions) => {
-      const { clients } = await runtime.getClientsForOptions(options);
-      const detail = await loadPostDetail(clients, name);
-      const outputPath = resolvePostExportOutputPath(name, options.output);
-      await writeFile(outputPath, stringifyJson(detail));
-      process.stdout.write(`Exported post ${name} to ${outputPath}.\n`);
-    });
-
-  postCli
-    .command("import-json", "Import a post from JSON")
-    .option("--profile <name>", "Halo profile name")
-    .option("--json", "Output JSON")
-    .option("--file <path>", "Read post JSON from a file")
-    .option("--raw <json>", "Inline post JSON payload")
-    .option("--force", "Update without confirmation when the post already exists")
-    .action(async (options: PostJsonCommandOptions) => {
-      const { payload, sourceLabel } = await resolvePostTransferInput(options);
-      const { profile, clients } = await runtime.getClientsForOptions(options);
-      const ucPostApi = new PostV1alpha1UcApi(
-        undefined,
-        normalizeBaseUrl(profile.baseUrl),
-        clients.axios,
-      );
-      const targetName = payload.post.metadata.name;
-      let resultName = targetName;
-      let action: "imported" | "updated" = "imported";
-
-      try {
-        const currentState = await loadEditablePostState(ucPostApi, targetName);
-
-        if (
-          !(await confirmDangerousAction(
-            {
-              commandPath: "halo post import-json",
-              actionLabel: "Update",
-              resourceLabel: "post",
-              resourceName: targetName,
-              cancellationVerb: "updating",
-            },
-            options,
-          ))
-        ) {
-          return;
-        }
-
-        const updateResponse = await ucPostApi.updateMyPost({
-          name: targetName,
-          post: {
-            ...payload.post,
-            spec: {
-              ...payload.post.spec,
-              publish: currentState.post.spec.publish,
-            },
-          },
-        });
-
-        resultName = updateResponse.data.metadata.name;
-
-        const latestDraft = await ucPostApi.getMyPostDraft({
-          name: resultName,
-          patched: true,
-        });
-
-        latestDraft.data.metadata = withSerializedContentAnnotation(
-          latestDraft.data.metadata,
-          payload.content,
-        );
-
-        await ucPostApi.updateMyPostDraft({
-          name: resultName,
-          snapshot: latestDraft.data,
-        });
-
-        await syncPostPublishState(ucPostApi, resultName, payload.post.spec.publish);
-        action = "updated";
-      } catch (error) {
-        if (!axios.isAxiosError(error) || error.response?.status !== 404) {
-          throw error;
-        }
-
-        const createResponse = await ucPostApi.createMyPost({
-          post: {
-            ...payload.post,
-            metadata: withSerializedContentAnnotation(
-              payload.post.metadata,
-              payload.content,
-            ) as Post["metadata"],
-            spec: {
-              ...payload.post.spec,
-              publish: false,
-            },
-          },
-        });
-
-        resultName = createResponse.data.metadata.name;
-        await syncPostPublishState(ucPostApi, resultName, payload.post.spec.publish);
-      }
-
-      const detail = await loadPostDetail(clients, resultName);
-
-      if (options.json) {
-        printJson(detail);
-        return;
-      }
-
-      process.stdout.write(
-        `${action === "updated" ? "Updated existing post" : "Imported post"} ${resultName} from ${sourceLabel}.\n`,
-      );
-    });
-
-  postCli
     .command("open <name>", "Open a published post in the browser")
     .option("--profile <name>", "Halo profile name")
     .option("--json", "Output JSON")
@@ -797,6 +683,120 @@ function createPostCli(runtime: RuntimeContext): CAC {
       }
 
       process.stdout.write(`Deleted post ${name}.\n`);
+    });
+
+  postCli
+    .command("export-json <name>", "Export a post as JSON")
+    .option("--profile <name>", "Halo profile name")
+    .option("--output <path>", "Write JSON to a specific file path")
+    .action(async (name: string, options: PostJsonCommandOptions) => {
+      const { clients } = await runtime.getClientsForOptions(options);
+      const detail = await loadPostDetail(clients, name);
+      const outputPath = resolvePostExportOutputPath(name, options.output);
+      await writeFile(outputPath, stringifyJson(detail));
+      process.stdout.write(`Exported post ${name} to ${outputPath}.\n`);
+    });
+
+  postCli
+    .command("import-json", "Import a post from JSON")
+    .option("--profile <name>", "Halo profile name")
+    .option("--json", "Output JSON")
+    .option("--file <path>", "Read post JSON from a file")
+    .option("--raw <json>", "Inline post JSON payload")
+    .option("--force", "Update without confirmation when the post already exists")
+    .action(async (options: PostJsonCommandOptions) => {
+      const { payload, sourceLabel } = await resolvePostTransferInput(options);
+      const { profile, clients } = await runtime.getClientsForOptions(options);
+      const ucPostApi = new PostV1alpha1UcApi(
+        undefined,
+        normalizeBaseUrl(profile.baseUrl),
+        clients.axios,
+      );
+      const targetName = payload.post.metadata.name;
+      let resultName = targetName;
+      let action: "imported" | "updated" = "imported";
+
+      try {
+        const currentState = await loadEditablePostState(ucPostApi, targetName);
+
+        if (
+          !(await confirmDangerousAction(
+            {
+              commandPath: "halo post import-json",
+              actionLabel: "Update",
+              resourceLabel: "post",
+              resourceName: targetName,
+              cancellationVerb: "updating",
+            },
+            options,
+          ))
+        ) {
+          return;
+        }
+
+        const updateResponse = await ucPostApi.updateMyPost({
+          name: targetName,
+          post: {
+            ...payload.post,
+            spec: {
+              ...payload.post.spec,
+              publish: currentState.post.spec.publish,
+            },
+          },
+        });
+
+        resultName = updateResponse.data.metadata.name;
+
+        const latestDraft = await ucPostApi.getMyPostDraft({
+          name: resultName,
+          patched: true,
+        });
+
+        latestDraft.data.metadata = withSerializedContentAnnotation(
+          latestDraft.data.metadata,
+          payload.content,
+        );
+
+        await ucPostApi.updateMyPostDraft({
+          name: resultName,
+          snapshot: latestDraft.data,
+        });
+
+        await syncPostPublishState(ucPostApi, resultName, payload.post.spec.publish);
+        action = "updated";
+      } catch (error) {
+        if (!axios.isAxiosError(error) || error.response?.status !== 404) {
+          throw error;
+        }
+
+        const createResponse = await ucPostApi.createMyPost({
+          post: {
+            ...payload.post,
+            metadata: withSerializedContentAnnotation(
+              payload.post.metadata,
+              payload.content,
+            ) as Post["metadata"],
+            spec: {
+              ...payload.post.spec,
+              publish: false,
+            },
+          },
+        });
+
+        resultName = createResponse.data.metadata.name;
+        await syncPostPublishState(ucPostApi, resultName, payload.post.spec.publish);
+      }
+
+      const detail = await loadPostDetail(clients, resultName);
+
+      if (options.json) {
+        printJson(detail);
+        return;
+      }
+
+      process.stdout.write(
+        `${action === "updated" ? "Updated existing post" : "Imported post"} ${resultName} from ${sourceLabel}.\n`,
+      );
     });
 
   postCli.usage("<command> [flags]");

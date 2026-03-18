@@ -101,6 +101,7 @@ The root CLI currently registers these business areas:
 - `backup`
 - `moment`
 - `comment`
+- `notification`
 
 ## Command Architecture
 
@@ -209,6 +210,17 @@ Comment approval behavior follows the Halo console frontend:
 - approving a comment uses `core.content.comment.patchComment` with JSON Patch
 - approving a reply uses `core.content.reply.patchReply` with JSON Patch
 - creating a reply uses `console.content.comment.createReply`, which creates an already approved reply in console context
+
+### `notification`
+
+- `notification list`
+- `notification get`
+- `notification delete`
+- `notification mark-as-read`
+- `notification mark-as-read --all`
+
+Notification management uses the Halo user-space UC notification APIs exposed in `@halo-dev/api-client`.
+Single-notification lookup is implemented by filtering the authenticated user's notification list by `metadata.name`.
 
 ## Formatting and Output Conventions
 
