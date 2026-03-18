@@ -353,50 +353,6 @@ async function upgradeAllPlugins(
   return result;
 }
 
-function printBatchUpgradeProgress(event: BatchUpgradeProgressEvent): void {
-  if (event.type === "checking") {
-    process.stdout.write("Checking App Store plugin updates...\n");
-    return;
-  }
-
-  if (event.type === "selecting") {
-    process.stdout.write(`Select plugins to upgrade (${event.count ?? 0} available):\n`);
-    return;
-  }
-
-  if (event.type === "queued") {
-    process.stdout.write(`Selected ${event.count ?? 0} plugin(s) for upgrade.\n`);
-    return;
-  }
-
-  if (event.type === "upgrading") {
-    process.stdout.write(
-      `Upgrading plugin ${event.name}: ${event.fromVersion ?? "unknown"} -> ${event.toVersion ?? "unknown"}...\n`,
-    );
-    return;
-  }
-
-  if (event.type === "upgraded") {
-    process.stdout.write(
-      `Upgraded plugin ${event.name}: ${event.fromVersion ?? "unknown"} -> ${event.toVersion ?? "unknown"}.\n`,
-    );
-    return;
-  }
-
-  if (event.type === "skipped") {
-    process.stdout.write(
-      `Skipped plugin ${event.name}: ${event.fromVersion ?? "unknown"} -> ${event.toVersion ?? "unknown"} (${event.reason}).\n`,
-    );
-    return;
-  }
-
-  if (event.type === "failed") {
-    process.stdout.write(
-      `Failed plugin ${event.name}: ${event.error ?? "Unknown upgrade error."}\n`,
-    );
-  }
-}
-
 function reportBatchUpgradeProgress(
   spinner: SpinnerReporter,
   event: BatchUpgradeProgressEvent,

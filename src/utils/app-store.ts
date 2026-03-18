@@ -276,6 +276,18 @@ export async function createAppStoreClient(
     headers,
     paramsSerializer: (params) => {
       const searchParams = new URLSearchParams();
+      const serializeQueryParam = (value: unknown): string => {
+        if (
+          typeof value === "string" ||
+          typeof value === "number" ||
+          typeof value === "boolean" ||
+          typeof value === "bigint"
+        ) {
+          return String(value);
+        }
+
+        return JSON.stringify(value);
+      };
 
       for (const [key, value] of Object.entries(params as Record<string, unknown>)) {
         if (value === undefined || value === null) {
@@ -285,13 +297,13 @@ export async function createAppStoreClient(
         if (Array.isArray(value)) {
           for (const item of value) {
             if (item !== undefined && item !== null) {
-              searchParams.append(key, String(item));
+              searchParams.append(key, serializeQueryParam(item));
             }
           }
           continue;
         }
 
-        searchParams.append(key, String(value));
+        searchParams.append(key, serializeQueryParam(value));
       }
 
       return searchParams.toString();

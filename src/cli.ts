@@ -12,10 +12,10 @@ import { RuntimeContext } from "./utils/runtime.js";
 const cli = cac("halo");
 const runtime = new RuntimeContext();
 
-registerAttachmentCommands(cli, runtime);
 registerAuthCommands(cli, runtime);
 registerPostCommands(cli, runtime);
 registerPluginCommands(cli, runtime);
+registerAttachmentCommands(cli, runtime);
 
 cli.help();
 cli.version(packageJson.version);
@@ -52,7 +52,7 @@ function printRootHelp(): void {
 
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
-  if (args.length === 0 || args.every((arg) => arg === "--help" || arg === "-h")) {
+  if (args.every((arg) => arg === "--help" || arg === "-h")) {
     printRootHelp();
     return;
   }
