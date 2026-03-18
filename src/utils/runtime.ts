@@ -18,6 +18,11 @@ export interface HaloClients {
   core: ReturnType<typeof createCoreApiClient>;
 }
 
+export interface PackageFileOptions {
+  type: string;
+  fileName?: string;
+}
+
 export function normalizeBaseUrl(baseUrl: string): string {
   const normalized = baseUrl.trim().replace(/\/+$/, "");
   if (!/^https?:\/\//i.test(normalized)) {
@@ -49,10 +54,25 @@ function createAxiosClient(profile: HaloProfile): AxiosInstance {
   });
 }
 
-export async function loadFileAsJar(filePath: string): Promise<File> {
+export async function loadFileAsPackage(
+  filePath: string,
+  options: PackageFileOptions,
+): Promise<File> {
   const buffer = await readFile(filePath);
-  return new File([buffer], basename(filePath), {
+  return new File([buffer], options.fileName ?? basename(filePath), {
+    type: options.type,
+  });
+}
+
+export async function loadFileAsJar(filePath: string): Promise<File> {
+  return loadFileAsPackage(filePath, {
     type: "application/java-archive",
+  });
+}
+
+export async function loadFileAsZip(filePath: string): Promise<File> {
+  return loadFileAsPackage(filePath, {
+    type: "application/zip",
   });
 }
 

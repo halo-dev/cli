@@ -96,6 +96,7 @@ The root CLI currently registers these business areas:
 - `post`
 - `search`
 - `plugin`
+- `theme`
 - `attachment`
 - `backup`
 - `moment`
@@ -162,6 +163,14 @@ Authentication and HTTP clients are centralized in `src/utils/runtime.ts`.
 
 - list/get/install/upgrade and related management flows
 - includes App Store-aware upgrade logic
+
+### `theme`
+
+- list/get/current/install/upgrade/activate/reload/delete
+- uses Halo theme console/core APIs
+- includes App Store-aware upgrade logic similar to `plugin`
+- local installation uses multipart upload to the theme install endpoint because the generated SDK install signature is not file-parameter-friendly
+- `list` marks the currently activated theme in table output
 
 ### `attachment`
 

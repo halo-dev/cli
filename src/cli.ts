@@ -9,6 +9,7 @@ import { registerMomentCommands, tryRunMomentCommand } from "./commands/moment.j
 import { registerPluginCommands, tryRunPluginCommand } from "./commands/plugin.js";
 import { registerPostCommands, tryRunPostCommand } from "./commands/post.js";
 import { registerSearchCommands, tryRunSearchCommand } from "./commands/search.js";
+import { registerThemeCommands, tryRunThemeCommand } from "./commands/theme.js";
 import { formatError } from "./utils/errors.js";
 import { RuntimeContext } from "./utils/runtime.js";
 
@@ -19,6 +20,7 @@ registerAuthCommands(cli);
 registerPostCommands(cli);
 registerSearchCommands(cli);
 registerPluginCommands(cli);
+registerThemeCommands(cli);
 registerAttachmentCommands(cli);
 registerBackupCommands(cli);
 registerMomentCommands(cli);
@@ -44,6 +46,10 @@ async function main(): Promise<void> {
   }
 
   if (await tryRunPluginCommand(args, runtime)) {
+    return;
+  }
+
+  if (await tryRunThemeCommand(args, runtime)) {
     return;
   }
 

@@ -13,6 +13,8 @@ import type {
   PluginList,
   Reply,
   SearchResult,
+  Theme,
+  ThemeList,
 } from "@halo-dev/api-client";
 import Table from "cli-table3";
 import dayjs from "dayjs";
@@ -20,7 +22,7 @@ import prettyBytes from "pretty-bytes";
 import stringWidth from "string-width";
 
 import type { HaloProfile, ListedMomentList, Moment } from "../types.js";
-import type { PluginUpdateInfo } from "./app-store.js";
+import type { PluginUpdateInfo, ThemeUpdateInfo } from "./app-store.js";
 
 export function printJson(value: unknown): void {
   process.stdout.write(`${JSON.stringify(value, null, 2)}\n`);
@@ -128,6 +130,13 @@ function getPluginListWidths(): number[] {
   const displayNameWidth = Math.min(Math.max(16, Math.floor(width * 0.28)), 30);
   const updateWidth = Math.min(Math.max(12, Math.floor(width * 0.18)), 20);
   return [24, displayNameWidth, 14, updateWidth, 10];
+}
+
+function getThemeListWidths(): number[] {
+  const width = resolveTerminalWidth();
+  const displayNameWidth = Math.min(Math.max(16, Math.floor(width * 0.28)), 30);
+  const updateWidth = Math.min(Math.max(12, Math.floor(width * 0.18)), 20);
+  return [24, displayNameWidth, 14, updateWidth, 8];
 }
 
 function getAttachmentListWidths(): number[] {
@@ -436,6 +445,49 @@ export function printPlugin(plugin: Plugin, json = false): void {
   }
 
   printDetailObject(plugin as unknown as Record<string, unknown>);
+}
+
+export function printThemeList(
+  list: ThemeList,
+  json = false,
+  updates?: Map<string, ThemeUpdateInfo>,
+  activeThemeName?: string,
+): void {
+  if (json) {
+    printJson(list);
+    return;
+  }
+
+  const widths = getThemeListWidths();
+
+  const rows = list.items.map((item) => {
+    const update = updates?.get(item.metadata.name);
+    const updateText = update
+      ? update.compatible
+        ? update.latestVersion
+        : `${update.latestVersion} !compat`
+      : "";
+
+    return [
+      item.metadata.name,
+      truncateDisplayText(item.spec.displayName, widths[1]!),
+      item.spec.version ?? "",
+      truncateDisplayText(updateText, widths[3]!),
+      item.metadata.name === activeThemeName ? "*" : "",
+    ];
+  });
+
+  printTable(["NAME", "DISPLAY NAME", "VERSION", "UPDATE", "ACTIVE"], rows, widths, false);
+  process.stdout.write(`\n${list.total} theme(s)\n`);
+}
+
+export function printTheme(theme: Theme, json = false): void {
+  if (json) {
+    printJson(theme);
+    return;
+  }
+
+  printDetailObject(theme as unknown as Record<string, unknown>);
 }
 
 export function printAttachmentList(list: AttachmentList, json = false): void {

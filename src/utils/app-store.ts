@@ -1,4 +1,4 @@
-import type { Plugin } from "@halo-dev/api-client";
+import type { Plugin, Theme } from "@halo-dev/api-client";
 import axios, { type AxiosInstance } from "axios";
 import semver from "semver";
 
@@ -11,6 +11,11 @@ export const STORE_APP_ID_ANNOTATION = "store.halo.run/app-id";
 const APP_STORE_AUX_REQUEST_TIMEOUT_MS = 8_000;
 
 export interface PluginUpdateInfo {
+  latestVersion: string;
+  compatible: boolean;
+}
+
+export interface ThemeUpdateInfo {
   latestVersion: string;
   compatible: boolean;
 }
@@ -139,6 +144,17 @@ export function resolvePluginAppStoreAppId(plugin: Pick<Plugin, "metadata">): st
   return appId;
 }
 
+export function resolveThemeAppStoreAppId(theme: Pick<Theme, "metadata">): string {
+  const appId = theme.metadata.annotations?.[STORE_APP_ID_ANNOTATION]?.trim();
+  if (!appId) {
+    throw new CliError(
+      "This theme is not linked to the Halo App Store. Missing metadata annotation `store.halo.run/app-id`, so `--online` cannot determine which app to upgrade.",
+    );
+  }
+
+  return appId;
+}
+
 export async function getAppStoreToken(clients: HaloClients): Promise<string | undefined> {
   try {
     const response = await withTimeout(
@@ -199,6 +215,15 @@ export function resolvePluginUpdateInfo(
     latestVersion,
     compatible: satisfiesRequires(haloVersion, requires),
   };
+}
+
+export function resolveThemeUpdateInfo(
+  currentVersion?: string,
+  latestVersion?: string,
+  haloVersion?: string,
+  requires?: string,
+): ThemeUpdateInfo | undefined {
+  return resolvePluginUpdateInfo(currentVersion, latestVersion, haloVersion, requires);
 }
 
 export async function getHaloSystemInfo(
@@ -370,6 +395,72 @@ export async function resolvePluginUpdates(
 
       if (update) {
         updates.set(plugin.metadata.name, update);
+      }
+    }
+
+    return updates;
+  } catch {
+    return new Map();
+  }
+}
+
+export async function resolveThemeUpdates(
+  clients: HaloClients,
+  themes: Theme[],
+): Promise<Map<string, ThemeUpdateInfo>> {
+  const appIds = [
+    ...new Set(
+      themes.map((theme) => theme.metadata.annotations?.[STORE_APP_ID_ANNOTATION]).filter(Boolean),
+    ),
+  ];
+  if (appIds.length === 0) {
+    return new Map();
+  }
+
+  try {
+    const [info, appStoreClient] = await Promise.all([
+      getHaloSystemInfo(clients),
+      createAppStoreClient(clients),
+    ]);
+
+    const haloVersion = info?.build?.version;
+    const response = await appStoreClient.get<AppStoreApplicationSearchResultList>(
+      "/apis/api.store.halo.run/v1alpha1/applications",
+      {
+        params: {
+          type: "THEME",
+          names: appIds,
+        },
+      },
+    );
+
+    const appsById = new Map(
+      response.data.items.map((item) => [item.application?.metadata?.name, item] as const),
+    );
+
+    const updates = new Map<string, ThemeUpdateInfo>();
+    for (const theme of themes) {
+      const appId = theme.metadata.annotations?.[STORE_APP_ID_ANNOTATION];
+      if (!appId) {
+        continue;
+      }
+
+      const app = appsById.get(appId);
+      if (!app?.downloadable) {
+        continue;
+      }
+
+      const latestVersion = app.latestRelease?.spec?.version;
+      const requires = app.latestRelease?.spec?.requires;
+      const update = resolveThemeUpdateInfo(
+        theme.spec.version,
+        latestVersion,
+        haloVersion,
+        requires,
+      );
+
+      if (update) {
+        updates.set(theme.metadata.name, update);
       }
     }
 
