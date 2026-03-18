@@ -1,5 +1,5 @@
 import { checkbox } from "@inquirer/prompts";
-import type { CAC } from "cac";
+import cac, { type CAC } from "cac";
 import ora, { type Ora } from "ora";
 
 import {
@@ -424,169 +424,188 @@ function printBatchUpgradeResult(result: BatchUpgradeResult, json = false): void
   );
 }
 
-export function registerPluginCommands(cli: CAC, runtime: RuntimeContext): void {
-  cli
-    .command("plugin [action] [name]", "Plugin management commands")
-    .usage("plugin <command> [flags]")
-    .example((bin) => `${bin} plugin list --page 1 --size 20`)
-    .example((bin) => `${bin} plugin get PluginName`)
-    .example((bin) => `${bin} plugin install --uri file:///tmp/example.jar`)
-    .example((bin) => `${bin} plugin install --url https://example.com/plugin.jar`)
-    .example((bin) => `${bin} plugin upgrade PluginName --online`)
-    .example((bin) => `${bin} plugin upgrade --all --online --yes`)
+export function registerPluginCommands(cli: CAC): void {
+  cli.command("plugin", "Plugin management commands");
+}
+
+function createPluginCli(runtime: RuntimeContext): CAC {
+  const pluginCli = cac("halo plugin");
+
+  pluginCli
+    .command("list", "List plugins")
     .option("--profile <name>", "Halo profile name")
     .option("--json", "Output JSON")
     .option("--page <number>", "Page number")
     .option("--size <number>", "Page size")
     .option("--keyword <keyword>", "Filter by keyword")
     .option("--enabled <true|false>", "Filter by running state")
+    .action(async (options: PluginCommandOptions) => {
+      const { clients } = await runtime.getClientsForOptions(options);
+      const response = await clients.console.plugin.plugin.listPlugins({
+        page: parseNumberOption(options.page),
+        size: parseNumberOption(options.size),
+        keyword: options.keyword,
+        enabled: parseBooleanOption(options.enabled),
+      });
+
+      const updates = options.json
+        ? undefined
+        : await resolvePluginUpdates(clients, response.data.items);
+      printPluginList(response.data, options.json, updates);
+    });
+
+  pluginCli
+    .command("get <name>", "Show plugin details")
+    .option("--profile <name>", "Halo profile name")
+    .option("--json", "Output JSON")
+    .action(async (name: string, options: PluginCommandOptions) => {
+      const { clients } = await runtime.getClientsForOptions(options);
+      const response = await clients.core.plugin.plugin.getPlugin({ name });
+      printPlugin(response.data, options.json);
+    });
+
+  pluginCli
+    .command("install", "Install a plugin")
+    .option("--profile <name>", "Halo profile name")
+    .option("--json", "Output JSON")
+    .option("--url <url>", "Remote JAR URL")
+    .option("--uri <uri>", "Remote JAR URI")
+    .option("--file <path>", "Local JAR file path")
+    .action(async (options: PluginCommandOptions) => {
+      if (options.online) {
+        throw new CliError("`halo plugin install` does not support --online. Use --url or --file.");
+      }
+
+      const { clients } = await runtime.getClientsForOptions(options);
+      const source = resolvePluginInstallSource(options);
+      const response = source.url
+        ? await clients.console.plugin.plugin.installPluginFromUri({
+            installFromUriRequest: { uri: source.url },
+          })
+        : await clients.console.plugin.plugin.installPlugin({
+            file: await loadFileAsJar(source.file!),
+          });
+
+      if (options.json) {
+        printJson(response.data);
+        return;
+      }
+
+      process.stdout.write(`Installed plugin ${response.data.metadata.name}.\n`);
+    });
+
+  pluginCli
+    .command("upgrade [name]", "Upgrade a plugin")
+    .option("--profile <name>", "Halo profile name")
+    .option("--json", "Output JSON")
     .option("--url <url>", "Remote JAR URL")
     .option("--uri <uri>", "Remote JAR URI")
     .option("--file <path>", "Local JAR file path")
     .option("--online", "Upgrade from the Halo App Store")
     .option("--all", "Upgrade all compatible App Store plugins")
     .option("-y, --yes", "Skip selection and upgrade all compatible plugins")
-    .action(
-      async (
-        action: string | undefined,
-        name: string | undefined,
-        options: PluginCommandOptions,
-      ) => {
-        const spinner = createSpinnerReporter(options.json);
+    .action(async (name: string | undefined, options: PluginCommandOptions) => {
+      const spinner = createSpinnerReporter(options.json);
+      const { clients } = await runtime.getClientsForOptions(options);
 
-        if (!action) {
-          cli.outputHelp();
-          return;
+      if (options.all) {
+        if (name) {
+          throw new CliError("`halo plugin upgrade --all` does not accept a plugin name.");
         }
 
-        const { clients } = await runtime.getClientsForOptions(options);
+        if (options.url || options.uri || options.file) {
+          throw new CliError(
+            "`halo plugin upgrade --all` only supports App Store upgrades. Do not combine it with --url, --uri, or --file.",
+          );
+        }
 
-        if (action === "list") {
-          const response = await clients.console.plugin.plugin.listPlugins({
-            page: parseNumberOption(options.page),
-            size: parseNumberOption(options.size),
-            keyword: options.keyword,
-            enabled: parseBooleanOption(options.enabled),
-          });
-
-          const updates = options.json
+        try {
+          const progressHandler = options.json
             ? undefined
-            : await resolvePluginUpdates(clients, response.data.items);
-          printPluginList(response.data, options.json, updates);
-          return;
+            : (event: BatchUpgradeProgressEvent) => reportBatchUpgradeProgress(spinner, event);
+          const result = await upgradeAllPlugins(runtime, options, progressHandler);
+          spinner.stop();
+          printBatchUpgradeResult(result, options.json);
+        } finally {
+          spinner.stop();
         }
+        return;
+      }
 
-        if (action === "get") {
-          if (!name) {
-            throw new CliError("`halo plugin get` requires a plugin name.");
-          }
+      if (!name) {
+        throw new CliError("`halo plugin upgrade` requires a plugin name, or use `--all`.");
+      }
 
-          const response = await clients.core.plugin.plugin.getPlugin({ name });
-          printPlugin(response.data, options.json);
-          return;
+      const source = resolvePluginUpgradeSource(options);
+
+      let response;
+
+      try {
+        if (source.kind === "url") {
+          spinner.start(`Upgrading plugin ${name} from remote URL...`);
+          response = await clients.console.plugin.plugin.upgradePluginFromUri({
+            name,
+            upgradeFromUriRequest: { uri: source.url },
+          });
+          spinner.succeed(`Upgraded plugin ${name}.`);
+        } else if (source.kind === "file") {
+          spinner.start(`Uploading local package for plugin ${name}...`);
+          response = await clients.console.plugin.plugin.upgradePlugin({
+            name,
+            file: await loadFileAsJar(source.file),
+          });
+          spinner.succeed(`Upgraded plugin ${name}.`);
+        } else {
+          spinner.start(`Resolving App Store package for plugin ${name}...`);
+          const pluginResponse = await clients.core.plugin.plugin.getPlugin({ name });
+          const appId = resolvePluginAppStoreAppId(pluginResponse.data);
+          const appStoreClient = await createAppStoreClient(clients);
+          const downloadUrl = await resolveLatestAppStoreDownloadUrl(appStoreClient, appId);
+
+          spinner.update(`Upgrading plugin ${name} from Halo App Store...`);
+          response = await clients.console.plugin.plugin.upgradePluginFromUri({
+            name,
+            upgradeFromUriRequest: { uri: downloadUrl },
+          });
+          spinner.succeed(`Upgraded plugin ${name}.`);
         }
+      } finally {
+        spinner.stop();
+      }
 
-        if (action === "install") {
-          if (options.online) {
-            throw new CliError(
-              "`halo plugin install` does not support --online. Use --url or --file.",
-            );
-          }
+      if (options.json) {
+        printJson(response.data ?? { upgraded: true, name });
+      }
+    });
 
-          const source = resolvePluginInstallSource(options);
-          const response = source.url
-            ? await clients.console.plugin.plugin.installPluginFromUri({
-                installFromUriRequest: { uri: source.url },
-              })
-            : await clients.console.plugin.plugin.installPlugin({
-                file: await loadFileAsJar(source.file!),
-              });
+  pluginCli.usage("<command> [flags]");
+  pluginCli.example((bin) => `${bin} list --page 1 --size 20`);
+  pluginCli.example((bin) => `${bin} get PluginName`);
+  pluginCli.example((bin) => `${bin} install --uri file:///tmp/example.jar`);
+  pluginCli.example((bin) => `${bin} install --url https://example.com/plugin.jar`);
+  pluginCli.example((bin) => `${bin} upgrade PluginName --online`);
+  pluginCli.example((bin) => `${bin} upgrade --all --online --yes`);
+  pluginCli.help();
 
-          if (options.json) {
-            printJson(response.data);
-            return;
-          }
+  return pluginCli;
+}
 
-          process.stdout.write(`Installed plugin ${response.data.metadata.name}.\n`);
-          return;
-        }
+export async function tryRunPluginCommand(
+  args: string[],
+  runtime: RuntimeContext,
+): Promise<boolean> {
+  if (args[0] !== "plugin") {
+    return false;
+  }
 
-        if (action === "upgrade") {
-          if (options.all) {
-            if (name) {
-              throw new CliError("`halo plugin upgrade --all` does not accept a plugin name.");
-            }
+  const pluginCli = createPluginCli(runtime);
 
-            if (options.url || options.uri || options.file) {
-              throw new CliError(
-                "`halo plugin upgrade --all` only supports App Store upgrades. Do not combine it with --url, --uri, or --file.",
-              );
-            }
+  if (args.length === 1) {
+    pluginCli.outputHelp();
+    return true;
+  }
 
-            try {
-              const progressHandler = options.json
-                ? undefined
-                : (event: BatchUpgradeProgressEvent) => reportBatchUpgradeProgress(spinner, event);
-              const result = await upgradeAllPlugins(runtime, options, progressHandler);
-              spinner.stop();
-              printBatchUpgradeResult(result, options.json);
-            } finally {
-              spinner.stop();
-            }
-            return;
-          }
-
-          if (!name) {
-            throw new CliError("`halo plugin upgrade` requires a plugin name, or use `--all`.");
-          }
-
-          const source = resolvePluginUpgradeSource(options);
-
-          let response;
-
-          try {
-            if (source.kind === "url") {
-              spinner.start(`Upgrading plugin ${name} from remote URL...`);
-              response = await clients.console.plugin.plugin.upgradePluginFromUri({
-                name,
-                upgradeFromUriRequest: { uri: source.url },
-              });
-              spinner.succeed(`Upgraded plugin ${name}.`);
-            } else if (source.kind === "file") {
-              spinner.start(`Uploading local package for plugin ${name}...`);
-              response = await clients.console.plugin.plugin.upgradePlugin({
-                name,
-                file: await loadFileAsJar(source.file),
-              });
-              spinner.succeed(`Upgraded plugin ${name}.`);
-            } else {
-              spinner.start(`Resolving App Store package for plugin ${name}...`);
-              const pluginResponse = await clients.core.plugin.plugin.getPlugin({ name });
-              const appId = resolvePluginAppStoreAppId(pluginResponse.data);
-              const appStoreClient = await createAppStoreClient(clients);
-              const downloadUrl = await resolveLatestAppStoreDownloadUrl(appStoreClient, appId);
-
-              spinner.update(`Upgrading plugin ${name} from Halo App Store...`);
-              response = await clients.console.plugin.plugin.upgradePluginFromUri({
-                name,
-                upgradeFromUriRequest: { uri: downloadUrl },
-              });
-              spinner.succeed(`Upgraded plugin ${name}.`);
-            }
-          } finally {
-            spinner.stop();
-          }
-
-          if (options.json) {
-            printJson(response.data ?? { upgraded: true, name });
-            return;
-          }
-          return;
-        }
-
-        throw new CliError(
-          `Unsupported plugin action: ${action}. Supported actions: list, get, install, upgrade.`,
-        );
-      },
-    );
+  pluginCli.parse(["node", "halo plugin", ...args.slice(1)], { run: false });
+  await pluginCli.runMatchedCommand();
+  return true;
 }

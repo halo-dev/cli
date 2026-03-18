@@ -1,7 +1,7 @@
 import type { Category, CategoryList, Post, Tag, TagList } from "@halo-dev/api-client";
 import { PostV1alpha1UcApi } from "@halo-dev/api-client";
 import { checkbox, input } from "@inquirer/prompts";
-import type { CAC } from "cac";
+import cac, { type CAC } from "cac";
 
 import { openUrlInBrowser, resolvePostOpenUrl } from "../utils/browser.js";
 import { CliError } from "../utils/errors.js";
@@ -303,18 +303,15 @@ async function enrichPostMutationInput(
   return nextInput;
 }
 
-export function registerPostCommands(cli: CAC, runtime: RuntimeContext): void {
-  cli
-    .command("post [action] [name]", "Post management commands")
-    .usage("post <command> [flags]")
-    .example((bin) => `${bin} post list --page 1 --size 20`)
-    .example((bin) => `${bin} post get my-post --json`)
-    .example((bin) => `${bin} post open my-post`)
-    .example(
-      (bin) => `${bin} post create --title "Hello Halo" --content-file ./post.md --publish true`,
-    )
-    .example((bin) => `${bin} post update my-post --title "Updated title" --tags Halo,CLI`)
-    .example((bin) => `${bin} post delete my-post --force`)
+export function registerPostCommands(cli: CAC): void {
+  cli.command("post", "Post management commands");
+}
+
+function createPostCli(runtime: RuntimeContext): CAC {
+  const postCli = cac("halo post");
+
+  postCli
+    .command("list", "List posts")
     .option("--profile <name>", "Halo profile name")
     .option("--json", "Output JSON")
     .option("--page <number>", "Page number")
@@ -322,7 +319,134 @@ export function registerPostCommands(cli: CAC, runtime: RuntimeContext): void {
     .option("--keyword <keyword>", "Filter by keyword")
     .option("--publish-phase <phase>", "Filter by publish phase")
     .option("--category <category>", "Filter by category including children")
+    .action(async (options: PostCommandOptions) => {
+      const { clients } = await runtime.getClientsForOptions(options);
+      const response = await clients.console.content.post.listPosts({
+        page: parseNumberOption(options.page),
+        size: parseNumberOption(options.size),
+        keyword: options.keyword,
+        publishPhase: options.publishPhase as never,
+        categoryWithChildren: options.category,
+      });
+
+      printPostList(response.data, options.json);
+    });
+
+  postCli
+    .command("get <name>", "Show post details")
+    .option("--profile <name>", "Halo profile name")
+    .option("--json", "Output JSON")
+    .action(async (name: string, options: PostCommandOptions) => {
+      const { clients } = await runtime.getClientsForOptions(options);
+      const [postResponse, contentResponse] = await Promise.all([
+        clients.core.content.post.getPost({ name }),
+        clients.console.content.post.fetchPostHeadContent({ name }),
+      ]);
+
+      if (options.json) {
+        printJson({
+          post: postResponse.data,
+          content: contentResponse.data,
+        });
+        return;
+      }
+
+      printDetailObject({
+        post: postResponse.data,
+        content: contentResponse.data,
+      });
+    });
+
+  postCli
+    .command("open <name>", "Open a published post in the browser")
+    .option("--profile <name>", "Halo profile name")
+    .option("--json", "Output JSON")
+    .action(async (name: string, options: PostCommandOptions) => {
+      const { profile, clients } = await runtime.getClientsForOptions(options);
+      const response = await clients.core.content.post.getPost({ name });
+      const permalink = response.data.status?.permalink;
+
+      if (!permalink) {
+        throw new CliError("This post does not have a permalink yet. It may not be published.");
+      }
+
+      const url = resolvePostOpenUrl(profile.baseUrl, permalink);
+
+      if (options.json) {
+        printJson({ name, url });
+        return;
+      }
+
+      await openUrlInBrowser(url);
+      process.stdout.write(`Opened ${url}\n`);
+    });
+
+  postCli
+    .command("create", "Create a post")
+    .option("--profile <name>", "Halo profile name")
+    .option("--json", "Output JSON")
     .option("--name <name>", "Post resource name")
+    .option("--title <title>", "Post title")
+    .option("--slug <slug>", "Post slug")
+    .option("--content <content>", "Inline post content")
+    .option("--content-file <path>", "Read post content from a file")
+    .option("--raw-type <type>", "Content raw type, defaults to markdown")
+    .option("--excerpt <excerpt>", "Explicit excerpt")
+    .option("--categories <items>", "Comma separated category names")
+    .option("--tags <items>", "Comma separated tag names")
+    .option("--cover <url>", "Cover image URL")
+    .option("--template <name>", "Template name")
+    .option("--visible <visibility>", "PUBLIC, INTERNAL, or PRIVATE")
+    .option("--publish <true|false>", "Whether the post is published")
+    .option("--pinned <true|false>", "Whether to pin the post")
+    .option("--allow-comment <true|false>", "Whether comments are allowed")
+    .option("--priority <number>", "Post priority")
+    .action(async (options: PostCommandOptions) => {
+      const { profile, clients } = await runtime.getClientsForOptions(options);
+      const ucPostApi = new PostV1alpha1UcApi(
+        undefined,
+        normalizeBaseUrl(profile.baseUrl),
+        clients.axios,
+      );
+
+      const postRequest = await normalizeCreatePostInput(
+        await enrichPostMutationInput(clients, toMutationInput(options)),
+      );
+
+      const createResponse = await ucPostApi.createMyPost({
+        post: {
+          ...postRequest.post,
+          metadata: withSerializedContentAnnotation(
+            postRequest.post.metadata,
+            postRequest.content,
+          ) as Post["metadata"],
+          spec: {
+            ...postRequest.post.spec,
+            publish: false,
+          },
+        },
+      });
+
+      await syncPostPublishState(
+        ucPostApi,
+        createResponse.data.metadata.name,
+        postRequest.post.spec.publish,
+      );
+
+      const latestPost = await ucPostApi.getMyPost({ name: createResponse.data.metadata.name });
+
+      if (options.json) {
+        printJson(latestPost.data);
+        return;
+      }
+
+      process.stdout.write(`Created post ${latestPost.data.metadata.name}.\n`);
+    });
+
+  postCli
+    .command("update <name>", "Update a post")
+    .option("--profile <name>", "Halo profile name")
+    .option("--json", "Output JSON")
     .option("--new-name <name>", "Update the resource name")
     .option("--title <title>", "Post title")
     .option("--slug <slug>", "Post slug")
@@ -339,206 +463,118 @@ export function registerPostCommands(cli: CAC, runtime: RuntimeContext): void {
     .option("--pinned <true|false>", "Whether to pin the post")
     .option("--allow-comment <true|false>", "Whether comments are allowed")
     .option("--priority <number>", "Post priority")
+    .action(async (name: string, options: PostCommandOptions) => {
+      const { profile, clients } = await runtime.getClientsForOptions(options);
+      const ucPostApi = new PostV1alpha1UcApi(
+        undefined,
+        normalizeBaseUrl(profile.baseUrl),
+        clients.axios,
+      );
+      const currentState = await loadEditablePostState(ucPostApi, name);
+
+      const postRequest = await normalizeUpdatePostInput(
+        currentState.post,
+        currentState.content,
+        await enrichPostMutationInput(
+          clients,
+          {
+            ...toMutationInput(options),
+            name: options.newName,
+          },
+          currentState.post,
+        ),
+      );
+
+      const updatePostResponse = await ucPostApi.updateMyPost({
+        name,
+        post: {
+          ...postRequest.post,
+          spec: {
+            ...postRequest.post.spec,
+            publish: currentState.post.spec.publish,
+          },
+        },
+      });
+
+      const updatedName = updatePostResponse.data.metadata.name;
+      const latestDraft = await ucPostApi.getMyPostDraft({
+        name: updatedName,
+        patched: true,
+      });
+
+      latestDraft.data.metadata = withSerializedContentAnnotation(
+        latestDraft.data.metadata,
+        postRequest.content,
+      );
+
+      await ucPostApi.updateMyPostDraft({
+        name: updatedName,
+        snapshot: latestDraft.data,
+      });
+
+      await syncPostPublishState(ucPostApi, updatedName, postRequest.post.spec.publish);
+
+      const latestPost = await ucPostApi.getMyPost({ name: updatedName });
+
+      if (options.json) {
+        printJson(latestPost.data);
+        return;
+      }
+
+      process.stdout.write(`Updated post ${latestPost.data.metadata.name}.\n`);
+    });
+
+  postCli
+    .command("delete <name>", "Delete a post")
+    .option("--profile <name>", "Halo profile name")
+    .option("--json", "Output JSON")
     .option("--force", "Delete without confirmation")
-    .action(
-      async (action: string | undefined, name: string | undefined, options: PostCommandOptions) => {
-        if (!action) {
-          cli.outputHelp();
-          return;
-        }
+    .action(async (name: string, options: PostCommandOptions) => {
+      const { clients } = await runtime.getClientsForOptions(options);
 
-        const { profile, clients } = await runtime.getClientsForOptions(options);
-        const ucPostApi = new PostV1alpha1UcApi(
-          undefined,
-          normalizeBaseUrl(profile.baseUrl),
-          clients.axios,
-        );
-
-        if (action === "list") {
-          const response = await clients.console.content.post.listPosts({
-            page: parseNumberOption(options.page),
-            size: parseNumberOption(options.size),
-            keyword: options.keyword,
-            publishPhase: options.publishPhase as never,
-            categoryWithChildren: options.category,
-          });
-
-          printPostList(response.data, options.json);
-          return;
-        }
-
-        if (action === "get") {
-          if (!name) {
-            throw new CliError("`halo post get` requires a post name.");
-          }
-
-          const [postResponse, contentResponse] = await Promise.all([
-            clients.core.content.post.getPost({ name }),
-            clients.console.content.post.fetchPostHeadContent({ name }),
-          ]);
-
-          if (options.json) {
-            printJson({
-              post: postResponse.data,
-              content: contentResponse.data,
-            });
-            return;
-          }
-
-          printDetailObject({
-            post: postResponse.data,
-            content: contentResponse.data,
-          });
-          return;
-        }
-
-        if (action === "open") {
-          if (!name) {
-            throw new CliError("`halo post open` requires a post name.");
-          }
-
-          const response = await clients.core.content.post.getPost({ name });
-          const permalink = response.data.status?.permalink;
-
-          if (!permalink) {
-            throw new CliError("This post does not have a permalink yet. It may not be published.");
-          }
-
-          const url = resolvePostOpenUrl(profile.baseUrl, permalink);
-
-          if (options.json) {
-            printJson({ name, url });
-            return;
-          }
-
-          await openUrlInBrowser(url);
-          process.stdout.write(`Opened ${url}\n`);
-          return;
-        }
-
-        if (action === "create") {
-          const postRequest = await normalizeCreatePostInput(
-            await enrichPostMutationInput(clients, toMutationInput(options)),
-          );
-
-          const createResponse = await ucPostApi.createMyPost({
-            post: {
-              ...postRequest.post,
-              metadata: withSerializedContentAnnotation(
-                postRequest.post.metadata,
-                postRequest.content,
-              ) as Post["metadata"],
-              spec: {
-                ...postRequest.post.spec,
-                publish: false,
-              },
-            },
-          });
-
-          await syncPostPublishState(
-            ucPostApi,
-            createResponse.data.metadata.name,
-            postRequest.post.spec.publish,
-          );
-
-          const latestPost = await ucPostApi.getMyPost({
-            name: createResponse.data.metadata.name,
-          });
-
-          if (options.json) {
-            printJson(latestPost.data);
-            return;
-          }
-
-          process.stdout.write(`Created post ${latestPost.data.metadata.name}.\n`);
-          return;
-        }
-
-        if (action === "update") {
-          if (!name) {
-            throw new CliError("`halo post update` requires a post name.");
-          }
-
-          const currentState = await loadEditablePostState(ucPostApi, name);
-
-          const postRequest = await normalizeUpdatePostInput(
-            currentState.post,
-            currentState.content,
-            await enrichPostMutationInput(
-              clients,
-              {
-                ...toMutationInput(options),
-                name: options.newName,
-              },
-              currentState.post,
-            ),
-          );
-
-          const updatePostResponse = await ucPostApi.updateMyPost({
-            name,
-            post: {
-              ...postRequest.post,
-              spec: {
-                ...postRequest.post.spec,
-                publish: currentState.post.spec.publish,
-              },
-            },
-          });
-
-          const updatedName = updatePostResponse.data.metadata.name;
-          const latestDraft = await ucPostApi.getMyPostDraft({
-            name: updatedName,
-            patched: true,
-          });
-
-          latestDraft.data.metadata = withSerializedContentAnnotation(
-            latestDraft.data.metadata,
-            postRequest.content,
-          );
-
-          await ucPostApi.updateMyPostDraft({
-            name: updatedName,
-            snapshot: latestDraft.data,
-          });
-
-          await syncPostPublishState(ucPostApi, updatedName, postRequest.post.spec.publish);
-
-          const latestPost = await ucPostApi.getMyPost({ name: updatedName });
-
-          if (options.json) {
-            printJson(latestPost.data);
-            return;
-          }
-
-          process.stdout.write(`Updated post ${latestPost.data.metadata.name}.\n`);
-          return;
-        }
-
-        if (action === "delete") {
-          if (!name) {
-            throw new CliError("`halo post delete` requires a post name.");
-          }
-
-          if (!options.force && process.stdin.isTTY) {
-            throw new CliError(
-              "`halo post delete` requires --force in this MVP to avoid accidental deletion.",
-            );
-          }
-
-          await clients.core.content.post.deletePost({ name });
-
-          if (options.json) {
-            printJson({ deleted: true, name });
-            return;
-          }
-
-          process.stdout.write(`Deleted post ${name}.\n`);
-          return;
-        }
-
+      if (!options.force && process.stdin.isTTY) {
         throw new CliError(
-          `Unsupported post action: ${action}. Supported actions: list, get, open, create, update, delete.`,
+          "`halo post delete` requires --force in this MVP to avoid accidental deletion.",
         );
-      },
-    );
+      }
+
+      await clients.core.content.post.deletePost({ name });
+
+      if (options.json) {
+        printJson({ deleted: true, name });
+        return;
+      }
+
+      process.stdout.write(`Deleted post ${name}.\n`);
+    });
+
+  postCli.usage("<command> [flags]");
+  postCli.example((bin) => `${bin} list --page 1 --size 20`);
+  postCli.example((bin) => `${bin} get my-post --json`);
+  postCli.example((bin) => `${bin} open my-post`);
+  postCli.example(
+    (bin) => `${bin} create --title "Hello Halo" --content-file ./post.md --publish true`,
+  );
+  postCli.example((bin) => `${bin} update my-post --title "Updated title" --tags Halo,CLI`);
+  postCli.example((bin) => `${bin} delete my-post --force`);
+  postCli.help();
+
+  return postCli;
+}
+
+export async function tryRunPostCommand(args: string[], runtime: RuntimeContext): Promise<boolean> {
+  if (args[0] !== "post") {
+    return false;
+  }
+
+  const postCli = createPostCli(runtime);
+
+  if (args.length === 1) {
+    postCli.outputHelp();
+    return true;
+  }
+
+  postCli.parse(["node", "halo post", ...args.slice(1)], { run: false });
+  await postCli.runMatchedCommand();
+  return true;
 }
