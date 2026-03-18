@@ -1,6 +1,7 @@
 import type { CAC } from "cac";
 
 import { openUrlInBrowser, resolvePostOpenUrl } from "../utils/browser.js";
+import { printCommandHelp } from "../utils/command-help.js";
 import { CliError } from "../utils/errors.js";
 import { printDetailObject, printJson, printPostList } from "../utils/format.js";
 import {
@@ -63,7 +64,7 @@ function toMutationInput(options: PostCommandOptions) {
 
 export function registerPostCommands(cli: CAC, runtime: RuntimeContext): void {
   cli
-    .command("post <action> [name]", "Post management commands")
+    .command("post [action] [name]", "Post management commands")
     .option("--profile <name>", "Halo profile name")
     .option("--json", "Output JSON")
     .option("--page <number>", "Page number")
@@ -89,7 +90,41 @@ export function registerPostCommands(cli: CAC, runtime: RuntimeContext): void {
     .option("--allow-comment <true|false>", "Whether comments are allowed")
     .option("--priority <number>", "Post priority")
     .option("--force", "Delete without confirmation")
-    .action(async (action: string, name: string | undefined, options: PostCommandOptions) => {
+    .action(async (action: string | undefined, name: string | undefined, options: PostCommandOptions) => {
+      if (!action) {
+        printCommandHelp({
+          summary: "Work with Halo posts.",
+          usage: "halo post <command> [flags]",
+          sections: [
+            {
+              title: "COMMANDS",
+              commands: [
+                { name: "list", description: "List posts" },
+                { name: "get", description: "Show post details" },
+                { name: "open", description: "Open a post in the browser" },
+                { name: "create", description: "Create a new post" },
+                { name: "update", description: "Update an existing post" },
+                { name: "delete", description: "Delete a post" },
+              ],
+            },
+          ],
+          flags: [
+            { name: "--profile <name>", description: "Halo profile name" },
+            { name: "--json", description: "Output JSON" },
+          ],
+          examples: [
+            "halo post list",
+            "halo post get <name>",
+            "halo post open <name>",
+            'halo post create --title "Hello Halo" --content "# Hello"',
+          ],
+          learnMore: [
+            "Use `halo post <subcommand> --help` for more information about a command.",
+          ],
+        });
+        return;
+      }
+
       const { profile, clients } = await runtime.getClientsForOptions(options);
 
       if (action === "list") {

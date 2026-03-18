@@ -1,5 +1,6 @@
 import type { CAC } from "cac";
 
+import { printCommandHelp } from "../utils/command-help.js";
 import { CliError } from "../utils/errors.js";
 import { printJson, printPlugin, printPluginList } from "../utils/format.js";
 import { parseBooleanOption, parseNumberOption } from "../utils/post-input.js";
@@ -33,7 +34,7 @@ function ensureSingleSource(options: PluginCommandOptions): { uri?: string; file
 
 export function registerPluginCommands(cli: CAC, runtime: RuntimeContext): void {
   cli
-    .command("plugin <action> [name]", "Plugin management commands")
+    .command("plugin [action] [name]", "Plugin management commands")
     .option("--profile <name>", "Halo profile name")
     .option("--json", "Output JSON")
     .option("--page <number>", "Page number")
@@ -42,7 +43,39 @@ export function registerPluginCommands(cli: CAC, runtime: RuntimeContext): void 
     .option("--enabled <true|false>", "Filter by running state")
     .option("--uri <uri>", "Remote JAR URI")
     .option("--file <path>", "Local JAR file path")
-    .action(async (action: string, name: string | undefined, options: PluginCommandOptions) => {
+    .action(async (action: string | undefined, name: string | undefined, options: PluginCommandOptions) => {
+      if (!action) {
+        printCommandHelp({
+          summary: "Work with Halo plugins.",
+          usage: "halo plugin <command> [flags]",
+          sections: [
+            {
+              title: "COMMANDS",
+              commands: [
+                { name: "list", description: "List plugins" },
+                { name: "get", description: "Show plugin details" },
+                { name: "install", description: "Install a plugin from URI or file" },
+                { name: "upgrade", description: "Upgrade a plugin from URI or file" },
+              ],
+            },
+          ],
+          flags: [
+            { name: "--profile <name>", description: "Halo profile name" },
+            { name: "--json", description: "Output JSON" },
+          ],
+          examples: [
+            "halo plugin list",
+            "halo plugin get <name>",
+            "halo plugin install --uri https://example.com/plugin.jar",
+            "halo plugin upgrade <name> --file ./plugin.jar",
+          ],
+          learnMore: [
+            "Use `halo plugin <subcommand> --help` for more information about a command.",
+          ],
+        });
+        return;
+      }
+
       const { clients } = await runtime.getClientsForOptions(options);
 
       if (action === "list") {
