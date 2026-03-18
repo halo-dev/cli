@@ -59,3 +59,136 @@ test("tryRunPluginCommand dispatches single-plugin upgrade commands", async () =
     },
   });
 });
+
+test("tryRunPluginCommand dispatches list subcommands in json mode", async () => {
+  silenceStdout();
+
+  const listPlugins = vi.fn().mockResolvedValue({
+    data: {
+      items: [],
+      total: 0,
+    },
+  });
+  const runtimeMock = {
+    getClientsForOptions: vi.fn().mockResolvedValue({
+      clients: {
+        console: {
+          plugin: {
+            plugin: {
+              listPlugins,
+            },
+          },
+        },
+      },
+    }),
+  };
+
+  await expect(
+    tryRunPluginCommand(
+      ["plugin", "list", "--page", "1", "--size", "20", "--enabled", "true", "--json"],
+      runtimeMock as never,
+    ),
+  ).resolves.toBe(true);
+
+  expect(listPlugins).toHaveBeenCalledWith({
+    page: 1,
+    size: 20,
+    keyword: undefined,
+    enabled: true,
+  });
+});
+
+test("tryRunPluginCommand dispatches get subcommands", async () => {
+  silenceStdout();
+
+  const getPlugin = vi.fn().mockResolvedValue({
+    data: {
+      metadata: {
+        name: "demo-plugin",
+      },
+    },
+  });
+  const runtimeMock = {
+    getClientsForOptions: vi.fn().mockResolvedValue({
+      clients: {
+        core: {
+          plugin: {
+            plugin: {
+              getPlugin,
+            },
+          },
+        },
+      },
+    }),
+  };
+
+  await expect(tryRunPluginCommand(["plugin", "get", "demo-plugin", "--json"], runtimeMock as never)).resolves.toBe(
+    true,
+  );
+
+  expect(getPlugin).toHaveBeenCalledWith({ name: "demo-plugin" });
+});
+
+test("tryRunPluginCommand dispatches install subcommands from urls", async () => {
+  silenceStdout();
+
+  const installPluginFromUri = vi.fn().mockResolvedValue({
+    data: {
+      metadata: {
+        name: "demo-plugin",
+      },
+    },
+  });
+  const runtimeMock = {
+    getClientsForOptions: vi.fn().mockResolvedValue({
+      clients: {
+        console: {
+          plugin: {
+            plugin: {
+              installPluginFromUri,
+            },
+          },
+        },
+      },
+    }),
+  };
+
+  await expect(
+    tryRunPluginCommand(
+      ["plugin", "install", "--url", "https://example.com/plugin.jar", "--json"],
+      runtimeMock as never,
+    ),
+  ).resolves.toBe(true);
+
+  expect(installPluginFromUri).toHaveBeenCalledWith({
+    installFromUriRequest: {
+      uri: "https://example.com/plugin.jar",
+    },
+  });
+});
+
+test("tryRunPluginCommand rejects unknown install flags during parsing", async () => {
+  silenceStdout();
+
+  const runtimeMock = {
+    getClientsForOptions: vi.fn(),
+  };
+
+  await expect(tryRunPluginCommand(["plugin", "install", "--online"], runtimeMock as never)).rejects.toThrow(
+    /Unknown option `--online`/i,
+  );
+});
+
+test("tryRunPluginCommand rejects invalid --all combinations", async () => {
+  silenceStdout();
+
+  const runtimeMock = {
+    getClientsForOptions: vi.fn().mockResolvedValue({
+      clients: {},
+    }),
+  };
+
+  await expect(
+    tryRunPluginCommand(["plugin", "upgrade", "demo-plugin", "--all"], runtimeMock as never),
+  ).rejects.toThrow(/does not accept a plugin name/i);
+});
