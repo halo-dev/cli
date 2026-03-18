@@ -7,10 +7,10 @@ export default defineConfig({
   pack: {
     entry: ["src/cli.ts"],
     format: ["esm"],
-    dts: true,
-    sourcemap: true,
+    dts: {
+      tsgo: true,
+    },
     clean: true,
-    target: "node20",
     outDir: "dist",
     banner: {
       js: "#!/usr/bin/env node",
