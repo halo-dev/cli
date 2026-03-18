@@ -24,6 +24,90 @@ interface AuthLoginOptions {
   json?: boolean;
 }
 
+function buildAuthHelpCli(): CAC {
+  const authCli = cac("halo auth");
+
+  authCli
+    .command("login", "Login and save a Halo profile")
+    .option("--profile <name>", "Profile name to save")
+    .option("--url <url>", "Halo base URL")
+    .option("--auth-type <type>", "Authentication type: basic or bearer")
+    .option("--username <username>", "Basic Auth username")
+    .option("--password <password>", "Basic Auth password")
+    .option("--token <token>", "Bearer personal access token")
+    .option("--json", "Output JSON");
+
+  authCli
+    .command("current", "Show the current active profile")
+    .option("--profile <name>", "Inspect a specific profile by name")
+    .option("--json", "Output JSON");
+
+  authCli
+    .command("profile", "Manage saved profiles")
+    .usage("profile <command> [flags]")
+    .example((bin) => `${bin} list`)
+    .example((bin) => `${bin} current`)
+    .example((bin) => `${bin} use local`);
+
+  authCli.usage("<command> [flags]");
+  authCli.example(
+    (bin) =>
+      `${bin} login --profile local --url http://127.0.0.1:8090 --auth-type bearer --token <token>`,
+  );
+  authCli.example((bin) => `${bin} current`);
+  authCli.example((bin) => `${bin} profile list`);
+  authCli.example((bin) => `${bin} profile use local`);
+
+  return authCli;
+}
+
+function buildAuthProfileHelpCli(): CAC {
+  const profileCli = cac("halo auth profile");
+
+  profileCli.command("list", "List saved profiles").option("--json", "Output JSON");
+
+  profileCli.command("current", "Show the active saved profile").option("--json", "Output JSON");
+
+  profileCli
+    .command("use [name]", "Switch the active profile")
+    .option("--profile <name>", "Profile name to activate")
+    .option("--json", "Output JSON");
+
+  profileCli.usage("<command> [flags]");
+  profileCli.example((bin) => `${bin} list`);
+  profileCli.example((bin) => `${bin} current`);
+  profileCli.example((bin) => `${bin} use local`);
+
+  return profileCli;
+}
+
+function outputAuthHelp(): void {
+  buildAuthHelpCli().outputHelp();
+}
+
+function outputAuthProfileHelp(): void {
+  buildAuthProfileHelpCli().outputHelp();
+}
+
+export function tryHandleAuthHelp(args: string[]): boolean {
+  const helpRequested = args.includes("--help") || args.includes("-h");
+  if (!helpRequested || args[0] !== "auth") {
+    return false;
+  }
+
+  if (args[1] === "profile") {
+    const profileCli = buildAuthProfileHelpCli();
+    profileCli.help();
+    profileCli.parse(["node", "halo auth profile", ...args.slice(2)], { run: false });
+    return true;
+  }
+
+  const authCli = buildAuthHelpCli();
+  authCli.help();
+  authCli.parse(["node", "halo auth", ...args.slice(1)], { run: false });
+  return true;
+}
+
 async function resolveLoginInput(
   options: AuthLoginOptions,
 ): Promise<Required<Pick<AuthLoginOptions, "profile" | "url" | "authType">> & AuthLoginOptions> {
