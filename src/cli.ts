@@ -8,6 +8,7 @@ import { registerCommentCommands, tryRunCommentCommand } from "./commands/commen
 import { registerMomentCommands, tryRunMomentCommand } from "./commands/moment.js";
 import { registerPluginCommands, tryRunPluginCommand } from "./commands/plugin.js";
 import { registerPostCommands, tryRunPostCommand } from "./commands/post.js";
+import { registerSearchCommands, tryRunSearchCommand } from "./commands/search.js";
 import { formatError } from "./utils/errors.js";
 import { RuntimeContext } from "./utils/runtime.js";
 
@@ -16,6 +17,7 @@ const runtime = new RuntimeContext();
 
 registerAuthCommands(cli);
 registerPostCommands(cli);
+registerSearchCommands(cli);
 registerPluginCommands(cli);
 registerAttachmentCommands(cli);
 registerBackupCommands(cli);
@@ -42,6 +44,10 @@ async function main(): Promise<void> {
   }
 
   if (await tryRunPluginCommand(args, runtime)) {
+    return;
+  }
+
+  if (await tryRunSearchCommand(args, runtime)) {
     return;
   }
 

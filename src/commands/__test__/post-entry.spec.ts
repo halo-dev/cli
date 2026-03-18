@@ -1,7 +1,7 @@
 import { afterEach, expect, test, vi } from "vitest";
 
-import { tryRunPostCommand } from "../post.js";
 import * as browserUtils from "../../utils/browser.js";
+import { tryRunPostCommand } from "../post.js";
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -91,9 +91,9 @@ test("tryRunPostCommand dispatches get subcommands", async () => {
     }),
   };
 
-  await expect(tryRunPostCommand(["post", "get", "post-1", "--json"], runtimeMock as never)).resolves.toBe(
-    true,
-  );
+  await expect(
+    tryRunPostCommand(["post", "get", "post-1", "--json"], runtimeMock as never),
+  ).resolves.toBe(true);
 
   expect(getPost).toHaveBeenCalledWith({ name: "post-1" });
   expect(fetchPostHeadContent).toHaveBeenCalledWith({ name: "post-1" });
@@ -126,9 +126,9 @@ test("tryRunPostCommand dispatches open subcommands in json mode", async () => {
     }),
   };
 
-  await expect(tryRunPostCommand(["post", "open", "post-1", "--json"], runtimeMock as never)).resolves.toBe(
-    true,
-  );
+  await expect(
+    tryRunPostCommand(["post", "open", "post-1", "--json"], runtimeMock as never),
+  ).resolves.toBe(true);
 
   expect(getPost).toHaveBeenCalledWith({ name: "post-1" });
   expect(openUrlInBrowser).not.toHaveBeenCalled();
@@ -182,9 +182,9 @@ test("tryRunPostCommand dispatches delete subcommands in json mode", async () =>
     }),
   };
 
-  await expect(tryRunPostCommand(["post", "delete", "post-1", "--json"], runtimeMock as never)).resolves.toBe(
-    true,
-  );
+  await expect(
+    tryRunPostCommand(["post", "delete", "post-1", "--json"], runtimeMock as never),
+  ).resolves.toBe(true);
 
   expect(deletePost).toHaveBeenCalledWith({ name: "post-1" });
 });

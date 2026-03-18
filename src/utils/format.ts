@@ -12,6 +12,7 @@ import type {
   Plugin,
   PluginList,
   Reply,
+  SearchResult,
 } from "@halo-dev/api-client";
 import Table from "cli-table3";
 import dayjs from "dayjs";
@@ -366,6 +367,33 @@ export function printPostList(list: ListedPostList, json = false): void {
 
   printTable(["NAME", "TITLE", "STATE", "CREATED AT"], rows, widths, false);
   process.stdout.write(`\n${list.total} post(s)\n`);
+}
+
+export function printSearchResult(result: SearchResult, json = false): void {
+  if (json) {
+    printJson(result);
+    return;
+  }
+
+  const hits = result.hits ?? [];
+  if (hits.length === 0) {
+    process.stdout.write(`No search results found for "${result.keyword ?? ""}".\n`);
+    return;
+  }
+
+  const widths = getPostListWidths();
+  const rows = hits.map((hit) => {
+    const shortType = hit.type?.split(".")[0] ?? hit.type ?? "";
+    return [
+      hit.metadataName,
+      truncateDisplayText(hit.title, widths[1]!),
+      shortType,
+      formatTimestamp(hit.creationTimestamp),
+    ];
+  });
+
+  printTable(["NAME", "TITLE", "TYPE", "CREATED AT"], rows, widths, false);
+  process.stdout.write(`\n${result.total ?? hits.length} result(s)\n`);
 }
 
 export function printPluginList(

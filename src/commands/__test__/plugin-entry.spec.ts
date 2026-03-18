@@ -122,9 +122,9 @@ test("tryRunPluginCommand dispatches get subcommands", async () => {
     }),
   };
 
-  await expect(tryRunPluginCommand(["plugin", "get", "demo-plugin", "--json"], runtimeMock as never)).resolves.toBe(
-    true,
-  );
+  await expect(
+    tryRunPluginCommand(["plugin", "get", "demo-plugin", "--json"], runtimeMock as never),
+  ).resolves.toBe(true);
 
   expect(getPlugin).toHaveBeenCalledWith({ name: "demo-plugin" });
 });
@@ -174,9 +174,9 @@ test("tryRunPluginCommand rejects unknown install flags during parsing", async (
     getClientsForOptions: vi.fn(),
   };
 
-  await expect(tryRunPluginCommand(["plugin", "install", "--online"], runtimeMock as never)).rejects.toThrow(
-    /Unknown option `--online`/i,
-  );
+  await expect(
+    tryRunPluginCommand(["plugin", "install", "--online"], runtimeMock as never),
+  ).rejects.toThrow(/Unknown option `--online`/i);
 });
 
 test("tryRunPluginCommand rejects invalid --all combinations", async () => {
