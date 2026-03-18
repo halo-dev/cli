@@ -1,5 +1,6 @@
 import axios, { type AxiosInstance } from "axios";
 import type { Plugin } from "@halo-dev/api-client";
+import semver from "semver";
 
 import { CliError } from "./errors.js";
 import { normalizeBaseUrl, type HaloClients } from "./runtime.js";
@@ -7,6 +8,11 @@ import { normalizeBaseUrl, type HaloClients } from "./runtime.js";
 export const DEFAULT_APP_STORE_BASE_URL = "https://www.halo.run";
 export const APP_STORE_PAT_SECRET_NAME = "halo-run-app-store-pat-secret";
 export const STORE_APP_ID_ANNOTATION = "store.halo.run/app-id";
+
+export interface PluginUpdateInfo {
+  latestVersion: string;
+  compatible: boolean;
+}
 
 interface AppStoreReleaseAsset {
   metadata: {
@@ -31,9 +37,29 @@ interface AppStoreDownloadResponse {
   url?: string;
 }
 
+interface AppStoreApplicationSearchResultList {
+  items: AppStoreApplicationSearchResult[];
+}
+
+interface AppStoreApplicationSearchResult {
+  downloadable?: boolean;
+  application?: {
+    metadata?: {
+      name?: string;
+    };
+  };
+  latestRelease?: {
+    spec?: {
+      version?: string;
+      requires?: string;
+    };
+  };
+}
+
 interface HaloActuatorInfo {
   build?: {
     name?: string;
+    version?: string;
   };
 }
 
@@ -110,10 +136,58 @@ export function formatHaloProAuthorizationToken(activationCode: string): string 
   return `lxl_${normalizedCode.replace(/=/g, "")}`;
 }
 
+export function satisfiesRequires(version?: string, requires?: string): boolean {
+  if (!version || !requires) {
+    return true;
+  }
+
+  const normalizedVersion = version.replace(/-.+$/, "");
+  let normalizedRequires = requires.trim();
+
+  if (/^\d+\.\d+\.\d+$/.test(normalizedRequires)) {
+    normalizedRequires = `>=${normalizedRequires}`;
+  }
+
+  return semver.satisfies(normalizedVersion, normalizedRequires, { includePrerelease: true });
+}
+
+export function resolvePluginUpdateInfo(
+  currentVersion?: string,
+  latestVersion?: string,
+  haloVersion?: string,
+  requires?: string,
+): PluginUpdateInfo | undefined {
+  if (!currentVersion || !latestVersion) {
+    return undefined;
+  }
+
+  if (!semver.valid(currentVersion) || !semver.valid(latestVersion)) {
+    return undefined;
+  }
+
+  if (!semver.lt(currentVersion, latestVersion)) {
+    return undefined;
+  }
+
+  return {
+    latestVersion,
+    compatible: satisfiesRequires(haloVersion, requires),
+  };
+}
+
+export async function getHaloSystemInfo(clients: HaloClients): Promise<HaloActuatorInfo | undefined> {
+  try {
+    const response = await clients.axios.get<HaloActuatorInfo>("/actuator/info");
+    return response.data;
+  } catch {
+    return undefined;
+  }
+}
+
 export async function getHaloProAuthorizationToken(clients: HaloClients): Promise<string | undefined> {
   try {
-    const infoResponse = await clients.axios.get<HaloActuatorInfo>("/actuator/info");
-    if (infoResponse.data.build?.name !== "halo-pro") {
+    const info = await getHaloSystemInfo(clients);
+    if (info?.build?.name !== "halo-pro") {
       return undefined;
     }
 
@@ -163,7 +237,86 @@ export async function createAppStoreClient(
     baseURL: normalizeBaseUrl(baseUrl),
     timeout: 30_000,
     headers,
+    paramsSerializer: (params) => {
+      const searchParams = new URLSearchParams();
+
+      for (const [key, value] of Object.entries(params as Record<string, unknown>)) {
+        if (value === undefined || value === null) {
+          continue;
+        }
+
+        if (Array.isArray(value)) {
+          for (const item of value) {
+            if (item !== undefined && item !== null) {
+              searchParams.append(key, String(item));
+            }
+          }
+          continue;
+        }
+
+        searchParams.append(key, String(value));
+      }
+
+      return searchParams.toString();
+    },
   });
+}
+
+export async function resolvePluginUpdates(
+  clients: HaloClients,
+  plugins: Plugin[],
+): Promise<Map<string, PluginUpdateInfo>> {
+  const appIds = [...new Set(plugins.map((plugin) => plugin.metadata.annotations?.[STORE_APP_ID_ANNOTATION]).filter(Boolean))];
+  if (appIds.length === 0) {
+    return new Map();
+  }
+
+  try {
+    const [info, appStoreClient] = await Promise.all([
+      getHaloSystemInfo(clients),
+      createAppStoreClient(clients),
+    ]);
+
+    const haloVersion = info?.build?.version;
+    const response = await appStoreClient.get<AppStoreApplicationSearchResultList>(
+      "/apis/api.store.halo.run/v1alpha1/applications",
+      {
+        params: {
+          type: "PLUGIN",
+          names: appIds,
+        },
+      },
+    );
+
+    const appsById = new Map(
+      response.data.items.map((item) => [item.application?.metadata?.name, item] as const),
+    );
+
+    const updates = new Map<string, PluginUpdateInfo>();
+    for (const plugin of plugins) {
+      const appId = plugin.metadata.annotations?.[STORE_APP_ID_ANNOTATION];
+      if (!appId) {
+        continue;
+      }
+
+      const app = appsById.get(appId);
+      if (!app?.downloadable) {
+        continue;
+      }
+
+      const latestVersion = app.latestRelease?.spec?.version;
+      const requires = app.latestRelease?.spec?.requires;
+      const update = resolvePluginUpdateInfo(plugin.spec.version, latestVersion, haloVersion, requires);
+
+      if (update) {
+        updates.set(plugin.metadata.name, update);
+      }
+    }
+
+    return updates;
+  } catch {
+    return new Map();
+  }
 }
 
 export async function resolveLatestAppStoreDownloadUrl(

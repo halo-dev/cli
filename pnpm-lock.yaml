@@ -23,6 +23,9 @@ importers:
       cli-table3:
         specifier: ^0.6.5
         version: 0.6.5
+      semver:
+        specifier: ^7.7.4
+        version: 7.7.4
       string-width:
         specifier: ^8.2.0
         version: 8.2.0
@@ -30,6 +33,9 @@ importers:
       '@types/node':
         specifier: ^24.12.0
         version: 24.12.0
+      '@types/semver':
+        specifier: ^7.7.1
+        version: 7.7.1
       tsdown:
         specifier: ^0.21.4
         version: 0.21.4(typescript@5.9.3)
@@ -502,6 +508,9 @@ packages:
 
   '@types/node@24.12.0':
     resolution: {integrity: sha512-GYDxsZi3ChgmckRT9HPU0WEhKLP08ev/Yfcq2AstjrDASOYCSXeyjDsHg4v5t4jOj7cyDX3vmprafKlWIG9MXQ==}
+
+  '@types/semver@7.7.1':
+    resolution: {integrity: sha512-FmgJfu+MOcQ370SD0ev7EI8TlCAfKYU+B4m5T3yXc1CiRN94g/SZPtsCkk506aUDtlMnFZvasDwHHUcZUEaYuA==}
 
   ansi-regex@5.0.1:
     resolution: {integrity: sha512-quJQXlTSUGL2LH9SUXo8VwsY4soanhgo6LNSm84E1LBcE8s3O0wpdiRzyR9z/ZZJMlMWv37qOOb9pdJlMUEKFQ==}
@@ -1209,6 +1218,8 @@ snapshots:
   '@types/node@24.12.0':
     dependencies:
       undici-types: 7.16.0
+
+  '@types/semver@7.7.1': {}
 
   ansi-regex@5.0.1: {}
 

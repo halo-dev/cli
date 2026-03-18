@@ -4,6 +4,7 @@ import {
   createAppStoreClient,
   resolveLatestAppStoreDownloadUrl,
   resolvePluginAppStoreAppId,
+  resolvePluginUpdates,
   resolvePluginUpgradeSource,
 } from "../utils/app-store.js";
 import { printCommandHelp } from "../utils/command-help.js";
@@ -100,7 +101,8 @@ export function registerPluginCommands(cli: CAC, runtime: RuntimeContext): void 
           enabled: parseBooleanOption(options.enabled),
         });
 
-        printPluginList(response.data, options.json);
+        const updates = options.json ? undefined : await resolvePluginUpdates(clients, response.data.items);
+        printPluginList(response.data, options.json, updates);
         return;
       }
 

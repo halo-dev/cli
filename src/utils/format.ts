@@ -2,6 +2,7 @@ import Table from "cli-table3";
 import type { DetailedUser, ListedPostList, Plugin, PluginList } from "@halo-dev/api-client";
 import stringWidth from "string-width";
 
+import type { PluginUpdateInfo } from "./app-store.js";
 import type { HaloProfile } from "../types.js";
 
 export function printJson(value: unknown): void {
@@ -102,8 +103,9 @@ function getPostListWidths(): number[] {
 
 function getPluginListWidths(): number[] {
   const width = resolveTerminalWidth();
-  const displayNameWidth = Math.min(Math.max(18, Math.floor(width * 0.32)), 34);
-  return [24, displayNameWidth, 16, 10];
+  const displayNameWidth = Math.min(Math.max(16, Math.floor(width * 0.28)), 30);
+  const updateWidth = Math.min(Math.max(12, Math.floor(width * 0.18)), 20);
+  return [24, displayNameWidth, 14, updateWidth, 10];
 }
 
 function getDetailTableWidths(): number[] {
@@ -259,7 +261,7 @@ export function printPostList(list: ListedPostList, json = false): void {
   process.stdout.write(`\n${list.total} post(s)\n`);
 }
 
-export function printPluginList(list: PluginList, json = false): void {
+export function printPluginList(list: PluginList, json = false, updates?: Map<string, PluginUpdateInfo>): void {
   if (json) {
     printJson(list);
     return;
@@ -267,14 +269,20 @@ export function printPluginList(list: PluginList, json = false): void {
 
   const widths = getPluginListWidths();
 
-  const rows = list.items.map((item) => [
-    item.metadata.name,
-    truncateDisplayText(item.spec.displayName ?? item.metadata.name, widths[1]!),
-    item.spec.version ?? "",
-    item.status?.phase ?? "",
-  ]);
+  const rows = list.items.map((item) => {
+    const update = updates?.get(item.metadata.name);
+    const updateText = update ? (update.compatible ? update.latestVersion : `${update.latestVersion} !compat`) : "";
 
-  printTable(["NAME", "DISPLAY NAME", "VERSION", "PHASE"], rows, widths, false);
+    return [
+      item.metadata.name,
+      truncateDisplayText(item.spec.displayName ?? item.metadata.name, widths[1]!),
+      item.spec.version ?? "",
+      truncateDisplayText(updateText, widths[3]!),
+      item.status?.phase ?? "",
+    ];
+  });
+
+  printTable(["NAME", "DISPLAY NAME", "VERSION", "UPDATE", "PHASE"], rows, widths, false);
   process.stdout.write(`\n${list.total} plugin(s)\n`);
 }
 

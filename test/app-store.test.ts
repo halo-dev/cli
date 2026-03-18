@@ -3,8 +3,10 @@ import assert from "node:assert/strict";
 
 import {
   formatHaloProAuthorizationToken,
+  resolvePluginUpdateInfo,
   resolvePluginAppStoreAppId,
   resolvePluginUpgradeSource,
+  satisfiesRequires,
 } from "../src/utils/app-store.js";
 
 test("resolvePluginUpgradeSource accepts url source", () => {
@@ -61,4 +63,29 @@ test("formatHaloProAuthorizationToken normalizes activation code for X-Authoriza
     formatHaloProAuthorizationToken(" code=with=padding=\n"),
     "lxl_codewithpadding",
   );
+});
+
+test("satisfiesRequires matches plugin-app-store semantics", () => {
+  assert.equal(satisfiesRequires("2.0.0", ">=2.0.0"), true);
+  assert.equal(satisfiesRequires("2.0.0", "2.0.0"), true);
+  assert.equal(satisfiesRequires("2.0.0-beta.1", ">=2.0.0"), true);
+  assert.equal(satisfiesRequires("2.0.0", ">2.0.0"), false);
+});
+
+test("resolvePluginUpdateInfo reports compatible updates", () => {
+  assert.deepEqual(
+    resolvePluginUpdateInfo("1.0.0", "1.1.0", "2.20.0", ">=2.0.0"),
+    { latestVersion: "1.1.0", compatible: true },
+  );
+});
+
+test("resolvePluginUpdateInfo reports incompatible updates", () => {
+  assert.deepEqual(
+    resolvePluginUpdateInfo("1.0.0", "1.1.0", "2.0.0", ">=2.5.0"),
+    { latestVersion: "1.1.0", compatible: false },
+  );
+});
+
+test("resolvePluginUpdateInfo ignores non-upgrades", () => {
+  assert.equal(resolvePluginUpdateInfo("1.1.0", "1.1.0", "2.20.0", ">=2.0.0"), undefined);
 });
