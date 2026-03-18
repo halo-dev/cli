@@ -149,10 +149,13 @@ Authentication and HTTP clients are centralized in `src/utils/runtime.ts`.
 
 ### `post`
 
-- list/get/create/update/delete/open
+- list/get/create/update/delete/open/import-json/export-json
 - uses Halo UC post APIs
 - draft content is persisted through content annotations
 - create/update support taxonomy resolution and creation for categories/tags
+- `import-json` / `export-json` use the same `{ post, content }` shape returned by `post get --json`
+- importing checks `metadata.name`; if the post already exists, it requires confirmation before updating unless `--force` is used
+- `export-json` writes the same payload to `./<post-name>.json` by default; `--output <path>` overrides the destination
 
 ### `search`
 

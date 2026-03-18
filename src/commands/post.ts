@@ -1,6 +1,9 @@
+import { readFile, writeFile } from "node:fs/promises";
+
 import type { Category, CategoryList, Post, Tag, TagList } from "@halo-dev/api-client";
 import { PostV1alpha1UcApi } from "@halo-dev/api-client";
 import { checkbox, input } from "@inquirer/prompts";
+import axios from "axios";
 import cac, { type CAC } from "cac";
 
 import { openUrlInBrowser, resolvePostOpenUrl } from "../utils/browser.js";
@@ -49,6 +52,21 @@ interface PostCommandOptions {
   newName?: string;
 }
 
+interface PostJsonCommandOptions extends PostCommandOptions {
+  file?: string;
+  raw?: string;
+  output?: string;
+}
+
+interface PostTransferPayload {
+  post: Post;
+  content: {
+    content: string;
+    raw: string;
+    rawType: string;
+  };
+}
+
 export function toMutationInput(options: PostCommandOptions) {
   return {
     name: options.name,
@@ -81,6 +99,104 @@ export function withSerializedContentAnnotation(
       [CONTENT_JSON_ANNOTATION]: serializeDraftContent(content),
     },
   };
+}
+
+export function parsePostTransferPayload(raw: string): PostTransferPayload {
+  let parsed: unknown;
+
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new CliError("Invalid post JSON payload.");
+  }
+
+  if (!parsed || typeof parsed !== "object") {
+    throw new CliError("Post JSON payload must be an object with `post` and `content`.");
+  }
+
+  const payload = parsed as Record<string, unknown>;
+  const post = payload.post;
+  const content = payload.content;
+
+  if (!post || typeof post !== "object") {
+    throw new CliError("Post JSON payload must include a `post` object.");
+  }
+
+  if (!content || typeof content !== "object") {
+    throw new CliError("Post JSON payload must include a `content` object.");
+  }
+
+  const contentRecord = content as Record<string, unknown>;
+  const rawContent =
+    typeof contentRecord.raw === "string"
+      ? contentRecord.raw
+      : typeof contentRecord.content === "string"
+        ? contentRecord.content
+        : undefined;
+  const renderedContent =
+    typeof contentRecord.content === "string" ? contentRecord.content : rawContent;
+  const rawType =
+    typeof contentRecord.rawType === "string" && contentRecord.rawType.trim().length > 0
+      ? contentRecord.rawType.trim()
+      : "markdown";
+
+  if (!rawContent || !renderedContent) {
+    throw new CliError("Post JSON payload must include `content.raw` or `content.content`.");
+  }
+
+  const typedPost = post as Post;
+  const postName = typedPost.metadata?.name?.trim();
+  if (!postName) {
+    throw new CliError("Post JSON payload must include `post.metadata.name`.");
+  }
+
+  return {
+    post: {
+      ...typedPost,
+      metadata: {
+        ...typedPost.metadata,
+        name: postName,
+      },
+    },
+    content: {
+      raw: rawContent,
+      content: renderedContent,
+      rawType,
+    },
+  };
+}
+
+export async function resolvePostTransferPayload(
+  options: PostJsonCommandOptions,
+): Promise<PostTransferPayload> {
+  return (await resolvePostTransferInput(options)).payload;
+}
+
+async function resolvePostTransferInput(
+  options: PostJsonCommandOptions,
+): Promise<{ payload: PostTransferPayload; sourceLabel: string }> {
+  const file = options.file?.trim();
+  const raw = options.raw?.trim();
+  const sourceCount = Number(Boolean(file)) + Number(Boolean(raw));
+
+  if (sourceCount !== 1) {
+    throw new CliError("Provide exactly one post JSON source: --file or --raw.");
+  }
+
+  const payload = file ? await readFile(file, "utf8") : raw!;
+  return {
+    payload: parsePostTransferPayload(payload),
+    sourceLabel: file ? `JSON file ${file}` : "inline JSON",
+  };
+}
+
+function stringifyJson(value: unknown): string {
+  return `${JSON.stringify(value, null, 2)}\n`;
+}
+
+function resolvePostExportOutputPath(name: string, output?: string): string {
+  const normalized = output?.trim();
+  return normalized && normalized.length > 0 ? normalized : `./${name}.json`;
 }
 
 export async function loadEditablePostState(ucPostApi: PostV1alpha1UcApi, name: string) {
@@ -123,6 +239,26 @@ async function listCategories(clients: HaloClients): Promise<Category[]> {
 async function listTags(clients: HaloClients): Promise<Tag[]> {
   const response = await clients.axios.get<TagList>("/apis/content.halo.run/v1alpha1/tags");
   return response.data.items;
+}
+
+async function loadPostDetail(clients: HaloClients, name: string): Promise<PostTransferPayload> {
+  const [postResponse, contentResponse] = await Promise.all([
+    clients.core.content.post.getPost({ name }),
+    clients.console.content.post.fetchPostHeadContent({ name }),
+  ]);
+
+  const raw = contentResponse.data.raw ?? contentResponse.data.content ?? "";
+  const content = contentResponse.data.content ?? contentResponse.data.raw ?? "";
+  const rawType = contentResponse.data.rawType ?? "markdown";
+
+  return {
+    post: postResponse.data,
+    content: {
+      raw,
+      content,
+      rawType,
+    },
+  };
 }
 
 async function promptTaxonomyDisplayNames(
@@ -339,23 +475,128 @@ function createPostCli(runtime: RuntimeContext): CAC {
     .option("--json", "Output JSON")
     .action(async (name: string, options: PostCommandOptions) => {
       const { clients } = await runtime.getClientsForOptions(options);
-      const [postResponse, contentResponse] = await Promise.all([
-        clients.core.content.post.getPost({ name }),
-        clients.console.content.post.fetchPostHeadContent({ name }),
-      ]);
+      const detail = await loadPostDetail(clients, name);
 
       if (options.json) {
-        printJson({
-          post: postResponse.data,
-          content: contentResponse.data,
-        });
+        printJson(detail);
         return;
       }
 
-      printDetailObject({
-        post: postResponse.data,
-        content: contentResponse.data,
-      });
+      printDetailObject(detail as unknown as Record<string, unknown>);
+    });
+
+  postCli
+    .command("export-json <name>", "Export a post as JSON")
+    .option("--profile <name>", "Halo profile name")
+    .option("--output <path>", "Write JSON to a specific file path")
+    .action(async (name: string, options: PostJsonCommandOptions) => {
+      const { clients } = await runtime.getClientsForOptions(options);
+      const detail = await loadPostDetail(clients, name);
+      const outputPath = resolvePostExportOutputPath(name, options.output);
+      await writeFile(outputPath, stringifyJson(detail));
+      process.stdout.write(`Exported post ${name} to ${outputPath}.\n`);
+    });
+
+  postCli
+    .command("import-json", "Import a post from JSON")
+    .option("--profile <name>", "Halo profile name")
+    .option("--json", "Output JSON")
+    .option("--file <path>", "Read post JSON from a file")
+    .option("--raw <json>", "Inline post JSON payload")
+    .option("--force", "Update without confirmation when the post already exists")
+    .action(async (options: PostJsonCommandOptions) => {
+      const { payload, sourceLabel } = await resolvePostTransferInput(options);
+      const { profile, clients } = await runtime.getClientsForOptions(options);
+      const ucPostApi = new PostV1alpha1UcApi(
+        undefined,
+        normalizeBaseUrl(profile.baseUrl),
+        clients.axios,
+      );
+      const targetName = payload.post.metadata.name;
+      let resultName = targetName;
+      let action: "imported" | "updated" = "imported";
+
+      try {
+        const currentState = await loadEditablePostState(ucPostApi, targetName);
+
+        if (
+          !(await confirmDangerousAction(
+            {
+              commandPath: "halo post import-json",
+              actionLabel: "Update",
+              resourceLabel: "post",
+              resourceName: targetName,
+              cancellationVerb: "updating",
+            },
+            options,
+          ))
+        ) {
+          return;
+        }
+
+        const updateResponse = await ucPostApi.updateMyPost({
+          name: targetName,
+          post: {
+            ...payload.post,
+            spec: {
+              ...payload.post.spec,
+              publish: currentState.post.spec.publish,
+            },
+          },
+        });
+
+        resultName = updateResponse.data.metadata.name;
+
+        const latestDraft = await ucPostApi.getMyPostDraft({
+          name: resultName,
+          patched: true,
+        });
+
+        latestDraft.data.metadata = withSerializedContentAnnotation(
+          latestDraft.data.metadata,
+          payload.content,
+        );
+
+        await ucPostApi.updateMyPostDraft({
+          name: resultName,
+          snapshot: latestDraft.data,
+        });
+
+        await syncPostPublishState(ucPostApi, resultName, payload.post.spec.publish);
+        action = "updated";
+      } catch (error) {
+        if (!axios.isAxiosError(error) || error.response?.status !== 404) {
+          throw error;
+        }
+
+        const createResponse = await ucPostApi.createMyPost({
+          post: {
+            ...payload.post,
+            metadata: withSerializedContentAnnotation(
+              payload.post.metadata,
+              payload.content,
+            ) as Post["metadata"],
+            spec: {
+              ...payload.post.spec,
+              publish: false,
+            },
+          },
+        });
+
+        resultName = createResponse.data.metadata.name;
+        await syncPostPublishState(ucPostApi, resultName, payload.post.spec.publish);
+      }
+
+      const detail = await loadPostDetail(clients, resultName);
+
+      if (options.json) {
+        printJson(detail);
+        return;
+      }
+
+      process.stdout.write(
+        `${action === "updated" ? "Updated existing post" : "Imported post"} ${resultName} from ${sourceLabel}.\n`,
+      );
     });
 
   postCli
@@ -561,11 +802,15 @@ function createPostCli(runtime: RuntimeContext): CAC {
   postCli.usage("<command> [flags]");
   postCli.example((bin) => `${bin} list --page 1 --size 20`);
   postCli.example((bin) => `${bin} get my-post --json`);
+  postCli.example((bin) => `${bin} export-json my-post`);
+  postCli.example((bin) => `${bin} export-json my-post --output ./post.json`);
   postCli.example((bin) => `${bin} open my-post`);
   postCli.example(
     (bin) => `${bin} create --title "Hello Halo" --content-file ./post.md --publish true`,
   );
   postCli.example((bin) => `${bin} update my-post --title "Updated title" --tags Halo,CLI`);
+  postCli.example((bin) => `${bin} import-json --file ./post.json`);
+  postCli.example((bin) => `${bin} import-json --raw '{"post":...,"content":...}'`);
   postCli.example((bin) => `${bin} delete my-post --force`);
   postCli.help();
 

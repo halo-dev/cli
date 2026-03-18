@@ -1,3 +1,7 @@
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
 import { afterEach, expect, test, vi } from "vitest";
 
 import * as browserUtils from "../../utils/browser.js";
@@ -97,6 +101,104 @@ test("tryRunPostCommand dispatches get subcommands", async () => {
 
   expect(getPost).toHaveBeenCalledWith({ name: "post-1" });
   expect(fetchPostHeadContent).toHaveBeenCalledWith({ name: "post-1" });
+});
+
+test("tryRunPostCommand dispatches export-json subcommands", async () => {
+  silenceStdout();
+
+  const previousCwd = process.cwd();
+  const tempDir = await mkdtemp(join(tmpdir(), "halo-post-export-default-"));
+
+  try {
+    process.chdir(tempDir);
+
+    const getPost = vi.fn().mockResolvedValue({
+      data: { metadata: { name: "post-1" } },
+    });
+    const fetchPostHeadContent = vi.fn().mockResolvedValue({
+      data: { raw: "# Halo", content: "<h1>Halo</h1>", rawType: "markdown" },
+    });
+    const runtimeMock = {
+      getClientsForOptions: vi.fn().mockResolvedValue({
+        clients: {
+          core: {
+            content: {
+              post: {
+                getPost,
+              },
+            },
+          },
+          console: {
+            content: {
+              post: {
+                fetchPostHeadContent,
+              },
+            },
+          },
+        },
+      }),
+    };
+
+    await expect(
+      tryRunPostCommand(["post", "export-json", "post-1"], runtimeMock as never),
+    ).resolves.toBe(true);
+
+    expect(getPost).toHaveBeenCalledWith({ name: "post-1" });
+    expect(fetchPostHeadContent).toHaveBeenCalledWith({ name: "post-1" });
+    await expect(readFile(join(tempDir, "post-1.json"), "utf8")).resolves.toContain(
+      '"name": "post-1"',
+    );
+  } finally {
+    process.chdir(previousCwd);
+    await rm(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("tryRunPostCommand exports json to an output file", async () => {
+  silenceStdout();
+
+  const tempDir = await mkdtemp(join(tmpdir(), "halo-post-export-"));
+  const outputPath = join(tempDir, "post.json");
+
+  try {
+    const getPost = vi.fn().mockResolvedValue({
+      data: { metadata: { name: "post-1" } },
+    });
+    const fetchPostHeadContent = vi.fn().mockResolvedValue({
+      data: { raw: "# Halo", content: "<h1>Halo</h1>", rawType: "markdown" },
+    });
+    const runtimeMock = {
+      getClientsForOptions: vi.fn().mockResolvedValue({
+        clients: {
+          core: {
+            content: {
+              post: {
+                getPost,
+              },
+            },
+          },
+          console: {
+            content: {
+              post: {
+                fetchPostHeadContent,
+              },
+            },
+          },
+        },
+      }),
+    };
+
+    await expect(
+      tryRunPostCommand(
+        ["post", "export-json", "post-1", "--output", outputPath],
+        runtimeMock as never,
+      ),
+    ).resolves.toBe(true);
+
+    await expect(readFile(outputPath, "utf8")).resolves.toContain('"name": "post-1"');
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
 });
 
 test("tryRunPostCommand dispatches open subcommands in json mode", async () => {
