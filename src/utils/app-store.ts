@@ -8,6 +8,7 @@ import { normalizeBaseUrl, type HaloClients } from "./runtime.js";
 export const DEFAULT_APP_STORE_BASE_URL = "https://www.halo.run";
 export const APP_STORE_PAT_SECRET_NAME = "halo-run-app-store-pat-secret";
 export const STORE_APP_ID_ANNOTATION = "store.halo.run/app-id";
+const APP_STORE_AUX_REQUEST_TIMEOUT_MS = 8_000;
 
 export interface PluginUpdateInfo {
   latestVersion: string;
@@ -82,6 +83,24 @@ export type PluginUpgradeSource =
   | { kind: "file"; file: string }
   | { kind: "online" };
 
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(new Error(`Request timed out after ${timeoutMs}ms.`));
+    }, timeoutMs);
+  });
+
+  try {
+    return await Promise.race([promise, timeoutPromise]);
+  } finally {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+  }
+}
+
 export function resolvePluginUpgradeSource(
   options: PluginUpgradeSourceOptions,
 ): PluginUpgradeSource {
@@ -122,7 +141,10 @@ export function resolvePluginAppStoreAppId(plugin: Pick<Plugin, "metadata">): st
 
 export async function getAppStoreToken(clients: HaloClients): Promise<string | undefined> {
   try {
-    const response = await clients.core.secret.getSecret({ name: APP_STORE_PAT_SECRET_NAME });
+    const response = await withTimeout(
+      clients.core.secret.getSecret({ name: APP_STORE_PAT_SECRET_NAME }),
+      APP_STORE_AUX_REQUEST_TIMEOUT_MS,
+    );
     return response.data.stringData?.token?.trim() || undefined;
   } catch {
     return undefined;
@@ -181,7 +203,10 @@ export async function getHaloSystemInfo(
   clients: HaloClients,
 ): Promise<HaloActuatorInfo | undefined> {
   try {
-    const response = await clients.axios.get<HaloActuatorInfo>("/actuator/info");
+    const response = await withTimeout(
+      clients.axios.get<HaloActuatorInfo>("/actuator/info"),
+      APP_STORE_AUX_REQUEST_TIMEOUT_MS,
+    );
     return response.data;
   } catch {
     return undefined;
@@ -197,8 +222,11 @@ export async function getHaloProAuthorizationToken(
       return undefined;
     }
 
-    const activationResponse = await clients.axios.get<HaloProActivation[]>(
-      "/apis/console.api.license.pro.halo.run/v1alpha1/activations",
+    const activationResponse = await withTimeout(
+      clients.axios.get<HaloProActivation[]>(
+        "/apis/console.api.license.pro.halo.run/v1alpha1/activations",
+      ),
+      APP_STORE_AUX_REQUEST_TIMEOUT_MS,
     );
 
     const activationCode = activationResponse.data.find((item) => item.status?.state === "active")

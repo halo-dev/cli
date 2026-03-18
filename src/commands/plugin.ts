@@ -27,6 +27,7 @@ interface PluginCommandOptions {
   file?: string;
   online?: boolean;
   all?: boolean;
+  yes?: boolean;
 }
 
 interface BatchUpgradeResult {
@@ -41,7 +42,16 @@ interface BatchUpgradeResult {
 }
 
 interface BatchUpgradeProgressEvent {
-  type: "checking" | "selecting" | "queued" | "upgrading" | "upgraded" | "skipped" | "failed";
+  type:
+    | "checking"
+    | "discovering"
+    | "resolving"
+    | "selecting"
+    | "queued"
+    | "upgrading"
+    | "upgraded"
+    | "skipped"
+    | "failed";
   name?: string;
   fromVersion?: string;
   toVersion?: string;
@@ -183,7 +193,9 @@ async function upgradeAllPlugins(
 ): Promise<BatchUpgradeResult> {
   onProgress?.({ type: "checking" });
   const { clients, items } = await listAllPlugins(runtime, options);
+  onProgress?.({ type: "discovering", count: items.length });
   const updates = await resolvePluginUpdates(clients, items);
+  onProgress?.({ type: "resolving", count: updates.size });
   const appStoreClient = await createAppStoreClient(clients);
 
   const result: BatchUpgradeResult = {
@@ -230,6 +242,7 @@ async function upgradeAllPlugins(
 
   if (
     compatibleCandidates.length > 0 &&
+    !options.yes &&
     process.stdin.isTTY &&
     process.stdout.isTTY &&
     !options.json
@@ -389,7 +402,17 @@ function reportBatchUpgradeProgress(
   event: BatchUpgradeProgressEvent,
 ): void {
   if (event.type === "checking") {
-    spinner.start("Checking App Store plugin updates...");
+    spinner.start("Loading installed plugins...");
+    return;
+  }
+
+  if (event.type === "discovering") {
+    spinner.update(`Checking App Store metadata for ${event.count ?? 0} installed plugin(s)...`);
+    return;
+  }
+
+  if (event.type === "resolving") {
+    spinner.update(`Resolved ${event.count ?? 0} plugin update candidate(s).`);
     return;
   }
 
@@ -460,6 +483,7 @@ export function registerPluginCommands(cli: CAC, runtime: RuntimeContext): void 
     .option("--file <path>", "Local JAR file path")
     .option("--online", "Upgrade from the Halo App Store")
     .option("--all", "Upgrade all compatible App Store plugins")
+    .option("-y, --yes", "Skip selection and upgrade all compatible plugins")
     .action(
       async (
         action: string | undefined,
@@ -502,6 +526,10 @@ export function registerPluginCommands(cli: CAC, runtime: RuntimeContext): void 
                 name: "--all",
                 description: "Upgrade all compatible App Store plugins",
               },
+              {
+                name: "-y, --yes",
+                description: "Skip selection and upgrade all compatible plugins",
+              },
             ],
             examples: [
               "halo plugin list",
@@ -510,6 +538,7 @@ export function registerPluginCommands(cli: CAC, runtime: RuntimeContext): void 
               "halo plugin upgrade <name> --file ./plugin.jar",
               "halo plugin upgrade <name> --online",
               "halo plugin upgrade --all",
+              "halo plugin upgrade --all --yes",
             ],
             learnMore: [
               "Use `halo plugin <subcommand> --help` for more information about a command.",
