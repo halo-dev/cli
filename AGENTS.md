@@ -161,7 +161,7 @@ Authentication and HTTP clients are centralized in `src/utils/runtime.ts`.
 
 ### `plugin`
 
-- list/get/install/upgrade and related management flows
+- list/get/enable/disable/install/uninstall/upgrade and related management flows
 - includes App Store-aware upgrade logic
 
 ### `theme`

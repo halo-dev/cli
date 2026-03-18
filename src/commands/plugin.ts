@@ -1,4 +1,4 @@
-import { checkbox } from "@inquirer/prompts";
+import { checkbox, confirm } from "@inquirer/prompts";
 import cac, { type CAC } from "cac";
 import ora, { type Ora } from "ora";
 
@@ -27,6 +27,10 @@ interface PluginCommandOptions {
   online?: boolean;
   all?: boolean;
   yes?: boolean;
+}
+
+interface PluginMutationOptions extends PluginCommandOptions {
+  force?: boolean;
 }
 
 interface BatchUpgradeResult {
@@ -186,6 +190,51 @@ export function resolvePluginInstallSource(options: PluginCommandOptions): {
   }
 
   return { url, file };
+}
+
+function getPluginMutationVerb(action: "enable" | "disable" | "uninstall"): string {
+  if (action === "enable") {
+    return "enabling";
+  }
+
+  if (action === "disable") {
+    return "disabling";
+  }
+
+  return "uninstalling";
+}
+
+export async function confirmPluginMutation(
+  action: "enable" | "disable" | "uninstall",
+  name: string,
+  options: PluginMutationOptions,
+): Promise<boolean> {
+  if (options.force) {
+    return true;
+  }
+
+  if (!process.stdin.isTTY || !process.stdout.isTTY) {
+    throw new CliError(
+      `\`halo plugin ${action}\` requires confirmation in interactive mode or use --force.`,
+    );
+  }
+
+  const confirmed = await confirm({
+    message: `${action[0]!.toUpperCase()}${action.slice(1)} plugin ${name}?`,
+    default: false,
+  });
+
+  if (confirmed) {
+    return true;
+  }
+
+  if (options.json) {
+    printJson({ name, cancelled: true });
+  } else {
+    process.stdout.write(`Cancelled ${getPluginMutationVerb(action)} plugin ${name}.\n`);
+  }
+
+  return false;
 }
 
 async function listAllPlugins(runtime: RuntimeContext, options: PluginCommandOptions) {
@@ -491,6 +540,79 @@ function createPluginCli(runtime: RuntimeContext): CAC {
     });
 
   pluginCli
+    .command("enable <name>", "Enable a plugin")
+    .option("--profile <name>", "Halo profile name")
+    .option("--json", "Output JSON")
+    .option("--force", "Enable without confirmation")
+    .action(async (name: string, options: PluginMutationOptions) => {
+      if (!(await confirmPluginMutation("enable", name, options))) {
+        return;
+      }
+
+      const { clients } = await runtime.getClientsForOptions(options);
+      const response = await clients.console.plugin.plugin.changePluginRunningState({
+        name,
+        pluginRunningStateRequest: {
+          enable: true,
+        },
+      });
+
+      if (options.json) {
+        printJson(response.data);
+        return;
+      }
+
+      process.stdout.write(`Enabled plugin ${response.data.metadata.name}.\n`);
+    });
+
+  pluginCli
+    .command("disable <name>", "Disable a plugin")
+    .option("--profile <name>", "Halo profile name")
+    .option("--json", "Output JSON")
+    .option("--force", "Disable without confirmation")
+    .action(async (name: string, options: PluginMutationOptions) => {
+      if (!(await confirmPluginMutation("disable", name, options))) {
+        return;
+      }
+
+      const { clients } = await runtime.getClientsForOptions(options);
+      const response = await clients.console.plugin.plugin.changePluginRunningState({
+        name,
+        pluginRunningStateRequest: {
+          enable: false,
+        },
+      });
+
+      if (options.json) {
+        printJson(response.data);
+        return;
+      }
+
+      process.stdout.write(`Disabled plugin ${response.data.metadata.name}.\n`);
+    });
+
+  pluginCli
+    .command("uninstall <name>", "Uninstall a plugin")
+    .option("--profile <name>", "Halo profile name")
+    .option("--json", "Output JSON")
+    .option("--force", "Uninstall without confirmation")
+    .action(async (name: string, options: PluginMutationOptions) => {
+      if (!(await confirmPluginMutation("uninstall", name, options))) {
+        return;
+      }
+
+      const { clients } = await runtime.getClientsForOptions(options);
+      await clients.core.plugin.plugin.deletePlugin({ name });
+
+      if (options.json) {
+        printJson({ uninstalled: true, name });
+        return;
+      }
+
+      process.stdout.write(`Uninstalled plugin ${name}.\n`);
+    });
+
+  pluginCli
     .command("install", "Install a plugin")
     .option("--profile <name>", "Halo profile name")
     .option("--json", "Output JSON")
@@ -594,6 +716,9 @@ function createPluginCli(runtime: RuntimeContext): CAC {
   pluginCli.usage("<command> [flags]");
   pluginCli.example((bin) => `${bin} list --page 1 --size 20`);
   pluginCli.example((bin) => `${bin} get PluginName`);
+  pluginCli.example((bin) => `${bin} enable PluginName --force`);
+  pluginCli.example((bin) => `${bin} disable PluginName --force`);
+  pluginCli.example((bin) => `${bin} uninstall PluginName --force`);
   pluginCli.example((bin) => `${bin} install --uri file:///tmp/example.jar`);
   pluginCli.example((bin) => `${bin} install --url https://example.com/plugin.jar`);
   pluginCli.example((bin) => `${bin} upgrade PluginName --online`);

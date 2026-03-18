@@ -129,6 +129,112 @@ test("tryRunPluginCommand dispatches get subcommands", async () => {
   expect(getPlugin).toHaveBeenCalledWith({ name: "demo-plugin" });
 });
 
+test("tryRunPluginCommand dispatches enable subcommands", async () => {
+  silenceStdout();
+
+  const changePluginRunningState = vi.fn().mockResolvedValue({
+    data: {
+      metadata: {
+        name: "demo-plugin",
+      },
+    },
+  });
+  const runtimeMock = {
+    getClientsForOptions: vi.fn().mockResolvedValue({
+      clients: {
+        console: {
+          plugin: {
+            plugin: {
+              changePluginRunningState,
+            },
+          },
+        },
+      },
+    }),
+  };
+
+  await expect(
+    tryRunPluginCommand(
+      ["plugin", "enable", "demo-plugin", "--json", "--force"],
+      runtimeMock as never,
+    ),
+  ).resolves.toBe(true);
+
+  expect(changePluginRunningState).toHaveBeenCalledWith({
+    name: "demo-plugin",
+    pluginRunningStateRequest: {
+      enable: true,
+    },
+  });
+});
+
+test("tryRunPluginCommand dispatches disable subcommands", async () => {
+  silenceStdout();
+
+  const changePluginRunningState = vi.fn().mockResolvedValue({
+    data: {
+      metadata: {
+        name: "demo-plugin",
+      },
+    },
+  });
+  const runtimeMock = {
+    getClientsForOptions: vi.fn().mockResolvedValue({
+      clients: {
+        console: {
+          plugin: {
+            plugin: {
+              changePluginRunningState,
+            },
+          },
+        },
+      },
+    }),
+  };
+
+  await expect(
+    tryRunPluginCommand(
+      ["plugin", "disable", "demo-plugin", "--json", "--force"],
+      runtimeMock as never,
+    ),
+  ).resolves.toBe(true);
+
+  expect(changePluginRunningState).toHaveBeenCalledWith({
+    name: "demo-plugin",
+    pluginRunningStateRequest: {
+      enable: false,
+    },
+  });
+});
+
+test("tryRunPluginCommand dispatches uninstall subcommands", async () => {
+  silenceStdout();
+
+  const deletePlugin = vi.fn().mockResolvedValue({});
+  const runtimeMock = {
+    getClientsForOptions: vi.fn().mockResolvedValue({
+      clients: {
+        core: {
+          plugin: {
+            plugin: {
+              deletePlugin,
+            },
+          },
+        },
+      },
+    }),
+  };
+
+  await expect(
+    tryRunPluginCommand(
+      ["plugin", "uninstall", "demo-plugin", "--json", "--force"],
+      runtimeMock as never,
+    ),
+  ).resolves.toBe(true);
+
+  expect(deletePlugin).toHaveBeenCalledWith({ name: "demo-plugin" });
+});
+
 test("tryRunPluginCommand dispatches install subcommands from urls", async () => {
   silenceStdout();
 
