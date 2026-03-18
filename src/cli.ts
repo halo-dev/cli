@@ -1,6 +1,7 @@
 import cac from "cac";
 
 import packageJson from "../package.json";
+import { registerAttachmentCommands } from "./commands/attachment.js";
 import { registerAuthCommands } from "./commands/auth.js";
 import { registerPluginCommands } from "./commands/plugin.js";
 import { registerPostCommands } from "./commands/post.js";
@@ -11,6 +12,7 @@ import { RuntimeContext } from "./utils/runtime.js";
 const cli = cac("halo");
 const runtime = new RuntimeContext();
 
+registerAttachmentCommands(cli, runtime);
 registerAuthCommands(cli, runtime);
 registerPostCommands(cli, runtime);
 registerPluginCommands(cli, runtime);
@@ -26,6 +28,7 @@ function printRootHelp(): void {
       {
         title: "COMMANDS",
         commands: [
+          { name: "attachment", description: "Work with attachments" },
           { name: "auth", description: "Manage authentication and profiles" },
           { name: "post", description: "Work with posts" },
           { name: "plugin", description: "Work with plugins" },
@@ -37,7 +40,12 @@ function printRootHelp(): void {
       { name: "--version", description: "Show version number" },
     ],
     inheritedFlags: [],
-    examples: ["halo auth login", "halo post list", "halo plugin upgrade <name> --online"],
+    examples: [
+      "halo auth login",
+      "halo attachment list",
+      "halo post list",
+      "halo plugin upgrade <name> --online",
+    ],
     learnMore: ["Use `halo <command> --help` for more information about a command."],
   });
 }

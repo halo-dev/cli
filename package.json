@@ -37,6 +37,7 @@
     "cac": "^7.0.0",
     "cli-table3": "^0.6.5",
     "ora": "^9.3.0",
+    "pretty-bytes": "^7.1.0",
     "semver": "^7.7.4",
     "string-width": "^8.2.0"
   },

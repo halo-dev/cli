@@ -1,5 +1,13 @@
-import type { DetailedUser, ListedPostList, Plugin, PluginList } from "@halo-dev/api-client";
+import type {
+  Attachment,
+  AttachmentList,
+  DetailedUser,
+  ListedPostList,
+  Plugin,
+  PluginList,
+} from "@halo-dev/api-client";
 import Table from "cli-table3";
+import prettyBytes from "pretty-bytes";
 import stringWidth from "string-width";
 
 import type { HaloProfile } from "../types.js";
@@ -111,6 +119,18 @@ function getPluginListWidths(): number[] {
   const displayNameWidth = Math.min(Math.max(16, Math.floor(width * 0.28)), 30);
   const updateWidth = Math.min(Math.max(12, Math.floor(width * 0.18)), 20);
   return [24, displayNameWidth, 14, updateWidth, 10];
+}
+
+function getAttachmentListWidths(): number[] {
+  const width = resolveTerminalWidth();
+  const nameWidth = 36;
+  const displayNameWidth = Math.min(Math.max(44, Math.floor(width * 0.4)), 56);
+  const sizeWidth = 10;
+  const mediaTypeWidth = Math.min(
+    Math.max(20, width - nameWidth - displayNameWidth - sizeWidth - 6),
+    36,
+  );
+  return [nameWidth, displayNameWidth, sizeWidth, mediaTypeWidth];
 }
 
 function getDetailTableWidths(): number[] {
@@ -320,4 +340,46 @@ export function printPlugin(plugin: Plugin, json = false): void {
   }
 
   printDetailObject(plugin as unknown as Record<string, unknown>);
+}
+
+export function printAttachmentList(list: AttachmentList, json = false): void {
+  if (json) {
+    printJson(list);
+    return;
+  }
+
+  const widths = getAttachmentListWidths();
+  const rows = list.items.map((item) => [
+    item.metadata.name,
+    truncateDisplayText(item.spec.displayName ?? item.metadata.name, widths[1]!),
+    item.spec.size == null
+      ? ""
+      : prettyBytes(item.spec.size, {
+          binary: true,
+          maximumFractionDigits: 1,
+        }),
+    truncateDisplayText(item.spec.mediaType ?? "", widths[3]!),
+  ]);
+
+  printTable(["NAME", "DISPLAY NAME", "SIZE", "MEDIA TYPE"], rows, widths, false);
+  process.stdout.write(`\n${list.total} attachment(s)\n`);
+}
+
+export function printAttachment(attachment: Attachment, json = false): void {
+  if (json) {
+    printJson(attachment);
+    return;
+  }
+
+  const { status, ...rest } = attachment;
+
+  printDetailObject({
+    ...rest,
+    status: status
+      ? {
+          ...status,
+          permalink: undefined,
+        }
+      : undefined,
+  } as Record<string, unknown>);
 }
