@@ -281,6 +281,7 @@ async function upgradeAllPlugins(
         checked: true,
       })),
       required: false,
+      loop: false,
     });
 
     selectedPluginNames = new Set(selected);
