@@ -1,6 +1,7 @@
+import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 
-import type { ContentWrapper, Post, PostRequest } from "@halo-dev/api-client";
+import type { Content, ContentWrapper, Post, PostRequest, Snapshot } from "@halo-dev/api-client";
 import { confirm, input } from "@inquirer/prompts";
 
 import type { PostMutationInput } from "../types.js";
@@ -9,6 +10,9 @@ import { CliError } from "./errors.js";
 const DEFAULT_RAW_TYPE = "markdown";
 const POST_API_VERSION = "content.halo.run/v1alpha1";
 const POST_KIND = "Post";
+export const CONTENT_JSON_ANNOTATION = "content.halo.run/content-json";
+export const PATCHED_CONTENT_ANNOTATION = "content.halo.run/patched-content";
+export const PATCHED_RAW_ANNOTATION = "content.halo.run/patched-raw";
 
 export function isInteractive(): boolean {
   return Boolean(process.stdin.isTTY && process.stdout.isTTY);
@@ -84,6 +88,45 @@ async function resolveContent(
   return inputValue;
 }
 
+export function serializeDraftContent(
+  content: Pick<Content, "content" | "raw" | "rawType">,
+): string {
+  return JSON.stringify(content);
+}
+
+export function extractDraftContent(snapshot: Snapshot): ContentWrapper | undefined {
+  const annotations = snapshot.metadata.annotations ?? {};
+  const contentJson = annotations[CONTENT_JSON_ANNOTATION];
+
+  if (contentJson) {
+    try {
+      const parsed = JSON.parse(contentJson) as Partial<Content>;
+      if (typeof parsed.raw === "string" || typeof parsed.content === "string") {
+        return {
+          raw: parsed.raw ?? parsed.content ?? "",
+          content: parsed.content ?? parsed.raw ?? "",
+          rawType: parsed.rawType ?? snapshot.spec.rawType ?? DEFAULT_RAW_TYPE,
+        };
+      }
+    } catch {
+      // Fall through to patched draft annotations.
+    }
+  }
+
+  const patchedRaw = annotations[PATCHED_RAW_ANNOTATION];
+  const patchedContent = annotations[PATCHED_CONTENT_ANNOTATION];
+
+  if (patchedRaw || patchedContent) {
+    return {
+      raw: patchedRaw ?? patchedContent ?? "",
+      content: patchedContent ?? patchedRaw ?? "",
+      rawType: snapshot.spec.rawType ?? DEFAULT_RAW_TYPE,
+    };
+  }
+
+  return undefined;
+}
+
 async function promptForMissing(
   inputState: PostMutationInput,
   mode: "create" | "update",
@@ -110,14 +153,6 @@ async function promptForMissing(
       message: "Post slug",
       default: defaults?.slug ?? (result.title ? slugify(result.title) : undefined),
       validate: (value) => (value.trim().length > 0 ? true : "Slug is required."),
-    });
-  }
-
-  if (!result.name) {
-    result.name = await input({
-      message: "Resource name",
-      default: current?.post.metadata.name ?? result.slug,
-      validate: (value) => (value.trim().length > 0 ? true : "Resource name is required."),
     });
   }
 
@@ -160,12 +195,12 @@ export async function normalizeCreatePostInput(
   const prompted = await promptForMissing(inputState, "create");
   const title = prompted.title?.trim();
   const slug = prompted.slug?.trim();
-  const name = prompted.name?.trim() ?? slug;
+  const name = randomUUID();
   const raw = (await resolveContent(prompted.content, prompted.contentFile))?.trim();
 
-  if (!title || !slug || !name || !raw) {
+  if (!title || !slug || !raw) {
     throw new CliError(
-      "`halo post create` requires title, slug/name, and content. Use flags or run it interactively.",
+      "`halo post create` requires title, slug, and content. Use flags or run it interactively.",
     );
   }
 

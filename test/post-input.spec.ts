@@ -1,10 +1,15 @@
 import { expect, test } from "vitest";
 
-import { normalizeCreatePostInput, normalizeUpdatePostInput } from "../src/utils/post-input.js";
+import {
+  CONTENT_JSON_ANNOTATION,
+  extractDraftContent,
+  normalizeCreatePostInput,
+  normalizeUpdatePostInput,
+  serializeDraftContent,
+} from "../src/utils/post-input.js";
 
 test("normalizeCreatePostInput builds a complete PostRequest", async () => {
   const request = await normalizeCreatePostInput({
-    name: "hello-world",
     title: "Hello World",
     slug: "hello-world",
     content: "# Hello World",
@@ -17,7 +22,9 @@ test("normalizeCreatePostInput builds a complete PostRequest", async () => {
     tags: ["intro"],
   });
 
-  expect(request.post.metadata.name).toBe("hello-world");
+  expect(request.post.metadata.name).toMatch(
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+  );
   expect(request.post.spec.title).toBe("Hello World");
   expect(request.post.spec.slug).toBe("hello-world");
   expect(request.post.spec.publish).toBe(true);
@@ -58,7 +65,39 @@ test("normalizeUpdatePostInput merges provided fields over current remote state"
   );
 
   expect(request.post.spec.title).toBe("Updated Title");
+  expect(request.post.metadata.name).toBe("hello-world");
   expect(request.post.spec.publish).toBe(true);
   expect(request.post.spec.pinned).toBe(true);
   expect(request.content.raw).toBe("new content");
+});
+
+test("extractDraftContent prefers serialized content annotation from draft snapshot", () => {
+  const content = {
+    raw: "# Hello from draft",
+    content: "<h1>Hello from draft</h1>",
+    rawType: "markdown",
+  };
+
+  const extracted = extractDraftContent({
+    apiVersion: "snapshot.halo.run/v1alpha1",
+    kind: "Snapshot",
+    metadata: {
+      name: "snapshot-1",
+      annotations: {
+        [CONTENT_JSON_ANNOTATION]: serializeDraftContent(content),
+      },
+    },
+    spec: {
+      owner: "test-user",
+      rawType: "markdown",
+      subjectRef: {
+        group: "content.halo.run",
+        kind: "Post",
+        name: "hello-world",
+        version: "v1alpha1",
+      },
+    },
+  });
+
+  expect(extracted).toEqual(content);
 });

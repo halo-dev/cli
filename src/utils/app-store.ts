@@ -172,7 +172,9 @@ export function satisfiesRequires(version?: string, requires?: string): boolean 
     normalizedRequires = `>=${normalizedRequires}`;
   }
 
-  return semver.satisfies(normalizedVersion, normalizedRequires, { includePrerelease: true });
+  return semver.satisfies(normalizedVersion, normalizedRequires, {
+    includePrerelease: true,
+  });
 }
 
 export function resolvePluginUpdateInfo(
