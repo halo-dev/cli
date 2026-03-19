@@ -1,6 +1,9 @@
 import { File } from "node:buffer";
-import { readFile, writeFile } from "node:fs/promises";
+import { createWriteStream } from "node:fs";
+import { readFile, unlink } from "node:fs/promises";
 import { basename } from "node:path";
+import type { Readable } from "node:stream";
+import { pipeline } from "node:stream/promises";
 
 import { AttachmentV1alpha1Api, AttachmentV1alpha1ConsoleApi } from "@halo-dev/api-client";
 import cac, { type CAC } from "cac";
@@ -223,15 +226,22 @@ function buildAttachmentCli(runtime: RuntimeContext): CAC {
         options.output,
       );
 
+      const controller = new AbortController();
+      const handleSIGINT = () => {
+        controller.abort();
+      };
+      process.once("SIGINT", handleSIGINT);
+
       const spinner = createSpinner(
         spinnerEnabled,
         `Downloading attachment ${attachment.metadata.name}...`,
       );
 
       try {
-        const downloadResponse = await clients.axios.get<ArrayBuffer>(permalink, {
-          responseType: "arraybuffer",
+        const downloadResponse = await clients.axios.get<Readable>(permalink, {
+          responseType: "stream",
           baseURL: undefined,
+          signal: controller.signal,
           headers: {
             Accept: "*/*",
           },
@@ -256,11 +266,18 @@ function buildAttachmentCli(runtime: RuntimeContext): CAC {
             : undefined,
         });
 
-        await writeFile(outputPath, Buffer.from(downloadResponse.data));
+        await pipeline(downloadResponse.data, createWriteStream(outputPath));
         spinner?.succeed(`Downloaded attachment ${attachment.metadata.name} to ${outputPath}.`);
       } catch (error) {
+        if (controller.signal.aborted) {
+          spinner?.fail(`Download of attachment ${attachment.metadata.name} cancelled.`);
+          await unlink(outputPath).catch(() => {});
+          process.exit(130);
+        }
         spinner?.fail(`Failed to download attachment ${attachment.metadata.name}.`);
         throw error;
+      } finally {
+        process.removeListener("SIGINT", handleSIGINT);
       }
 
       if (options.json) {
