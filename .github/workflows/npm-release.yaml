@@ -51,4 +51,4 @@ jobs:
         run: npm i -g npm@latest
 
       - name: Publish to NPM
-        run: npm run publish
+        run: npm publish
