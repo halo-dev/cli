@@ -55,6 +55,7 @@ interface PostCommandOptions {
   priority?: string;
   force?: boolean;
   newName?: string;
+  all?: boolean;
 }
 
 interface PostJsonCommandOptions extends PostCommandOptions {
@@ -481,6 +482,7 @@ function buildPostCli(runtime: RuntimeContext): CAC {
     .option("--keyword <keyword>", "Filter by keyword")
     .option("--publish-phase <phase>", "Filter by publish phase")
     .option("--category <category>", "Filter by category including children")
+    .option("--all", "Include posts in the recycle bin")
     .action(async (options: PostCommandOptions) => {
       const { clients } = await runtime.getClientsForOptions(options);
       const response = await clients.console.content.post.listPosts({
@@ -489,7 +491,7 @@ function buildPostCli(runtime: RuntimeContext): CAC {
         keyword: options.keyword,
         publishPhase: options.publishPhase as never,
         categoryWithChildren: options.category,
-        fieldSelector: ["spec.deleted=false"],
+        fieldSelector: options.all ? undefined : ["spec.deleted=false"],
       });
 
       printPostList(response.data, options.json);

@@ -66,6 +66,43 @@ test("tryRunPostCommand dispatches list subcommands", async () => {
   });
 });
 
+test("tryRunPostCommand list --all includes recycled posts", async () => {
+  silenceStdout();
+
+  const listPosts = vi.fn().mockResolvedValue({
+    data: {
+      items: [],
+      total: 0,
+    },
+  });
+  const runtimeMock = {
+    getClientsForOptions: vi.fn().mockResolvedValue({
+      clients: {
+        console: {
+          content: {
+            post: {
+              listPosts,
+            },
+          },
+        },
+      },
+    }),
+  };
+
+  await expect(
+    tryRunPostCommand(["post", "list", "--all", "--json"], runtimeMock as never),
+  ).resolves.toBe(true);
+
+  expect(listPosts).toHaveBeenCalledWith({
+    page: 1,
+    size: 20,
+    keyword: undefined,
+    publishPhase: undefined,
+    categoryWithChildren: undefined,
+    fieldSelector: undefined,
+  });
+});
+
 test("tryRunPostCommand dispatches get subcommands", async () => {
   silenceStdout();
 
