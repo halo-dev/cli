@@ -1,3 +1,8 @@
+import {
+  paginate,
+  type Plugin,
+  type PluginV1alpha1ConsoleApiListPluginsRequest,
+} from "@halo-dev/api-client";
 import { checkbox } from "@inquirer/prompts";
 import cac, { type CAC } from "cac";
 import ora, { type Ora } from "ora";
@@ -21,8 +26,6 @@ import { printPlugin, printPluginList } from "./format.js";
 interface PluginCommandOptions {
   profile?: string;
   json?: boolean;
-  page?: string;
-  size?: string;
   keyword?: string;
   enabled?: string;
   url?: string;
@@ -498,23 +501,21 @@ function buildPluginCli(runtime: RuntimeContext): CAC {
     .command("list", "List plugins")
     .option("--profile <name>", "Halo profile name")
     .option("--json", "Output JSON")
-    .option("--page <number>", "Page number")
-    .option("--size <number>", "Page size")
     .option("--keyword <keyword>", "Filter by keyword")
     .option("--enabled <true|false>", "Filter by running state")
     .action(async (options: PluginCommandOptions) => {
       const { clients } = await runtime.getClientsForOptions(options);
-      const response = await clients.console.plugin.plugin.listPlugins({
-        page: parseNumberOption(options.page),
-        size: parseNumberOption(options.size),
-        keyword: options.keyword,
-        enabled: parseBooleanOption(options.enabled),
-      });
 
-      const updates = options.json
-        ? undefined
-        : await resolvePluginUpdates(clients, response.data.items);
-      printPluginList(response.data, options.json, updates);
+      const plugins = await paginate<PluginV1alpha1ConsoleApiListPluginsRequest, Plugin>(
+        (params) => clients.console.plugin.plugin.listPlugins(params),
+        {
+          keyword: options.keyword,
+          enabled: parseBooleanOption(options.enabled),
+        },
+      );
+
+      const updates = options.json ? undefined : await resolvePluginUpdates(clients, plugins);
+      printPluginList(plugins, options.json, updates);
     });
 
   pluginCli
@@ -702,7 +703,7 @@ function buildPluginCli(runtime: RuntimeContext): CAC {
     });
 
   pluginCli.usage("<command> [flags]");
-  pluginCli.example((bin) => `${bin} list --page 1 --size 20`);
+  pluginCli.example((bin) => `${bin} list`);
   pluginCli.example((bin) => `${bin} get PluginName`);
   pluginCli.example((bin) => `${bin} enable PluginName --force`);
   pluginCli.example((bin) => `${bin} disable PluginName --force`);

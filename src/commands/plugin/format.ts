@@ -68,18 +68,18 @@ function getPluginListWidths(): number[] {
 }
 
 export function printPluginList(
-  list: PluginList,
+  plugins: Plugin[],
   json = false,
   updates?: Map<string, PluginUpdateInfo>,
 ): void {
   if (json) {
-    printJson(list);
+    printJson(plugins);
     return;
   }
 
   const widths = getPluginListWidths();
 
-  const rows = list.items.map((item) => {
+  const rows = plugins.map((item) => {
     const update = updates?.get(item.metadata.name);
     const updateText = update
       ? update.compatible
@@ -97,7 +97,7 @@ export function printPluginList(
   });
 
   printTable(["NAME", "DISPLAY NAME", "VERSION", "UPDATE", "PHASE"], rows, widths);
-  process.stdout.write(`\n${list.total} plugin(s)\n`);
+  process.stdout.write(`\n${plugins.length} plugin(s)\n`);
 }
 
 export function printPlugin(plugin: Plugin, json = false): void {
