@@ -2,6 +2,8 @@
 name: halo-operations
 version: 1.0.0
 description: "Halo CLI: site operations commands for themes, plugins, attachments, backups, and moments."
+references:
+  - ../halo-shared
 metadata:
   openclaw:
     category: "developer-tools"
