@@ -33,7 +33,7 @@ jobs:
         run: vp install
 
       - name: Type check
-        run: pnpm typecheck
+        run: vp run typecheck
 
       - name: Lint
         run: vp lint
@@ -51,4 +51,4 @@ jobs:
         run: npm i -g npm@latest
 
       - name: Publish to NPM
-        run: pnpm run publish
+        run: npm run publish

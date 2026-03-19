@@ -1,34 +1,34 @@
 # Halo CLI
 
-[简体中文](./README.zh-CN.md)
+[English README](./README.md)
 
-A command-line tool for managing [Halo](https://www.halo.run) instances.
+一个用于管理 [Halo](https://www.halo.run) 实例的命令行工具。
 
-## Install
+## 安装
 
 ```sh
 npm install -g @halo-dev/cli
 ```
 
-The installed binary is:
+安装后可执行命令为：
 
 ```sh
 halo
 ```
 
-Check the version:
+查看版本：
 
 ```sh
 halo --version
 ```
 
-## Requirements
+## 运行要求
 
 - Node.js `>= 20`
 
-## Quick Start
+## 快速开始
 
-### Login with a bearer token
+### 使用 Bearer Token 登录
 
 ```sh
 halo auth login \
@@ -38,17 +38,17 @@ halo auth login \
   --token <your-token>
 ```
 
-### Login with Basic Auth
+### 使用 Basic Auth 登录
 
-Before using Basic Auth, make sure your Halo instance enables it.
+在使用 Basic Auth 之前，请先确保你的 Halo 实例已启用 Basic Auth。
 
-Start Halo with:
+启动 Halo 时增加以下参数：
 
 ```sh
 --halo.security.basic-auth.disabled=false
 ```
 
-Then login:
+然后执行登录：
 
 ```sh
 halo auth login \
@@ -59,16 +59,16 @@ halo auth login \
   --password <your-password>
 ```
 
-### Verify the current profile
+### 验证当前 profile
 
 ```sh
 halo auth current
 halo auth profile list
 ```
 
-## Common Usage
+## 常见用法
 
-Get help:
+查看帮助：
 
 ```sh
 halo --help
@@ -77,7 +77,7 @@ halo post --help
 halo single-page --help
 ```
 
-Example root help output:
+根命令帮助输出示例：
 
 ```text
 halo/1.0.0
@@ -116,22 +116,22 @@ Options:
   -v, --version  Display version number
 ```
 
-Use a specific saved profile:
+指定已保存的 profile：
 
 ```sh
 halo post list --profile production
 ```
 
-Use JSON output for scripting:
+使用 JSON 输出以便脚本处理：
 
 ```sh
 halo post list --json
 halo single-page get about --json
 ```
 
-## Main Command Areas
+## 主要命令分组
 
-Halo CLI currently includes these command groups:
+当前 Halo CLI 包含以下命令分组：
 
 - `auth`
 - `post`
@@ -145,13 +145,13 @@ Halo CLI currently includes these command groups:
 - `comment`
 - `notification`
 
-For details on any command, use `--help`.
+更多细节请使用 `--help` 查看。
 
 ## Agent Skills
 
-This package also ships with reusable skills under the root `skills/` directory.
+此包还附带了可复用的 skills，位于根目录下的 `skills/`。
 
-Included skills:
+包含的 skills：
 
 - `halo-shared`
 - `halo-auth`
@@ -159,39 +159,39 @@ Included skills:
 - `halo-operations`
 - `halo-moderation-notifications`
 
-After a global install, you can usually locate them with:
+全局安装后，你通常可以先通过下面的命令定位安装目录：
 
 ```sh
 npm root -g
 ```
 
-Then open:
+然后进入：
 
 ```sh
 <npm-global-root>/@halo-dev/cli/skills
 ```
 
-If you use another package manager, open the installed `@halo-dev/cli/skills` directory in that package manager's global package root.
+如果你使用的是其他包管理器，请打开对应全局安装目录中的 `@halo-dev/cli/skills`。
 
-Recommended starting point:
+推荐先从这里开始：
 
 ```sh
 skills/halo-shared/SKILL.md
 ```
 
-## Configuration
+## 配置
 
-Profile metadata is stored in:
+profile 元数据存储在：
 
-- `$HALO_CLI_CONFIG_DIR/config.json` if `HALO_CLI_CONFIG_DIR` is set
-- otherwise `$XDG_CONFIG_HOME/halo/config.json`
-- otherwise `~/.config/halo/config.json`
+- 如果设置了 `HALO_CLI_CONFIG_DIR`，则为 `$HALO_CLI_CONFIG_DIR/config.json`
+- 否则为 `$XDG_CONFIG_HOME/halo/config.json`
+- 再否则为 `~/.config/halo/config.json`
 
-Credentials are stored in the system keyring.
+凭据会存储在系统 keyring 中。
 
-## Development
+## 开发
 
-Useful commands:
+常用命令：
 
 ```sh
 pnpm typecheck
@@ -200,21 +200,22 @@ vp test
 vp pack
 ```
 
-## Publishing
+## 发布
 
-Before publishing, verify the package contents:
+发布前建议先检查打包内容：
 
 ```sh
 npm pack --dry-run
 ```
 
-The published package should include:
+发布包中应包含：
 
 - `dist/`
 - `skills/`
 - `README.md`
+- `README.zh-CN.md`
 - `LICENSE`
 
-## License
+## 许可证
 
 MIT

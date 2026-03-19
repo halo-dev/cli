@@ -39,7 +39,7 @@ jobs:
         run: vp install
 
       - name: Typecheck
-        run: pnpm typecheck
+        run: vp run typecheck
 
       - name: Lint
         run: vp lint
