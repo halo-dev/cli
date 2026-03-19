@@ -112,8 +112,8 @@ test("tryRunNotificationCommand defaults notification list to unread", async () 
 
   expect(listUserNotifications).toHaveBeenCalledWith({
     username: "demo-user",
-    page: undefined,
-    size: undefined,
+    page: 1,
+    size: 20,
     fieldSelector: ["spec.unread=true"],
     sort: undefined,
   });

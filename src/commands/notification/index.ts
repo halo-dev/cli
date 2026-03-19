@@ -119,8 +119,8 @@ function buildNotificationCli(runtime: RuntimeContext): CAC {
     .command("list", "List notifications")
     .option("--profile <name>", "Halo profile name")
     .option("--json", "Output JSON")
-    .option("--page <number>", "Page number")
-    .option("--size <number>", "Page size")
+    .option("--page <number>", "Page number", { default: 1 })
+    .option("--size <number>", "Page size", { default: 20 })
     .option("--unread <boolean>", "Filter by unread field selector, default true")
     .option("--sort <sort>", "Sort expression, e.g. metadata.creationTimestamp,desc")
     .action(async (options: NotificationListOptions) => {

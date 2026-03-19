@@ -130,8 +130,8 @@ function buildBackupCli(runtime: RuntimeContext): CAC {
     .command("list", "List backups")
     .option("--profile <name>", "Halo profile name")
     .option("--json", "Output JSON")
-    .option("--page <number>", "Page number")
-    .option("--size <number>", "Page size")
+    .option("--page <number>", "Page number", { default: 1 })
+    .option("--size <number>", "Page size", { default: 20 })
     .action(async (options: BackupListOptions) => {
       const { profile, clients } = await runtime.getClientsForOptions(options);
       const backupApi = new BackupV1alpha1Api(undefined, profile.baseUrl, clients.axios);
