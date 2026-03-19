@@ -153,9 +153,7 @@ describe("tryRunCompletionCommand routing", () => {
 
   test("outputs bash script for completion bash", async () => {
     const writeSpy = silenceStdout();
-    await expect(
-      tryRunCompletionCommand(["completion", "bash"], {} as never),
-    ).resolves.toBe(true);
+    await expect(tryRunCompletionCommand(["completion", "bash"], {} as never)).resolves.toBe(true);
     const output = writeSpy.mock.calls.map((c) => c[0]).join("");
     expect(output).toContain("###-begin-halo-completion-###");
     expect(output).toContain("complete -o default -F _halo_completion halo");
@@ -163,18 +161,14 @@ describe("tryRunCompletionCommand routing", () => {
 
   test("outputs zsh script for completion zsh", async () => {
     const writeSpy = silenceStdout();
-    await expect(
-      tryRunCompletionCommand(["completion", "zsh"], {} as never),
-    ).resolves.toBe(true);
+    await expect(tryRunCompletionCommand(["completion", "zsh"], {} as never)).resolves.toBe(true);
     const output = writeSpy.mock.calls.map((c) => c[0]).join("");
     expect(output).toContain("compdef _halo_completion halo");
   });
 
   test("outputs fish script for completion fish", async () => {
     const writeSpy = silenceStdout();
-    await expect(
-      tryRunCompletionCommand(["completion", "fish"], {} as never),
-    ).resolves.toBe(true);
+    await expect(tryRunCompletionCommand(["completion", "fish"], {} as never)).resolves.toBe(true);
     const output = writeSpy.mock.calls.map((c) => c[0]).join("");
     expect(output).toContain("complete -c halo -f");
   });

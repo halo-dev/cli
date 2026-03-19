@@ -6,12 +6,12 @@ import {
   tryRunAttachmentCommand,
 } from "./commands/attachment/index.js";
 import { registerAuthCommands, tryRunAuthCommand } from "./commands/auth/index.js";
+import { registerBackupCommands, tryRunBackupCommand } from "./commands/backup/index.js";
+import { registerCommentCommands, tryRunCommentCommand } from "./commands/comment/index.js";
 import {
   registerCompletionCommands,
   tryRunCompletionCommand,
 } from "./commands/completion/index.js";
-import { registerBackupCommands, tryRunBackupCommand } from "./commands/backup/index.js";
-import { registerCommentCommands, tryRunCommentCommand } from "./commands/comment/index.js";
 import { registerMomentCommands, tryRunMomentCommand } from "./commands/moment/index.js";
 import {
   registerNotificationCommands,
