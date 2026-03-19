@@ -24,7 +24,7 @@ halo --version
 
 ## 运行要求
 
-- Node.js `>= 20`
+- Node.js `>= 22`
 
 ## 快速开始
 

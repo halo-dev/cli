@@ -24,7 +24,7 @@ halo --version
 
 ## Requirements
 
-- Node.js `>= 20`
+- Node.js `>= 22`
 
 ## Quick Start
 

@@ -81,7 +81,7 @@ This repository is a TypeScript CLI for managing Halo instances.
 
 ## Runtime and Packaging
 
-- Runtime: Node.js >= 20
+- Runtime: Node.js >= 22
 - Language: TypeScript, ESM
 - CLI entry: `src/cli.ts`
 - Published binary: `halo`
