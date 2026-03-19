@@ -16,6 +16,10 @@ import {
 import { registerPluginCommands, tryRunPluginCommand } from "./commands/plugin/index.js";
 import { registerPostCommands, tryRunPostCommand } from "./commands/post/index.js";
 import { registerSearchCommands, tryRunSearchCommand } from "./commands/search/index.js";
+import {
+  registerSinglePageCommands,
+  tryRunSinglePageCommand,
+} from "./commands/single-page/index.js";
 import { registerThemeCommands, tryRunThemeCommand } from "./commands/theme/index.js";
 import { formatError } from "./utils/errors.js";
 import { RuntimeContext } from "./utils/runtime.js";
@@ -31,6 +35,10 @@ const commandModules = [
   {
     register: registerPostCommands,
     tryRun: tryRunPostCommand,
+  },
+  {
+    register: registerSinglePageCommands,
+    tryRun: tryRunSinglePageCommand,
   },
   {
     register: registerSearchCommands,
