@@ -67,7 +67,7 @@ function printTable(headers: string[], rows: Array<Array<string>>, colWidths?: n
 
 function getCommentListWidths(): number[] {
   const width = resolveTerminalWidth();
-  const nameWidth = 26;
+  const nameWidth = 36;
   const ownerWidth = 18;
   const approvedWidth = 9;
   const hiddenWidth = 8;

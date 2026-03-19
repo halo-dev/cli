@@ -26,7 +26,7 @@ test("printCommentList writes table output for listed comments", () => {
         },
         comment: {
           metadata: {
-            name: "comment-1",
+            name: "46195e7f-1b26-4e99-a0f9-000000000001",
             creationTimestamp: "2026-03-18T10:20:00.000Z",
           },
           spec: {
@@ -51,7 +51,7 @@ test("printCommentList writes table output for listed comments", () => {
   expect(tableOutput).toContain("APPROVED");
   expect(tableOutput).toContain("HIDDEN");
   expect(tableOutput).toContain("CREATED AT");
-  expect(tableOutput).toContain("comment-1");
+  expect(tableOutput).toContain("46195e7f-1b26-4e99-a0f9-000000000001");
   expect(tableOutput).toContain("Halo User");
   expect(tableOutput).toContain("Hello Halo");
   expect(tableOutput).toContain("yes");
