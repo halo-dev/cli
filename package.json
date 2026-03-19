@@ -1,23 +1,35 @@
 {
   "name": "@halo-dev/cli",
   "version": "1.0.0",
-  "description": "CLI for managing Halo(https://www.halo.run) instances.",
+  "description": "CLI for managing Halo (https://www.halo.run) instances.",
   "keywords": [
+    "blog",
     "cli",
     "cms",
     "halo",
-    "halo-cli"
+    "halo-cli",
+    "headless-cms",
+    "management"
   ],
-  "license": "ISC",
+  "homepage": "https://github.com/halo-dev/cli#readme",
+  "bugs": {
+    "url": "https://github.com/halo-dev/cli/issues"
+  },
+  "license": "MIT",
   "author": {
     "name": "Halo",
     "url": "https://github.com/halo-dev"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/halo-dev/cli.git"
   },
   "bin": {
     "halo": "dist/cli.mjs"
   },
   "files": [
-    "dist"
+    "dist",
+    "skills"
   ],
   "type": "module",
   "types": "./dist/cli.d.mts",
