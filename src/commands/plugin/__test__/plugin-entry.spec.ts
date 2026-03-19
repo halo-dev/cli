@@ -84,17 +84,14 @@ test("tryRunPluginCommand dispatches list subcommands in json mode", async () =>
   };
 
   await expect(
-    tryRunPluginCommand(
-      ["plugin", "list", "--page", "1", "--size", "20", "--enabled", "true", "--json"],
-      runtimeMock as never,
-    ),
+    tryRunPluginCommand(["plugin", "list", "--enabled", "true", "--json"], runtimeMock as never),
   ).resolves.toBe(true);
 
   expect(listPlugins).toHaveBeenCalledWith({
     page: 1,
-    size: 20,
     keyword: undefined,
     enabled: true,
+    size: 100,
   });
 });
 

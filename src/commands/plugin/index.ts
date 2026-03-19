@@ -17,7 +17,7 @@ import {
 import { tryRunCommandCliRoute } from "../../utils/command-router.js";
 import { confirmDangerousAction } from "../../utils/confirmation.js";
 import { CliError } from "../../utils/errors.js";
-import { parseBooleanOption, parseNumberOption } from "../../utils/options.js";
+import { parseBooleanOption } from "../../utils/options.js";
 import { printJson } from "../../utils/output.js";
 import { loadFileAsJar } from "../../utils/package-file.js";
 import { RuntimeContext } from "../../utils/runtime.js";
@@ -511,6 +511,7 @@ function buildPluginCli(runtime: RuntimeContext): CAC {
         {
           keyword: options.keyword,
           enabled: parseBooleanOption(options.enabled),
+          size: 100,
         },
       );
 

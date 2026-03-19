@@ -1,4 +1,4 @@
-import type { Plugin, PluginList } from "@halo-dev/api-client";
+import type { Plugin } from "@halo-dev/api-client";
 import Table from "cli-table3";
 
 import type { PluginUpdateInfo } from "../../shared/integrations/app-store.js";

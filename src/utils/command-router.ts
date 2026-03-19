@@ -1,5 +1,7 @@
 import type { CAC } from "cac";
 
+import { CliError } from "./errors.js";
+
 interface CommandCliRouteOptions {
   command: string;
   cliName: string;
@@ -12,6 +14,13 @@ interface NestedCliRouteOptions {
   cliName: string;
   args: string[];
   buildCli: () => CAC;
+}
+
+function throwUnknownCommand(cli: CAC, cliName: string): never {
+  const attemptedCommand = cli.args[0];
+  throw new CliError(
+    `Unknown command "${attemptedCommand}" for \`${cliName}\`. Run \`${cliName} --help\` for available commands.`,
+  );
 }
 
 export async function tryRunCommandCliRoute(options: CommandCliRouteOptions): Promise<boolean> {
@@ -27,6 +36,9 @@ export async function tryRunCommandCliRoute(options: CommandCliRouteOptions): Pr
   }
 
   cli.parse(["node", options.cliName, ...options.args.slice(1)], { run: false });
+  if (!cli.matchedCommand && cli.args[0]) {
+    throwUnknownCommand(cli, options.cliName);
+  }
   await cli.runMatchedCommand();
   return true;
 }
@@ -44,6 +56,9 @@ export async function tryRunNestedCliRoute(options: NestedCliRouteOptions): Prom
   }
 
   nestedCli.parse(["node", options.cliName, ...options.args.slice(2)], { run: false });
+  if (!nestedCli.matchedCommand && nestedCli.args[0]) {
+    throwUnknownCommand(nestedCli, options.cliName);
+  }
   await nestedCli.runMatchedCommand();
   return true;
 }
