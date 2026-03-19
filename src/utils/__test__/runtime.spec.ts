@@ -1,7 +1,8 @@
 import { expect, test } from "vitest";
 
-import type { HaloProfile } from "../../types.js";
-import { buildAuthHeader, normalizeBaseUrl } from "../runtime.js";
+import type { HaloProfile } from "../../shared/profile.js";
+import { buildAuthHeader } from "../runtime.js";
+import { normalizeBaseUrl } from "../url.js";
 
 test("buildAuthHeader returns Basic authorization header", () => {
   const profile: HaloProfile = {

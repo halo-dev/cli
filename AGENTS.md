@@ -110,7 +110,7 @@ This project no longer implements large nested command trees directly on the roo
 Use this pattern instead:
 
 1. Register a placeholder root command in `src/cli.ts` via `registerXxxCommands(cli)`.
-2. Implement a dedicated sub-CLI in `src/commands/xxx.ts` with its own `cac("halo xxx")` instance.
+2. Implement a dedicated sub-CLI in `src/commands/xxx/index.ts` with its own `cac("halo xxx")` instance.
 3. Export `tryRunXxxCommand(args, runtime)`.
 4. In `src/cli.ts`, dispatch in order by calling `tryRunXxxCommand(...)` before the final root parse.
 
@@ -122,18 +122,32 @@ This pattern is important because it gives correct help output for:
 
 If a business area has a nested namespace, create another dedicated sub-CLI for that nested branch instead of trying to handle help manually in a single root command.
 
+Within a command area, prefer colocating command-specific helpers with the command itself, for example:
+
+- `src/commands/post/index.ts`
+- `src/commands/post/format.ts`
+- `src/commands/post/input.ts`
+- `src/commands/post/types.ts`
+- `src/commands/post/__test__/...`
+
+Do not move command-local types, input parsing, browser helpers, file helpers, or tests back into shared roots unless they are reused across multiple business areas.
+
 ## Runtime and Auth Model
 
 Authentication and HTTP clients are centralized in `src/utils/runtime.ts`.
 
+- `RuntimeContext` is intentionally narrow: it resolves profiles and constructs clients.
 - `RuntimeContext.getClientsForOptions(...)` returns:
   - `clients.axios`
   - `clients.console`
   - `clients.core`
+- Shared auth/config models live in `src/shared/profile.ts`
 - Auth supports:
   - Basic Auth
   - Bearer token
 - Profile storage is handled by `src/utils/config-store.ts`
+- URL normalization lives in `src/utils/url.ts`
+- Package upload helpers live in `src/utils/package-file.ts`
 - Config path defaults to:
   - `$HALO_CLI_CONFIG_DIR/config.json` if set
   - otherwise `$XDG_CONFIG_HOME/halo/config.json`
@@ -224,15 +238,23 @@ Single-notification lookup is implemented by filtering the authenticated user's 
 
 ## Formatting and Output Conventions
 
-Output helpers live in `src/utils/format.ts`.
+Shared output helpers live in `src/utils/output.ts`.
 
-- Prefer adding business-specific `printXxxList(...)` and `printXxx(...)` helpers there
+- Prefer adding business-specific `printXxxList(...)` and `printXxx(...)` helpers in the owning command area, usually `src/commands/<module>/format.ts`
+- Keep `src/utils/output.ts` limited to generic JSON/detail rendering helpers such as `printJson(...)` and `printDetailObject(...)`
 - Table output is standardized via `cli-table3`
 - Time formatting uses `dayjs`
 - Byte formatting uses `pretty-bytes`
 - JSON output is controlled by `--json`
 
-When adding a new business area, keep raw object printing out of command files as much as possible and route formatting through `src/utils/format.ts`.
+When adding a new business area, keep raw object printing out of command files as much as possible and route business formatting through the command-local formatter first, falling back to `src/utils/output.ts` only for generic helpers.
+
+## Testing Conventions
+
+- Co-locate command tests under `src/commands/<module>/__test__/`
+- Keep cross-cutting utility tests under `src/utils/__test__/`
+- Keep shared integration tests under `src/shared/**/__test__/`
+- When moving command logic into a command folder, move its tests with it rather than leaving them in a shared `src/commands/__test__/` root
 
 ## UX Conventions
 
@@ -264,8 +286,11 @@ When implementing a new command area:
 2. If it does, prefer the SDK over manual HTTP.
 3. If it does not, inspect upstream Halo or plugin code under `current-repos/` and implement with manual `axios` requests.
 4. Keep root command registration minimal and put real logic in a dedicated sub-CLI file under `src/commands/`.
-5. Add list/detail printers in `src/utils/format.ts`.
-6. Validate with typecheck and lint before finishing.
+5. Add command-local helpers such as `format.ts`, `types.ts`, `input.ts`, or `files.ts` under the owning command directory when they are not shared across business areas.
+6. Put command tests under `src/commands/<module>/__test__/`.
+7. Use `src/utils/output.ts` only for generic output helpers shared across multiple areas.
+8. Use `src/shared/` for true shared models or integrations, for example `src/shared/profile.ts` or `src/shared/integrations/app-store.ts`.
+9. Validate with typecheck and lint before finishing.
 
 ## Upstream Reference Repositories
 

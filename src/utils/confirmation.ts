@@ -1,7 +1,7 @@
 import { confirm } from "@inquirer/prompts";
 
 import { CliError } from "./errors.js";
-import { printJson } from "./format.js";
+import { printJson } from "./output.js";
 
 export interface DangerousActionOptions {
   force?: boolean;

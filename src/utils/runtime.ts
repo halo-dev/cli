@@ -1,16 +1,9 @@
-import { readFile } from "node:fs/promises";
-import { basename } from "node:path";
-
-import {
-  createConsoleApiClient,
-  createCoreApiClient,
-  type DetailedUser,
-} from "@halo-dev/api-client";
+import { createConsoleApiClient, createCoreApiClient } from "@halo-dev/api-client";
 import axios, { type AxiosInstance } from "axios";
 
-import type { CommandOptions, HaloProfile } from "../types.js";
+import type { HaloProfile } from "../shared/profile.js";
 import { ConfigStore } from "./config-store.js";
-import { CliError } from "./errors.js";
+import { normalizeBaseUrl } from "./url.js";
 
 export interface HaloClients {
   axios: AxiosInstance;
@@ -18,17 +11,8 @@ export interface HaloClients {
   core: ReturnType<typeof createCoreApiClient>;
 }
 
-export interface PackageFileOptions {
-  type: string;
-  fileName?: string;
-}
-
-export function normalizeBaseUrl(baseUrl: string): string {
-  const normalized = baseUrl.trim().replace(/\/+$/, "");
-  if (!/^https?:\/\//i.test(normalized)) {
-    throw new CliError("Halo base URL must start with http:// or https://.");
-  }
-  return normalized;
+export interface ProfileSelectionOptions {
+  profile?: string;
 }
 
 export function buildAuthHeader(profile: HaloProfile): string {
@@ -54,28 +38,6 @@ function createAxiosClient(profile: HaloProfile): AxiosInstance {
   });
 }
 
-export async function loadFileAsPackage(
-  filePath: string,
-  options: PackageFileOptions,
-): Promise<File> {
-  const buffer = await readFile(filePath);
-  return new File([buffer], options.fileName ?? basename(filePath), {
-    type: options.type,
-  });
-}
-
-export async function loadFileAsJar(filePath: string): Promise<File> {
-  return loadFileAsPackage(filePath, {
-    type: "application/java-archive",
-  });
-}
-
-export async function loadFileAsZip(filePath: string): Promise<File> {
-  return loadFileAsPackage(filePath, {
-    type: "application/zip",
-  });
-}
-
 export class RuntimeContext {
   readonly configStore: ConfigStore;
 
@@ -83,7 +45,7 @@ export class RuntimeContext {
     this.configStore = configStore;
   }
 
-  async getProfile(options?: CommandOptions): Promise<HaloProfile> {
+  async getProfile(options?: ProfileSelectionOptions): Promise<HaloProfile> {
     return this.configStore.getActiveProfile(options?.profile);
   }
 
@@ -97,18 +59,12 @@ export class RuntimeContext {
   }
 
   async getClientsForOptions(
-    options?: CommandOptions,
+    options?: ProfileSelectionOptions,
   ): Promise<{ profile: HaloProfile; clients: HaloClients }> {
     const profile = await this.getProfile(options);
     return {
       profile,
       clients: this.getClients(profile),
     };
-  }
-
-  async validateProfile(profile: HaloProfile): Promise<DetailedUser> {
-    const clients = this.getClients(profile);
-    const response = await clients.console.user.getCurrentUserDetail();
-    return response.data;
   }
 }

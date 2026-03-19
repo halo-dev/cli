@@ -1,19 +1,22 @@
 import cac from "cac";
 
 import packageJson from "../package.json";
-import { registerAttachmentCommands, tryRunAttachmentCommand } from "./commands/attachment.js";
-import { registerAuthCommands, tryRunAuthCommand } from "./commands/auth.js";
-import { registerBackupCommands, tryRunBackupCommand } from "./commands/backup.js";
-import { registerCommentCommands, tryRunCommentCommand } from "./commands/comment.js";
-import { registerMomentCommands, tryRunMomentCommand } from "./commands/moment.js";
+import {
+  registerAttachmentCommands,
+  tryRunAttachmentCommand,
+} from "./commands/attachment/index.js";
+import { registerAuthCommands, tryRunAuthCommand } from "./commands/auth/index.js";
+import { registerBackupCommands, tryRunBackupCommand } from "./commands/backup/index.js";
+import { registerCommentCommands, tryRunCommentCommand } from "./commands/comment/index.js";
+import { registerMomentCommands, tryRunMomentCommand } from "./commands/moment/index.js";
 import {
   registerNotificationCommands,
   tryRunNotificationCommand,
-} from "./commands/notification.js";
-import { registerPluginCommands, tryRunPluginCommand } from "./commands/plugin.js";
-import { registerPostCommands, tryRunPostCommand } from "./commands/post.js";
-import { registerSearchCommands, tryRunSearchCommand } from "./commands/search.js";
-import { registerThemeCommands, tryRunThemeCommand } from "./commands/theme.js";
+} from "./commands/notification/index.js";
+import { registerPluginCommands, tryRunPluginCommand } from "./commands/plugin/index.js";
+import { registerPostCommands, tryRunPostCommand } from "./commands/post/index.js";
+import { registerSearchCommands, tryRunSearchCommand } from "./commands/search/index.js";
+import { registerThemeCommands, tryRunThemeCommand } from "./commands/theme/index.js";
 import { formatError } from "./utils/errors.js";
 import { RuntimeContext } from "./utils/runtime.js";
 

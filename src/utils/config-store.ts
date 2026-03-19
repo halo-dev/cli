@@ -2,7 +2,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 
-import type { HaloConfig, HaloProfile } from "../types.js";
+import type { HaloConfig, HaloProfile } from "../shared/profile.js";
 import { CliError } from "./errors.js";
 
 const DEFAULT_CONFIG: HaloConfig = {
@@ -107,15 +107,4 @@ export class ConfigStore {
 
     return profile;
   }
-}
-
-export function createProfileTimestamp(existing?: HaloProfile): {
-  createdAt: string;
-  updatedAt: string;
-} {
-  const now = new Date().toISOString();
-  return {
-    createdAt: existing?.createdAt ?? now,
-    updatedAt: now,
-  };
 }
