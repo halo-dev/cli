@@ -4,6 +4,7 @@ import { tryRunAuthCommand } from "../index.js";
 
 afterEach(() => {
   vi.restoreAllMocks();
+  process.exitCode = 0;
 });
 
 function silenceStdout() {
@@ -36,6 +37,80 @@ test("tryRunAuthCommand dispatches profile list subcommands", async () => {
     tryRunAuthCommand(["auth", "profile", "list", "--json"], runtimeMock as never),
   ).resolves.toBe(true);
   expect(runtimeMock.configStore.listProfiles).toHaveBeenCalledOnce();
+});
+
+test("tryRunAuthCommand dispatches profile get subcommands", async () => {
+  silenceStdout();
+
+  const runtimeMock = {
+    configStore: {
+      getStoredProfile: vi.fn().mockResolvedValue({
+        name: "local",
+        baseUrl: "https://demo.halo.run",
+        auth: { type: "bearer" },
+        createdAt: "2026-03-18T00:00:00.000Z",
+        updatedAt: "2026-03-18T00:00:00.000Z",
+      }),
+    },
+  };
+
+  await expect(
+    tryRunAuthCommand(["auth", "profile", "get", "local", "--json"], runtimeMock as never),
+  ).resolves.toBe(true);
+  expect(runtimeMock.configStore.getStoredProfile).toHaveBeenCalledWith("local");
+});
+
+test("tryRunAuthCommand dispatches profile delete subcommands", async () => {
+  silenceStdout();
+
+  const runtimeMock = {
+    configStore: {
+      deleteProfile: vi.fn().mockResolvedValue({
+        profile: {
+          name: "local",
+          baseUrl: "https://demo.halo.run",
+          auth: { type: "bearer" },
+          createdAt: "2026-03-18T00:00:00.000Z",
+          updatedAt: "2026-03-18T00:00:00.000Z",
+        },
+        activeProfile: undefined,
+      }),
+    },
+  };
+
+  await expect(
+    tryRunAuthCommand(
+      ["auth", "profile", "delete", "local", "--json", "--force"],
+      runtimeMock as never,
+    ),
+  ).resolves.toBe(true);
+  expect(runtimeMock.configStore.deleteProfile).toHaveBeenCalledWith("local");
+});
+
+test("tryRunAuthCommand dispatches profile doctor subcommands", async () => {
+  silenceStdout();
+
+  const runtimeMock = {
+    configStore: {
+      inspectProfileCredentials: vi.fn().mockResolvedValue({
+        activeProfile: "local",
+        ok: true,
+        profiles: [
+          {
+            name: "local",
+            baseUrl: "https://demo.halo.run",
+            authType: "bearer",
+            status: "ok",
+          },
+        ],
+      }),
+    },
+  };
+
+  await expect(
+    tryRunAuthCommand(["auth", "profile", "doctor", "--json"], runtimeMock as never),
+  ).resolves.toBe(true);
+  expect(runtimeMock.configStore.inspectProfileCredentials).toHaveBeenCalledOnce();
 });
 
 test("tryRunAuthCommand shows help for bare profile subcommands", async () => {

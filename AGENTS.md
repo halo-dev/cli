@@ -146,6 +146,7 @@ Authentication and HTTP clients are centralized in `src/utils/runtime.ts`.
   - Basic Auth
   - Bearer token
 - Profile storage is handled by `src/utils/config-store.ts`
+- Profile metadata is stored in `config.json`, but actual basic/bearer credentials are stored in the system keyring via `@napi-rs/keyring`
 - URL normalization lives in `src/utils/url.ts`
 - Package upload helpers live in `src/utils/package-file.ts`
 - Config path defaults to:
@@ -159,8 +160,10 @@ Authentication and HTTP clients are centralized in `src/utils/runtime.ts`.
 
 - login
 - current
-- profile list/current/use
+- profile list/current/get/use/delete/doctor
 - supports multi-profile management
+- deleting a profile must also remove its stored credentials from the system keyring
+- `profile doctor` validates configured profiles against available keyring credentials and should be kept useful for recovery workflows
 
 ### `post`
 

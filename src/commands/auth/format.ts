@@ -2,7 +2,8 @@ import type { DetailedUser } from "@halo-dev/api-client";
 import Table from "cli-table3";
 import stringWidth from "string-width";
 
-import type { HaloProfile } from "../../shared/profile.js";
+import type { StoredHaloProfile } from "../../shared/profile.js";
+import type { ProfileCredentialDoctorReport } from "../../utils/config-store.js";
 import { printDetailObject, printJson } from "../../utils/output.js";
 
 function resolveTerminalWidth(): number {
@@ -93,7 +94,7 @@ function getProfileListWidths(): number[] {
 }
 
 export function printAuthLoginSuccess(
-  profile: HaloProfile,
+  profile: StoredHaloProfile,
   user: DetailedUser,
   json = false,
 ): void {
@@ -113,7 +114,7 @@ export function printAuthLoginSuccess(
 
 export function printProfileList(
   activeProfile: string | undefined,
-  profiles: HaloProfile[],
+  profiles: StoredHaloProfile[],
   json = false,
 ): void {
   if (json) {
@@ -136,7 +137,7 @@ export function printProfileList(
   printTable(["NAME", "BASE URL", "AUTH", "ACTIVE"], rows, getProfileListWidths(), false);
 }
 
-export function printCurrentProfile(profile: HaloProfile, json = false): void {
+export function printStoredProfile(profile: StoredHaloProfile, json = false): void {
   if (json) {
     printJson(profile);
     return;
@@ -145,11 +146,82 @@ export function printCurrentProfile(profile: HaloProfile, json = false): void {
   printDetailObject(profile as unknown as Record<string, unknown>);
 }
 
-export function printProfileUseSuccess(profile: HaloProfile, json = false): void {
+export function printProfileUseSuccess(profile: StoredHaloProfile, json = false): void {
   if (json) {
     printJson({ activeProfile: profile.name, profile });
     return;
   }
 
   process.stdout.write(`Active profile set to ${profile.name}.\n`);
+}
+
+export function printProfileDeleteSuccess(
+  name: string,
+  activeProfile: string | undefined,
+  json = false,
+): void {
+  if (json) {
+    printJson({ deleted: true, name, activeProfile });
+    return;
+  }
+
+  const activeMessage = activeProfile
+    ? ` Active profile remains ${activeProfile}.`
+    : " No active profile is selected now.";
+  process.stdout.write(
+    `Deleted profile ${name} and removed its saved credentials.${activeMessage}\n`,
+  );
+}
+
+function formatDoctorStatus(
+  status: ProfileCredentialDoctorReport["profiles"][number]["status"],
+): string {
+  if (status === "missing-credentials") {
+    return "missing credentials";
+  }
+
+  if (status === "auth-type-mismatch") {
+    return "auth type mismatch";
+  }
+
+  return "ok";
+}
+
+export function printProfileDoctorReport(
+  report: ProfileCredentialDoctorReport,
+  json = false,
+): void {
+  if (json) {
+    printJson(report);
+    return;
+  }
+
+  if (report.profiles.length === 0) {
+    process.stdout.write("No Halo profiles configured. Run `halo auth login` first.\n");
+    return;
+  }
+
+  const rows = report.profiles.map((profile) => [
+    profile.name,
+    truncateDisplayText(profile.baseUrl, getProfileListWidths()[1]!),
+    profile.authType,
+    formatDoctorStatus(profile.status),
+    report.activeProfile === profile.name ? "*" : "",
+  ]);
+
+  printTable(
+    ["NAME", "BASE URL", "AUTH", "STATUS", "ACTIVE"],
+    rows,
+    [18, getProfileListWidths()[1]!, 10, 22, 6],
+    false,
+  );
+
+  if (report.ok) {
+    process.stdout.write("Profile credential check passed.\n");
+    return;
+  }
+
+  process.stdout.write(
+    "Profile credential issues detected. Run `halo auth login --profile <name>` to restore missing or mismatched credentials.\n",
+  );
 }

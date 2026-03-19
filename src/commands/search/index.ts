@@ -42,7 +42,7 @@ export async function resolveSearchBaseUrl(
     return normalizeBaseUrl(options.url);
   }
 
-  const profile = await runtime.configStore.getActiveProfile(options.profile);
+  const profile = await runtime.configStore.getActiveResolvedProfile(options.profile);
   return normalizeBaseUrl(profile.baseUrl);
 }
 

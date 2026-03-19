@@ -20,7 +20,7 @@ test("buildSearchOption rejects non-positive limits", () => {
 test("resolveSearchBaseUrl prefers explicit urls", async () => {
   const runtimeMock = {
     configStore: {
-      getActiveProfile: vi.fn(),
+      getActiveResolvedProfile: vi.fn(),
     },
   };
 
@@ -30,13 +30,13 @@ test("resolveSearchBaseUrl prefers explicit urls", async () => {
     }),
   ).resolves.toBe("https://www.halo.run");
 
-  expect(runtimeMock.configStore.getActiveProfile).not.toHaveBeenCalled();
+  expect(runtimeMock.configStore.getActiveResolvedProfile).not.toHaveBeenCalled();
 });
 
 test("resolveSearchBaseUrl falls back to active profile urls", async () => {
   const runtimeMock = {
     configStore: {
-      getActiveProfile: vi.fn().mockResolvedValue({
+      getActiveResolvedProfile: vi.fn().mockResolvedValue({
         baseUrl: "https://demo.halo.run/",
       }),
     },
@@ -45,5 +45,5 @@ test("resolveSearchBaseUrl falls back to active profile urls", async () => {
   await expect(resolveSearchBaseUrl(runtimeMock as never, {})).resolves.toBe(
     "https://demo.halo.run",
   );
-  expect(runtimeMock.configStore.getActiveProfile).toHaveBeenCalledWith(undefined);
+  expect(runtimeMock.configStore.getActiveResolvedProfile).toHaveBeenCalledWith(undefined);
 });

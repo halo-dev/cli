@@ -2,6 +2,7 @@ import { expect, test } from "vitest";
 
 import {
   createProfileTimestamp,
+  resolveAuthProfileName,
   resolveAuthProfileUseName,
   validateResolvedLoginInput,
 } from "../index.js";
@@ -13,6 +14,12 @@ test("resolveAuthProfileUseName prefers positional names", () => {
 
 test("resolveAuthProfileUseName rejects missing names", () => {
   expect(() => resolveAuthProfileUseName(undefined, undefined)).toThrow(/requires a profile name/i);
+});
+
+test("resolveAuthProfileName uses the provided command path in errors", () => {
+  expect(() => resolveAuthProfileName(undefined, undefined, "halo auth profile delete")).toThrow(
+    /halo auth profile delete/i,
+  );
 });
 
 test("validateResolvedLoginInput accepts basic auth inputs", () => {
@@ -71,7 +78,6 @@ test("createProfileTimestamp preserves createdAt and refreshes updatedAt", () =>
     baseUrl: "https://demo.halo.run",
     auth: {
       type: "bearer" as const,
-      token: "token-value",
     },
     createdAt: "2026-03-18T00:00:00.000Z",
     updatedAt: "2026-03-18T00:00:00.000Z",

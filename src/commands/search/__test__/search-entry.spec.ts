@@ -33,7 +33,7 @@ test("tryRunSearchCommand dispatches search requests with explicit urls", async 
       ["search", "--keyword", "halo", "--limit", "5", "--url", "https://www.halo.run", "--json"],
       {
         configStore: {
-          getActiveProfile: vi.fn(),
+          getActiveResolvedProfile: vi.fn(),
         },
       } as never,
     ),
@@ -63,7 +63,7 @@ test("tryRunSearchCommand falls back to the active profile url", async () => {
 
   const runtimeMock = {
     configStore: {
-      getActiveProfile: vi.fn().mockResolvedValue({
+      getActiveResolvedProfile: vi.fn().mockResolvedValue({
         baseUrl: "https://demo.halo.run",
       }),
     },
@@ -73,5 +73,5 @@ test("tryRunSearchCommand falls back to the active profile url", async () => {
     tryRunSearchCommand(["search", "--keyword", "halo", "--json"], runtimeMock as never),
   ).resolves.toBe(true);
 
-  expect(runtimeMock.configStore.getActiveProfile).toHaveBeenCalledWith(undefined);
+  expect(runtimeMock.configStore.getActiveResolvedProfile).toHaveBeenCalledWith(undefined);
 });

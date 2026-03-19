@@ -38,6 +38,7 @@
   "dependencies": {
     "@halo-dev/api-client": "^2.23.0",
     "@inquirer/prompts": "^8.3.2",
+    "@napi-rs/keyring": "^1.2.0",
     "axios": "^1.13.6",
     "cac": "^7.0.0",
     "cli-table3": "^0.6.5",

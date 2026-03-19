@@ -1,8 +1,10 @@
 import { input, password, select } from "@inquirer/prompts";
 import cac, { type CAC } from "cac";
 
-import type { AuthType, HaloProfile } from "../../shared/profile.js";
+import type { AuthType, HaloProfile, StoredHaloProfile } from "../../shared/profile.js";
+import { toStoredHaloProfile } from "../../shared/profile.js";
 import { tryRunCommandCliRoute, tryRunNestedCliRoute } from "../../utils/command-router.js";
+import { confirmDangerousAction } from "../../utils/confirmation.js";
 import { CliError } from "../../utils/errors.js";
 import { isInteractive } from "../../utils/options.js";
 import { printJson } from "../../utils/output.js";
@@ -10,8 +12,10 @@ import { RuntimeContext } from "../../utils/runtime.js";
 import { normalizeBaseUrl } from "../../utils/url.js";
 import {
   printAuthLoginSuccess,
-  printCurrentProfile,
+  printProfileDeleteSuccess,
+  printProfileDoctorReport,
   printProfileList,
+  printStoredProfile,
   printProfileUseSuccess,
 } from "./format.js";
 
@@ -35,7 +39,22 @@ interface AuthProfileUseOptions {
   json?: boolean;
 }
 
-export function createProfileTimestamp(existing?: HaloProfile): {
+interface AuthProfileGetOptions {
+  profile?: string;
+  json?: boolean;
+}
+
+interface AuthProfileDeleteOptions {
+  profile?: string;
+  json?: boolean;
+  force?: boolean;
+}
+
+interface AuthProfileDoctorOptions {
+  json?: boolean;
+}
+
+export function createProfileTimestamp(existing?: Pick<StoredHaloProfile, "createdAt">): {
   createdAt: string;
   updatedAt: string;
 } {
@@ -47,7 +66,7 @@ export function createProfileTimestamp(existing?: HaloProfile): {
 }
 
 async function validateProfile(profile: HaloProfile, runtime: RuntimeContext) {
-  const clients = runtime.getClients(profile);
+  const clients = runtime.getClientsForResolvedProfile(profile);
   const response = await clients.console.user.getCurrentUserDetail();
   return response.data;
 }
@@ -56,10 +75,18 @@ export function resolveAuthProfileUseName(
   name: string | undefined,
   profile: string | undefined,
 ): string {
+  return resolveAuthProfileName(name, profile, "halo auth profile use");
+}
+
+export function resolveAuthProfileName(
+  name: string | undefined,
+  profile: string | undefined,
+  commandPath: string,
+): string {
   const profileName = name ?? profile;
   if (!profileName) {
     throw new CliError(
-      "`halo auth profile use` requires a profile name, for example: `halo auth profile use local`. You can also use `--profile <name>`.",
+      `\`${commandPath}\` requires a profile name, for example: \`${commandPath} local\`. You can also use --profile <name>.`,
     );
   }
 
@@ -118,8 +145,23 @@ function buildAuthProfileCli(runtime: RuntimeContext): CAC {
     .command("current", "Show the active saved profile")
     .option("--json", "Output JSON")
     .action(async (options: { json?: boolean }) => {
-      const profile = await runtime.configStore.getActiveProfile();
-      printCurrentProfile(profile, options.json);
+      const profile = await runtime.configStore.getActiveStoredProfile();
+      printStoredProfile(profile, options.json);
+    });
+
+  profileCli
+    .command("get [name]", "Show a saved profile")
+    .option("--profile <name>", "Profile name to inspect")
+    .option("--json", "Output JSON")
+    .action(async (name: string | undefined, options: AuthProfileGetOptions) => {
+      const profileName = resolveAuthProfileName(name, options.profile, "halo auth profile get");
+      const profile = await runtime.configStore.getStoredProfile(profileName);
+
+      if (!profile) {
+        throw new CliError(`Halo profile "${profileName}" does not exist.`);
+      }
+
+      printStoredProfile(profile, options.json);
     });
 
   profileCli
@@ -132,10 +174,51 @@ function buildAuthProfileCli(runtime: RuntimeContext): CAC {
       printProfileUseSuccess(profile, options.json);
     });
 
+  profileCli
+    .command("delete [name]", "Delete a saved profile and its stored credentials")
+    .option("--profile <name>", "Profile name to delete")
+    .option("--json", "Output JSON")
+    .option("--force", "Delete without confirmation")
+    .action(async (name: string | undefined, options: AuthProfileDeleteOptions) => {
+      const profileName = resolveAuthProfileName(name, options.profile, "halo auth profile delete");
+
+      if (
+        !(await confirmDangerousAction(
+          {
+            commandPath: "halo auth profile delete",
+            actionLabel: "Delete",
+            resourceLabel: "profile",
+            resourceName: profileName,
+            cancellationVerb: "deleting",
+          },
+          options,
+        ))
+      ) {
+        return;
+      }
+
+      const result = await runtime.configStore.deleteProfile(profileName);
+      printProfileDeleteSuccess(result.profile.name, result.activeProfile, options.json);
+    });
+
+  profileCli
+    .command("doctor", "Check saved profiles against stored credentials")
+    .option("--json", "Output JSON")
+    .action(async (options: AuthProfileDoctorOptions) => {
+      const report = await runtime.configStore.inspectProfileCredentials();
+      printProfileDoctorReport(report, options.json);
+      if (!report.ok) {
+        process.exitCode = 1;
+      }
+    });
+
   profileCli.usage("<command> [flags]");
   profileCli.example((bin) => `${bin} list`);
   profileCli.example((bin) => `${bin} current`);
+  profileCli.example((bin) => `${bin} get local`);
   profileCli.example((bin) => `${bin} use local`);
+  profileCli.example((bin) => `${bin} delete local --force`);
+  profileCli.example((bin) => `${bin} doctor`);
   profileCli.help();
 
   return profileCli;
@@ -155,7 +238,7 @@ function buildAuthCli(runtime: RuntimeContext): CAC {
     .option("--json", "Output JSON")
     .action(async (options: AuthLoginOptions) => {
       const resolved = await resolveLoginInput(options);
-      const existing = await runtime.configStore.getProfile(resolved.profile);
+      const existing = await runtime.configStore.getStoredProfile(resolved.profile);
       const timestamps = createProfileTimestamp(existing);
       const profile: HaloProfile = {
         name: resolved.profile,
@@ -176,16 +259,17 @@ function buildAuthCli(runtime: RuntimeContext): CAC {
 
       const user = await validateProfile(profile, runtime);
       await runtime.configStore.upsertProfile(profile, true);
+      const storedProfile = toStoredHaloProfile(profile);
 
       if (options.json) {
         printJson({
-          profile,
+          profile: storedProfile,
           user,
         });
         return;
       }
 
-      printAuthLoginSuccess(profile, user, false);
+      printAuthLoginSuccess(storedProfile, user, false);
     });
 
   authCli
@@ -193,8 +277,8 @@ function buildAuthCli(runtime: RuntimeContext): CAC {
     .option("--profile <name>", "Inspect a specific profile by name")
     .option("--json", "Output JSON")
     .action(async (options: AuthCurrentOptions) => {
-      const profile = await runtime.configStore.getActiveProfile(options.profile);
-      printCurrentProfile(profile, options.json);
+      const profile = await runtime.configStore.getActiveStoredProfile(options.profile);
+      printStoredProfile(profile, options.json);
     });
 
   authCli.command("profile", "Manage saved profiles");
@@ -206,7 +290,10 @@ function buildAuthCli(runtime: RuntimeContext): CAC {
   );
   authCli.example((bin) => `${bin} current`);
   authCli.example((bin) => `${bin} profile list`);
+  authCli.example((bin) => `${bin} profile get local`);
   authCli.example((bin) => `${bin} profile use local`);
+  authCli.example((bin) => `${bin} profile delete local --force`);
+  authCli.example((bin) => `${bin} profile doctor`);
   authCli.help();
 
   return authCli;

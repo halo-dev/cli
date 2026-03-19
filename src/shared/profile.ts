@@ -13,15 +13,35 @@ export interface BearerCredentials {
 
 export type HaloCredentials = BasicCredentials | BearerCredentials;
 
-export interface HaloProfile {
+export interface StoredHaloAuth {
+  type: AuthType;
+}
+
+export interface StoredHaloProfile {
   name: string;
   baseUrl: string;
-  auth: HaloCredentials;
+  auth: StoredHaloAuth;
   createdAt: string;
   updatedAt: string;
 }
 
+export interface HaloProfile extends Omit<StoredHaloProfile, "auth"> {
+  auth: HaloCredentials;
+}
+
 export interface HaloConfig {
   activeProfile?: string;
-  profiles: Record<string, HaloProfile>;
+  profiles: Record<string, StoredHaloProfile>;
+}
+
+export function toStoredHaloProfile(profile: HaloProfile): StoredHaloProfile {
+  return {
+    name: profile.name,
+    baseUrl: profile.baseUrl,
+    auth: {
+      type: profile.auth.type,
+    },
+    createdAt: profile.createdAt,
+    updatedAt: profile.updatedAt,
+  };
 }

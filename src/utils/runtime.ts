@@ -45,11 +45,11 @@ export class RuntimeContext {
     this.configStore = configStore;
   }
 
-  async getProfile(options?: ProfileSelectionOptions): Promise<HaloProfile> {
-    return this.configStore.getActiveProfile(options?.profile);
+  async getResolvedProfile(options?: ProfileSelectionOptions): Promise<HaloProfile> {
+    return this.configStore.getActiveResolvedProfile(options?.profile);
   }
 
-  getClients(profile: HaloProfile): HaloClients {
+  getClientsForResolvedProfile(profile: HaloProfile): HaloClients {
     const axiosInstance = createAxiosClient(profile);
     return {
       axios: axiosInstance,
@@ -61,10 +61,10 @@ export class RuntimeContext {
   async getClientsForOptions(
     options?: ProfileSelectionOptions,
   ): Promise<{ profile: HaloProfile; clients: HaloClients }> {
-    const profile = await this.getProfile(options);
+    const profile = await this.getResolvedProfile(options);
     return {
       profile,
-      clients: this.getClients(profile),
+      clients: this.getClientsForResolvedProfile(profile),
     };
   }
 }
