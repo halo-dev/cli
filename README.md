@@ -159,21 +159,13 @@ Included skills:
 - `halo-operations`
 - `halo-moderation-notifications`
 
-After a global install, you can usually locate them with:
+Add the skills with:
 
 ```sh
-npm root -g
+npx skills add halo-dev/cli
 ```
 
-Then open:
-
-```sh
-<npm-global-root>/@halo-dev/cli/skills
-```
-
-If you use another package manager, open the installed `@halo-dev/cli/skills` directory in that package manager's global package root.
-
-Recommended starting point:
+Recommended starting point after installation:
 
 ```sh
 skills/halo-shared/SKILL.md

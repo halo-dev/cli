@@ -159,21 +159,13 @@ halo single-page get about --json
 - `halo-operations`
 - `halo-moderation-notifications`
 
-全局安装后，你通常可以先通过下面的命令定位安装目录：
+可以通过下面的方式添加 skills：
 
 ```sh
-npm root -g
+npx skills add halo-dev/cli
 ```
 
-然后进入：
-
-```sh
-<npm-global-root>/@halo-dev/cli/skills
-```
-
-如果你使用的是其他包管理器，请打开对应全局安装目录中的 `@halo-dev/cli/skills`。
-
-推荐先从这里开始：
+安装后，推荐先从这里开始：
 
 ```sh
 skills/halo-shared/SKILL.md
