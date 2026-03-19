@@ -1,0 +1,54 @@
+name: npm-release
+
+on:
+  workflow_dispatch:
+  release:
+    types:
+      - published
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: npm-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup Vite+
+        uses: voidzero-dev/setup-vp@v1
+        with:
+          node-version: "24"
+          cache: true
+          run-install: false
+
+      - name: Install dependencies
+        run: vp install
+
+      - name: Type check
+        run: pnpm typecheck
+
+      - name: Lint
+        run: vp lint
+
+      - name: Test
+        run: vp test
+
+      - name: Build package
+        run: vp pack
+
+      - name: Verify published contents
+        run: npm pack --dry-run
+
+      - name: Upgrade npm
+        run: npm i -g npm@latest
+
+      - name: Publish to NPM
+        run: pnpm run publish
