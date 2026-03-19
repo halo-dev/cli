@@ -3,7 +3,7 @@ import Table from "cli-table3";
 import dayjs from "dayjs";
 import stringWidth from "string-width";
 
-import { printJson } from "../../utils/output.js";
+import { printJson, printPaginationFooter } from "../../utils/output.js";
 
 function resolveTerminalWidth(): number {
   return process.stdout.columns && process.stdout.columns > 0 ? process.stdout.columns : 120;
@@ -108,5 +108,13 @@ export function printPostList(list: ListedPostList, json = false): void {
   }
 
   process.stdout.write(`${table.toString()}\n`);
-  process.stdout.write(`\n${list.total} post(s)\n`);
+  printPaginationFooter({
+    page: list.page,
+    size: list.size,
+    total: list.total,
+    totalPages: list.totalPages,
+    hasNext: list.hasNext,
+    hasPrevious: list.hasPrevious,
+    itemLabel: "post",
+  });
 }

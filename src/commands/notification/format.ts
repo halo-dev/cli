@@ -3,7 +3,7 @@ import Table from "cli-table3";
 import dayjs from "dayjs";
 import stringWidth from "string-width";
 
-import { printDetailObject, printJson } from "../../utils/output.js";
+import { printDetailObject, printJson, printPaginationFooter } from "../../utils/output.js";
 
 function resolveTerminalWidth(): number {
   return process.stdout.columns && process.stdout.columns > 0 ? process.stdout.columns : 120;
@@ -135,7 +135,15 @@ export function printNotificationList(list: NotificationList, json = false): voi
   ]);
 
   printTable(["NAME", "TITLE", "UNREAD", "CREATED AT"], rows, widths);
-  process.stdout.write(`\n${list.total} notification(s)\n`);
+  printPaginationFooter({
+    page: list.page,
+    size: list.size,
+    total: list.total,
+    totalPages: list.totalPages,
+    hasNext: list.hasNext,
+    hasPrevious: list.hasPrevious,
+    itemLabel: "notification",
+  });
 }
 
 export function printNotification(notification: Notification, json = false): void {

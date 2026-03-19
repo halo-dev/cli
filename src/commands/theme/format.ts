@@ -1,4 +1,4 @@
-import type { Theme, ThemeList } from "@halo-dev/api-client";
+import type { Theme } from "@halo-dev/api-client";
 import Table from "cli-table3";
 
 import type { ThemeUpdateInfo } from "../../shared/integrations/app-store.js";
@@ -68,19 +68,19 @@ function getThemeListWidths(): number[] {
 }
 
 export function printThemeList(
-  list: ThemeList,
+  themes: Theme[],
   json = false,
   updates?: Map<string, ThemeUpdateInfo>,
   activeThemeName?: string,
 ): void {
   if (json) {
-    printJson(list);
+    printJson(themes);
     return;
   }
 
   const widths = getThemeListWidths();
 
-  const rows = list.items.map((item) => {
+  const rows = themes.map((item) => {
     const update = updates?.get(item.metadata.name);
     const updateText = update
       ? update.compatible
@@ -98,7 +98,7 @@ export function printThemeList(
   });
 
   printTable(["NAME", "DISPLAY NAME", "VERSION", "UPDATE", "ACTIVE"], rows, widths);
-  process.stdout.write(`\n${list.total} theme(s)\n`);
+  process.stdout.write(`\n${themes.length} theme(s)\n`);
 }
 
 export function printTheme(theme: Theme, json = false): void {

@@ -47,5 +47,7 @@ export interface ListedMomentList {
   size?: number;
   last?: boolean;
   totalPages?: number;
+  hasNext?: boolean;
+  hasPrevious?: boolean;
   [key: string]: unknown;
 }

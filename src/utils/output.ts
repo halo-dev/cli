@@ -6,6 +6,16 @@ export interface ExecutionTarget {
   baseUrl: string;
 }
 
+export interface PaginationFooterOptions {
+  page?: number;
+  size?: number;
+  total?: number;
+  totalPages?: number;
+  hasNext?: boolean;
+  hasPrevious?: boolean;
+  itemLabel: string;
+}
+
 export function printJson(value: unknown): void {
   process.stdout.write(`${JSON.stringify(value, null, 2)}\n`);
 }
@@ -26,6 +36,47 @@ export function printExecutionTarget(target: ExecutionTarget, json = false): voi
   }
 
   process.stdout.write(`${badge} ${chalk.dim("url")} ${location}\n\n`);
+}
+
+export function printPaginationFooter(options: PaginationFooterOptions): void {
+  const total = options.total ?? 0;
+  const itemLabel = options.itemLabel;
+  const resolvedSize =
+    options.size && options.size > 0 ? options.size : total > 0 ? total : undefined;
+  const resolvedPage = options.page && options.page > 0 ? options.page : total > 0 ? 1 : undefined;
+
+  const start =
+    total > 0 && resolvedPage && resolvedSize ? (resolvedPage - 1) * resolvedSize + 1 : 0;
+  const end =
+    total > 0 && resolvedPage && resolvedSize ? Math.min(total, start + resolvedSize - 1) : 0;
+
+  const parts: string[] = [];
+
+  if (total > 0 && start > 0 && end > 0) {
+    parts.push(`Showing ${start}-${end} of ${total} ${itemLabel}(s)`);
+  } else {
+    parts.push(`${total} ${itemLabel}(s)`);
+  }
+
+  if (resolvedPage) {
+    if (options.totalPages && options.totalPages > 0) {
+      parts.push(`page ${resolvedPage}/${options.totalPages}`);
+    } else {
+      parts.push(`page ${resolvedPage}`);
+    }
+  }
+
+  if (resolvedSize) {
+    parts.push(`size ${resolvedSize}`);
+  }
+
+  if (options.hasNext) {
+    parts.push("more results available");
+  } else if (options.hasPrevious) {
+    parts.push("end of results");
+  }
+
+  process.stdout.write(`\n${parts.join(" · ")}\n`);
 }
 
 function resolveTerminalWidth(): number {

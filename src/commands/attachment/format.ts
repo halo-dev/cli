@@ -2,7 +2,7 @@ import type { Attachment, AttachmentList } from "@halo-dev/api-client";
 import Table from "cli-table3";
 import prettyBytes from "pretty-bytes";
 
-import { printDetailObject, printJson } from "../../utils/output.js";
+import { printDetailObject, printJson, printPaginationFooter } from "../../utils/output.js";
 
 function resolveTerminalWidth(): number {
   return process.stdout.columns && process.stdout.columns > 0 ? process.stdout.columns : 120;
@@ -92,7 +92,15 @@ export function printAttachmentList(list: AttachmentList, json = false): void {
   ]);
 
   printTable(["NAME", "DISPLAY NAME", "SIZE", "MEDIA TYPE"], rows, widths);
-  process.stdout.write(`\n${list.total} attachment(s)\n`);
+  printPaginationFooter({
+    page: list.page,
+    size: list.size,
+    total: list.total,
+    totalPages: list.totalPages,
+    hasNext: list.hasNext,
+    hasPrevious: list.hasPrevious,
+    itemLabel: "attachment",
+  });
 }
 
 export function printAttachment(attachment: Attachment, json = false): void {

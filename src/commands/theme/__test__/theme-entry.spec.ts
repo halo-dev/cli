@@ -63,22 +63,59 @@ test("tryRunThemeCommand dispatches current subcommands", async () => {
   expect(fetchActivatedTheme).toHaveBeenCalledOnce();
 });
 
-test("tryRunThemeCommand fetches the active theme when listing in table mode", async () => {
+test("tryRunThemeCommand fetches all themes when listing in table mode", async () => {
   silenceStdout();
 
-  const listThemes = vi.fn().mockResolvedValue({
-    data: {
-      items: [],
-      total: 0,
-      first: true,
-      last: true,
-      hasNext: false,
-      hasPrevious: false,
-      page: 1,
-      size: 20,
-      totalPages: 1,
-    },
-  });
+  const listThemes = vi
+    .fn()
+    .mockResolvedValueOnce({
+      data: {
+        items: [
+          {
+            apiVersion: "theme.halo.run/v1alpha1",
+            kind: "Theme",
+            metadata: { name: "active-theme" },
+            spec: {
+              displayName: "Active Theme",
+              version: "1.0.0",
+              author: { name: "Halo" },
+            },
+          },
+        ],
+        total: 2,
+        first: true,
+        last: false,
+        hasNext: true,
+        hasPrevious: false,
+        page: 1,
+        size: 100,
+        totalPages: 2,
+      },
+    })
+    .mockResolvedValueOnce({
+      data: {
+        items: [
+          {
+            apiVersion: "theme.halo.run/v1alpha1",
+            kind: "Theme",
+            metadata: { name: "other-theme" },
+            spec: {
+              displayName: "Other Theme",
+              version: "1.1.0",
+              author: { name: "Halo" },
+            },
+          },
+        ],
+        total: 2,
+        first: false,
+        last: true,
+        hasNext: false,
+        hasPrevious: true,
+        page: 2,
+        size: 100,
+        totalPages: 2,
+      },
+    });
   const fetchActivatedTheme = vi.fn().mockResolvedValue({
     data: {
       apiVersion: "theme.halo.run/v1alpha1",
@@ -105,13 +142,16 @@ test("tryRunThemeCommand fetches the active theme when listing in table mode", a
     }),
   };
 
-  await expect(
-    tryRunThemeCommand(["theme", "list", "--page", "1", "--size", "20"], runtimeMock as never),
-  ).resolves.toBe(true);
+  await expect(tryRunThemeCommand(["theme", "list"], runtimeMock as never)).resolves.toBe(true);
 
-  expect(listThemes).toHaveBeenCalledWith({
+  expect(listThemes).toHaveBeenNthCalledWith(1, {
     page: 1,
-    size: 20,
+    size: 100,
+    uninstalled: undefined,
+  });
+  expect(listThemes).toHaveBeenNthCalledWith(2, {
+    page: 2,
+    size: 100,
     uninstalled: undefined,
   });
   expect(fetchActivatedTheme).toHaveBeenCalledOnce();

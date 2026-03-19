@@ -2,7 +2,7 @@ import type { Backup, BackupList } from "@halo-dev/api-client";
 import Table from "cli-table3";
 import prettyBytes from "pretty-bytes";
 
-import { printDetailObject, printJson } from "../../utils/output.js";
+import { printDetailObject, printJson, printPaginationFooter } from "../../utils/output.js";
 
 function resolveTerminalWidth(): number {
   return process.stdout.columns && process.stdout.columns > 0 ? process.stdout.columns : 120;
@@ -106,7 +106,15 @@ export function printBackupList(list: BackupList, json = false): void {
   ]);
 
   printTable(["NAME", "PHASE", "SIZE", "FILE", "CREATED AT"], rows, widths);
-  process.stdout.write(`\n${list.total} backup(s)\n`);
+  printPaginationFooter({
+    page: list.page,
+    size: list.size,
+    total: list.total,
+    totalPages: list.totalPages,
+    hasNext: list.hasNext,
+    hasPrevious: list.hasPrevious,
+    itemLabel: "backup",
+  });
 }
 
 export function printBackup(backup: Backup, json = false): void {

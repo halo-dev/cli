@@ -72,7 +72,7 @@ test("printNotificationList renders notification rows in table mode", () => {
   expect(tableOutput).toContain("notification-2");
   expect(tableOutput).toContain("no");
   expect(tableOutput).toContain("invalid-date");
-  expect(summaryOutput).toBe("\n2 notification(s)\n");
+  expect(summaryOutput).toBe("\nShowing 1-2 of 2 notification(s) · page 1 · size 2\n");
 });
 
 test("printNotificationList falls back to metadata name when title is missing", () => {

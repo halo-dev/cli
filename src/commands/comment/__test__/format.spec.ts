@@ -57,7 +57,7 @@ test("printCommentList writes table output for listed comments", () => {
   expect(tableOutput).toContain("yes");
   expect(tableOutput).toContain("no");
   expect(tableOutput).toContain("2026-03-18");
-  expect(summaryOutput).toBe("\n1 comment(s)\n");
+  expect(summaryOutput).toBe("\nShowing 1-1 of 1 comment(s) · page 1 · size 1\n");
 });
 
 test("printCommentList prints json when requested", () => {

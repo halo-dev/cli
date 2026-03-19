@@ -7,7 +7,7 @@ import type {
 } from "@halo-dev/api-client";
 import Table from "cli-table3";
 
-import { printDetailObject, printJson } from "../../utils/output.js";
+import { printDetailObject, printJson, printPaginationFooter } from "../../utils/output.js";
 
 function resolveTerminalWidth(): number {
   return process.stdout.columns && process.stdout.columns > 0 ? process.stdout.columns : 120;
@@ -142,7 +142,15 @@ export function printCommentList(list: ListedCommentList, json = false): void {
   ]);
 
   printTable(["NAME", "OWNER", "CONTENT", "APPROVED", "HIDDEN", "CREATED AT"], rows, widths);
-  process.stdout.write(`\n${list.total} comment(s)\n`);
+  printPaginationFooter({
+    page: list.page,
+    size: list.size,
+    total: list.total,
+    totalPages: list.totalPages,
+    hasNext: list.hasNext,
+    hasPrevious: list.hasPrevious,
+    itemLabel: "comment",
+  });
 }
 
 export function printComment(comment: Comment, json = false): void {
@@ -179,7 +187,21 @@ export function printReplyList(list: ListedReplyList | ListedReply[], json = fal
   ]);
 
   printTable(["NAME", "OWNER", "CONTENT", "APPROVED", "HIDDEN", "CREATED AT"], rows, widths);
-  process.stdout.write(`\n${total} repl${total === 1 ? "y" : "ies"}\n`);
+
+  if (Array.isArray(list)) {
+    process.stdout.write(`\n${total} repl${total === 1 ? "y" : "ies"}\n`);
+    return;
+  }
+
+  printPaginationFooter({
+    page: list.page,
+    size: list.size,
+    total: list.total,
+    totalPages: list.totalPages,
+    hasNext: list.hasNext,
+    hasPrevious: list.hasPrevious,
+    itemLabel: "reply",
+  });
 }
 
 export function printReply(reply: Reply, json = false): void {

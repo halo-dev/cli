@@ -1,6 +1,6 @@
 import Table from "cli-table3";
 
-import { printDetailObject, printJson } from "../../utils/output.js";
+import { printDetailObject, printJson, printPaginationFooter } from "../../utils/output.js";
 import type { ListedMomentList, Moment } from "./types.js";
 
 function resolveTerminalWidth(): number {
@@ -120,7 +120,15 @@ export function printMomentList(list: ListedMomentList, json = false): void {
   ]);
 
   printTable(["NAME", "CONTENT", "VISIBLE", "TAGS", "RELEASED AT", "APPROVAL"], rows, widths);
-  process.stdout.write(`\n${list.total} moment(s)\n`);
+  printPaginationFooter({
+    page: list.page,
+    size: list.size,
+    total: list.total,
+    totalPages: list.totalPages,
+    hasNext: list.hasNext,
+    hasPrevious: list.hasPrevious,
+    itemLabel: "moment",
+  });
 }
 
 export function printMoment(moment: Moment, json = false): void {

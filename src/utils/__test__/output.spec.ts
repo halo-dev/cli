@@ -1,6 +1,11 @@
 import { afterEach, expect, test, vi } from "vitest";
 
-import { printDetailObject, printExecutionTarget, printJson } from "../output.js";
+import {
+  printDetailObject,
+  printExecutionTarget,
+  printJson,
+  printPaginationFooter,
+} from "../output.js";
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -125,4 +130,54 @@ test("printDetailObject renders empty nested objects as braces", () => {
   const output = String(stdoutSpy.mock.calls[0]?.[0]);
   expect(output).toContain("status");
   expect(output).toContain("{}");
+});
+
+test("printPaginationFooter renders pagination details with next page hint", () => {
+  const stdoutSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+
+  printPaginationFooter({
+    page: 1,
+    size: 20,
+    total: 130,
+    totalPages: 7,
+    hasNext: true,
+    hasPrevious: false,
+    itemLabel: "post",
+  });
+
+  expect(stdoutSpy).toHaveBeenCalledOnce();
+  expect(stdoutSpy).toHaveBeenCalledWith(
+    "\nShowing 1-20 of 130 post(s) · page 1/7 · size 20 · more results available\n",
+  );
+});
+
+test("printPaginationFooter renders end-of-results state", () => {
+  const stdoutSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+
+  printPaginationFooter({
+    page: 7,
+    size: 20,
+    total: 130,
+    totalPages: 7,
+    hasNext: false,
+    hasPrevious: true,
+    itemLabel: "post",
+  });
+
+  expect(stdoutSpy).toHaveBeenCalledOnce();
+  expect(stdoutSpy).toHaveBeenCalledWith(
+    "\nShowing 121-130 of 130 post(s) · page 7/7 · size 20 · end of results\n",
+  );
+});
+
+test("printPaginationFooter infers a single-page summary when only total is available", () => {
+  const stdoutSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+
+  printPaginationFooter({
+    total: 3,
+    itemLabel: "theme",
+  });
+
+  expect(stdoutSpy).toHaveBeenCalledOnce();
+  expect(stdoutSpy).toHaveBeenCalledWith("\nShowing 1-3 of 3 theme(s) · page 1 · size 3\n");
 });

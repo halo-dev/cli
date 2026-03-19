@@ -13,7 +13,6 @@ import {
 import { tryRunCommandCliRoute } from "../../utils/command-router.js";
 import { confirmDangerousAction } from "../../utils/confirmation.js";
 import { CliError } from "../../utils/errors.js";
-import { parseNumberOption } from "../../utils/options.js";
 import { printJson } from "../../utils/output.js";
 import { loadFileAsZip } from "../../utils/package-file.js";
 import { RuntimeContext } from "../../utils/runtime.js";
@@ -223,10 +222,18 @@ async function getActivatedTheme(runtime: RuntimeContext, options?: ThemeCommand
   return response.data;
 }
 
-async function getActivatedThemeName(runtime: RuntimeContext, options?: ThemeCommandOptions) {
+async function getActivatedThemeNameByClients(clients: {
+  console: {
+    theme: {
+      theme: {
+        fetchActivatedTheme(): Promise<{ data: Theme }>;
+      };
+    };
+  };
+}) {
   try {
-    const theme = await getActivatedTheme(runtime, options);
-    return theme.metadata.name;
+    const response = await clients.console.theme.theme.fetchActivatedTheme();
+    return response.data.metadata.name;
   } catch {
     return undefined;
   }
@@ -485,24 +492,15 @@ function buildThemeCli(runtime: RuntimeContext): CAC {
     .command("list", "List themes")
     .option("--profile <name>", "Halo profile name")
     .option("--json", "Output JSON")
-    .option("--page <number>", "Page number")
-    .option("--size <number>", "Page size")
     .option("--uninstalled", "Include uninstalled themes")
     .action(async (options: ThemeCommandOptions) => {
-      const { clients } = await runtime.getClientsForOptions(options);
-      const [response, activeThemeName] = await Promise.all([
-        clients.console.theme.theme.listThemes({
-          page: parseNumberOption(options.page),
-          size: parseNumberOption(options.size),
-          uninstalled: options.uninstalled,
-        }),
-        options.json ? Promise.resolve(undefined) : getActivatedThemeName(runtime, options),
-      ]);
-
-      const updates = options.json
+      const { clients, items } = await listAllThemes(runtime, options);
+      const activeThemeName = options.json
         ? undefined
-        : await resolveThemeUpdates(clients, response.data.items);
-      printThemeList(response.data, options.json, updates, activeThemeName);
+        : await getActivatedThemeNameByClients(clients);
+
+      const updates = options.json ? undefined : await resolveThemeUpdates(clients, items);
+      printThemeList(items, options.json, updates, activeThemeName);
     });
 
   themeCli
@@ -610,7 +608,9 @@ function buildThemeCli(runtime: RuntimeContext): CAC {
           spinner.succeed(`Upgraded theme ${target.name}.`);
         } else {
           spinner.start(`Resolving App Store package for theme ${target.name}...`);
-          const themeResponse = await clients.core.theme.theme.getTheme({ name: target.name });
+          const themeResponse = await clients.core.theme.theme.getTheme({
+            name: target.name,
+          });
           const appId = resolveThemeAppStoreAppId(themeResponse.data);
           const appStoreClient = await createAppStoreClient(clients);
           const downloadUrl = await resolveLatestAppStoreDownloadUrl(appStoreClient, appId);
@@ -637,7 +637,9 @@ function buildThemeCli(runtime: RuntimeContext): CAC {
     .option("--json", "Output JSON")
     .action(async (name: string, options: ThemeCommandOptions) => {
       const { clients } = await runtime.getClientsForOptions(options);
-      const response = await clients.console.theme.theme.activateTheme({ name });
+      const response = await clients.console.theme.theme.activateTheme({
+        name,
+      });
 
       if (options.json) {
         printJson(response.data);
@@ -685,7 +687,7 @@ function buildThemeCli(runtime: RuntimeContext): CAC {
     });
 
   themeCli.usage("<command> [flags]");
-  themeCli.example((bin) => `${bin} list --page 1 --size 20`);
+  themeCli.example((bin) => `${bin} list`);
   themeCli.example((bin) => `${bin} get ThemeName`);
   themeCli.example((bin) => `${bin} current`);
   themeCli.example((bin) => `${bin} install --uri file:///tmp/example.zip`);

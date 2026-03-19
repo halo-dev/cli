@@ -88,7 +88,7 @@ test("printPostList renders table rows and summary in table mode", () => {
   expect(tableOutput).toContain("Draft Post");
   expect(tableOutput).toContain("draft");
   expect(tableOutput).toContain("invalid-date");
-  expect(summaryOutput).toBe("\n2 post(s)\n");
+  expect(summaryOutput).toBe("\nShowing 1-2 of 2 post(s) · page 1 · size 2\n");
 });
 
 test("printPostList truncates long titles without breaking the table", () => {
