@@ -2,6 +2,8 @@
 name: halo-content
 version: 1.0.0
 description: "Halo CLI: Manage posts and single pages from the terminal."
+references:
+  - ../halo-shared
 metadata:
   openclaw:
     category: "content-management"

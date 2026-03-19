@@ -2,6 +2,8 @@
 name: halo-moderation-notifications
 version: 1.0.0
 description: "Halo CLI skill for comment moderation, reply workflows, and notification management."
+references:
+  - ../halo-shared
 metadata:
   openclaw:
     category: "content-management"

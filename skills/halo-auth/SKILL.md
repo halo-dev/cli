@@ -2,6 +2,8 @@
 name: halo-auth
 version: 1.0.0
 description: "Halo CLI: authentication, profiles, and connection setup."
+references:
+  - ../halo-shared
 metadata:
   openclaw:
     category: "developer-tools"
