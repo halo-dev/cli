@@ -1,10 +1,14 @@
 import { expect, test } from "vitest";
 
 import {
+  APP_STORE_PAT_SECRET_NAME,
   formatHaloProAuthorizationToken,
+  getAppStoreHeaders,
+  resolveLatestAppStoreDownloadUrl,
   resolvePluginAppStoreAppId,
   resolvePluginUpdateInfo,
   resolvePluginUpgradeSource,
+  resolveThemeAppStoreAppId,
   satisfiesRequires,
 } from "../app-store.js";
 
@@ -103,4 +107,213 @@ test("resolvePluginUpdateInfo ignores invalid semver versions", () => {
 
 test("resolvePluginUpdateInfo ignores non-upgrades", () => {
   expect(resolvePluginUpdateInfo("1.1.0", "1.1.0", "2.20.0", ">=2.0.0")).toBeUndefined();
+});
+
+test("resolveThemeAppStoreAppId reads store annotation", () => {
+  const appId = resolveThemeAppStoreAppId({
+    metadata: {
+      annotations: {
+        "store.halo.run/app-id": "theme-app-store-integration",
+      },
+    },
+  } as never);
+
+  expect(appId).toBe("theme-app-store-integration");
+});
+
+test("resolveThemeAppStoreAppId rejects themes without store annotation", () => {
+  expect(() =>
+    resolveThemeAppStoreAppId({
+      metadata: {},
+    } as never),
+  ).toThrow(/store\.halo\.run\/app-id/);
+});
+
+test("getAppStoreHeaders includes PAT and Halo Pro authorization headers when available", async () => {
+  const clients = {
+    core: {
+      secret: {
+        getSecret: async ({ name }: { name: string }) => {
+          expect(name).toBe(APP_STORE_PAT_SECRET_NAME);
+          return {
+            data: {
+              stringData: {
+                token: "pat-token",
+              },
+            },
+          };
+        },
+      },
+    },
+    axios: {
+      get: async (url: string) => {
+        if (url === "/actuator/info") {
+          return {
+            data: {
+              build: {
+                name: "halo-pro",
+                version: "2.20.0",
+              },
+            },
+          };
+        }
+
+        if (url === "/apis/console.api.license.pro.halo.run/v1alpha1/activations") {
+          return {
+            data: [
+              {
+                status: {
+                  state: "active",
+                  activationCode: "code=with=padding=",
+                },
+              },
+            ],
+          };
+        }
+
+        throw new Error(`Unexpected axios.get call: ${url}`);
+      },
+    },
+  } as never;
+
+  await expect(getAppStoreHeaders(clients)).resolves.toEqual({
+    Accept: "application/json",
+    Authorization: "Bearer pat-token",
+    "X-Authorization": "Bearer lxl_codewithpadding",
+  });
+});
+
+test("getAppStoreHeaders falls back to Accept-only headers when optional auth is unavailable", async () => {
+  const clients = {
+    core: {
+      secret: {
+        getSecret: async () => {
+          throw new Error("secret lookup failed");
+        },
+      },
+    },
+    axios: {
+      get: async () => {
+        throw new Error("actuator lookup failed");
+      },
+    },
+  } as never;
+
+  await expect(getAppStoreHeaders(clients)).resolves.toEqual({
+    Accept: "application/json",
+  });
+});
+
+test("resolveLatestAppStoreDownloadUrl resolves the latest downloadable asset URL", async () => {
+  const appStoreClient = {
+    get: async (url: string) => {
+      if (url === "/apis/api.store.halo.run/v1alpha1/applications/demo-app") {
+        return {
+          data: {
+            latestRelease: {
+              release: {
+                metadata: {
+                  name: "release-1",
+                },
+              },
+              assets: [
+                {
+                  metadata: {
+                    name: "plugin.jar",
+                  },
+                },
+              ],
+            },
+          },
+        };
+      }
+
+      if (
+        url ===
+        "/apis/api.store.halo.run/v1alpha1/applications/demo-app/releases/release-1/download/plugin.jar"
+      ) {
+        return {
+          data: {
+            url: "https://downloads.example.com/plugin.jar",
+          },
+        };
+      }
+
+      throw new Error(`Unexpected app store get call: ${url}`);
+    },
+  } as never;
+
+  await expect(resolveLatestAppStoreDownloadUrl(appStoreClient, " demo-app ")).resolves.toBe(
+    "https://downloads.example.com/plugin.jar",
+  );
+});
+
+test("resolveLatestAppStoreDownloadUrl rejects empty app ids", async () => {
+  const appStoreClient = {
+    get: async () => {
+      throw new Error("should not be called");
+    },
+  } as never;
+
+  await expect(resolveLatestAppStoreDownloadUrl(appStoreClient, "  ")).rejects.toThrow(
+    /app id is empty/i,
+  );
+});
+
+test("resolveLatestAppStoreDownloadUrl rejects releases without installable assets", async () => {
+  const appStoreClient = {
+    get: async () => ({
+      data: {
+        latestRelease: {
+          release: {
+            metadata: {
+              name: "release-1",
+            },
+          },
+          assets: [],
+        },
+      },
+    }),
+  } as never;
+
+  await expect(resolveLatestAppStoreDownloadUrl(appStoreClient, "demo-app")).rejects.toThrow(
+    /does not have an installable latest release/i,
+  );
+});
+
+test("resolveLatestAppStoreDownloadUrl rejects missing downloadable asset URLs", async () => {
+  const appStoreClient = {
+    get: async (url: string) => {
+      if (url === "/apis/api.store.halo.run/v1alpha1/applications/demo-app") {
+        return {
+          data: {
+            latestRelease: {
+              release: {
+                metadata: {
+                  name: "release-1",
+                },
+              },
+              assets: [
+                {
+                  metadata: {
+                    name: "plugin.jar",
+                  },
+                },
+              ],
+            },
+          },
+        };
+      }
+
+      return {
+        data: {
+          url: "   ",
+        },
+      };
+    },
+  } as never;
+
+  await expect(resolveLatestAppStoreDownloadUrl(appStoreClient, "demo-app")).rejects.toThrow(
+    /did not return a downloadable asset URL/i,
+  );
 });

@@ -10,6 +10,14 @@ function silenceStdout() {
   return vi.spyOn(process.stdout, "write").mockImplementation(() => true);
 }
 
+function createPluginRuntimeMock(clients: Record<string, unknown>) {
+  return {
+    getClientsForOptions: vi.fn().mockResolvedValue({
+      clients,
+    }),
+  };
+}
+
 test("tryRunPluginCommand returns false for unrelated commands", async () => {
   await expect(tryRunPluginCommand(["post"], {} as never)).resolves.toBe(false);
 });
@@ -270,6 +278,160 @@ test("tryRunPluginCommand dispatches install subcommands from urls", async () =>
   });
 });
 
+test("tryRunPluginCommand dispatches install subcommands from files", async () => {
+  silenceStdout();
+
+  const installPlugin = vi.fn().mockResolvedValue({
+    data: {
+      metadata: {
+        name: "demo-plugin",
+      },
+    },
+  });
+  const runtimeMock = createPluginRuntimeMock({
+    console: {
+      plugin: {
+        plugin: {
+          installPlugin,
+        },
+      },
+    },
+  });
+
+  await expect(
+    tryRunPluginCommand(
+      [
+        "plugin",
+        "install",
+        "--file",
+        "./src/commands/plugin/__test__/plugin-entry.spec.ts",
+        "--json",
+      ],
+      runtimeMock as never,
+    ),
+  ).resolves.toBe(true);
+
+  expect(installPlugin).toHaveBeenCalledTimes(1);
+  expect(installPlugin.mock.calls[0]?.[0]).toMatchObject({
+    file: expect.any(File),
+  });
+});
+
+test("tryRunPluginCommand dispatches online upgrade commands", async () => {
+  silenceStdout();
+
+  const getPlugin = vi.fn().mockResolvedValue({
+    data: {
+      metadata: {
+        name: "demo-plugin",
+        annotations: {
+          "store.halo.run/app-id": "demo-plugin-app",
+        },
+      },
+    },
+  });
+  const upgradePluginFromUri = vi.fn().mockResolvedValue({
+    data: {
+      metadata: {
+        name: "demo-plugin",
+      },
+    },
+  });
+  const runtimeMock = createPluginRuntimeMock({
+    core: {
+      plugin: {
+        plugin: {
+          getPlugin,
+        },
+      },
+      secret: {
+        getSecret: vi.fn().mockResolvedValue({
+          data: {
+            stringData: {},
+          },
+        }),
+      },
+    },
+    console: {
+      plugin: {
+        plugin: {
+          upgradePluginFromUri,
+        },
+      },
+    },
+    axios: {
+      get: vi.fn().mockImplementation((url: string) => {
+        if (url === "/actuator/info") {
+          return Promise.resolve({
+            data: {
+              build: {
+                name: "halo",
+                version: "2.20.0",
+              },
+            },
+          });
+        }
+
+        return Promise.reject(new Error(`Unexpected axios.get call: ${url}`));
+      }),
+    },
+  });
+
+  const axiosCreateSpy = vi.spyOn((await import("axios")).default, "create").mockReturnValue({
+    get: vi.fn().mockImplementation((url: string) => {
+      if (url === "/apis/api.store.halo.run/v1alpha1/applications/demo-plugin-app") {
+        return Promise.resolve({
+          data: {
+            latestRelease: {
+              release: {
+                metadata: {
+                  name: "release-1",
+                },
+              },
+              assets: [
+                {
+                  metadata: {
+                    name: "plugin.jar",
+                  },
+                },
+              ],
+            },
+          },
+        });
+      }
+
+      if (
+        url ===
+        "/apis/api.store.halo.run/v1alpha1/applications/demo-plugin-app/releases/release-1/download/plugin.jar"
+      ) {
+        return Promise.resolve({
+          data: {
+            url: "https://downloads.example.com/demo-plugin.jar",
+          },
+        });
+      }
+
+      return Promise.reject(new Error(`Unexpected app store get call: ${url}`));
+    }),
+  } as never);
+
+  await expect(
+    tryRunPluginCommand(
+      ["plugin", "upgrade", "demo-plugin", "--online", "--json"],
+      runtimeMock as never,
+    ),
+  ).resolves.toBe(true);
+
+  expect(axiosCreateSpy).toHaveBeenCalledOnce();
+  expect(getPlugin).toHaveBeenCalledWith({ name: "demo-plugin" });
+  expect(upgradePluginFromUri).toHaveBeenCalledWith({
+    name: "demo-plugin",
+    upgradeFromUriRequest: {
+      uri: "https://downloads.example.com/demo-plugin.jar",
+    },
+  });
+});
+
 test("tryRunPluginCommand rejects unknown install flags during parsing", async () => {
   silenceStdout();
 
@@ -294,4 +456,192 @@ test("tryRunPluginCommand rejects invalid --all combinations", async () => {
   await expect(
     tryRunPluginCommand(["plugin", "upgrade", "demo-plugin", "--all"], runtimeMock as never),
   ).rejects.toThrow(/does not accept a plugin name/i);
+});
+
+test("tryRunPluginCommand prints empty batch upgrade results in json mode", async () => {
+  silenceStdout();
+
+  const listPlugins = vi.fn().mockResolvedValue({
+    data: {
+      items: [],
+      total: 0,
+      hasNext: false,
+    },
+  });
+  const runtimeMock = createPluginRuntimeMock({
+    console: {
+      plugin: {
+        plugin: {
+          listPlugins,
+        },
+      },
+    },
+  });
+
+  const axiosCreateSpy = vi.spyOn((await import("axios")).default, "create").mockReturnValue({
+    get: vi.fn(),
+  } as never);
+
+  await expect(
+    tryRunPluginCommand(["plugin", "upgrade", "--all", "--json"], runtimeMock as never),
+  ).resolves.toBe(true);
+
+  expect(listPlugins).toHaveBeenCalledWith({
+    page: 1,
+    size: 100,
+    keyword: undefined,
+    enabled: undefined,
+  });
+  expect(axiosCreateSpy).toHaveBeenCalledOnce();
+});
+
+test("tryRunPluginCommand upgrades batch plugin candidates in json mode", async () => {
+  silenceStdout();
+
+  const listPlugins = vi.fn().mockResolvedValue({
+    data: {
+      items: [
+        {
+          metadata: {
+            name: "demo-plugin",
+            annotations: {
+              "store.halo.run/app-id": "demo-plugin-app",
+            },
+          },
+          spec: {
+            version: "1.0.0",
+            displayName: "Demo Plugin",
+          },
+        },
+      ],
+      total: 1,
+      hasNext: false,
+    },
+  });
+  const upgradePluginFromUri = vi.fn().mockResolvedValue({
+    data: {
+      metadata: {
+        name: "demo-plugin",
+      },
+    },
+  });
+  const runtimeMock = createPluginRuntimeMock({
+    core: {
+      secret: {
+        getSecret: vi.fn().mockResolvedValue({
+          data: {
+            stringData: {},
+          },
+        }),
+      },
+    },
+    console: {
+      plugin: {
+        plugin: {
+          listPlugins,
+          upgradePluginFromUri,
+        },
+      },
+    },
+    axios: {
+      get: vi.fn().mockResolvedValue({
+        data: {
+          build: {
+            name: "halo",
+            version: "2.20.0",
+          },
+        },
+      }),
+    },
+  });
+
+  const appStoreGet = vi
+    .fn()
+    .mockImplementation((url: string, options?: { params?: Record<string, unknown> }) => {
+      if (url === "/apis/api.store.halo.run/v1alpha1/applications") {
+        expect(options).toEqual({
+          params: {
+            type: "PLUGIN",
+            names: ["demo-plugin-app"],
+          },
+        });
+
+        return Promise.resolve({
+          data: {
+            items: [
+              {
+                downloadable: true,
+                application: {
+                  metadata: {
+                    name: "demo-plugin-app",
+                  },
+                },
+                latestRelease: {
+                  spec: {
+                    version: "1.1.0",
+                    requires: ">=2.0.0",
+                  },
+                },
+              },
+            ],
+          },
+        });
+      }
+
+      if (url === "/apis/api.store.halo.run/v1alpha1/applications/demo-plugin-app") {
+        return Promise.resolve({
+          data: {
+            latestRelease: {
+              release: {
+                metadata: {
+                  name: "release-1",
+                },
+              },
+              assets: [
+                {
+                  metadata: {
+                    name: "plugin.jar",
+                  },
+                },
+              ],
+            },
+          },
+        });
+      }
+
+      if (
+        url ===
+        "/apis/api.store.halo.run/v1alpha1/applications/demo-plugin-app/releases/release-1/download/plugin.jar"
+      ) {
+        return Promise.resolve({
+          data: {
+            url: "https://downloads.example.com/demo-plugin.jar",
+          },
+        });
+      }
+
+      return Promise.reject(new Error(`Unexpected app store get call: ${url}`));
+    });
+
+  const axiosCreateSpy = vi.spyOn((await import("axios")).default, "create").mockReturnValue({
+    get: appStoreGet,
+  } as never);
+
+  await expect(
+    tryRunPluginCommand(["plugin", "upgrade", "--all", "--json"], runtimeMock as never),
+  ).resolves.toBe(true);
+
+  expect(axiosCreateSpy).toHaveBeenCalledTimes(2);
+  expect(listPlugins).toHaveBeenCalledWith({
+    page: 1,
+    size: 100,
+    keyword: undefined,
+    enabled: undefined,
+  });
+  expect(upgradePluginFromUri).toHaveBeenCalledWith({
+    name: "demo-plugin",
+    upgradeFromUriRequest: {
+      uri: "https://downloads.example.com/demo-plugin.jar",
+    },
+  });
 });

@@ -10,6 +10,14 @@ function silenceStdout() {
   return vi.spyOn(process.stdout, "write").mockImplementation(() => true);
 }
 
+function createThemeRuntimeMock(overrides: Record<string, unknown>) {
+  return {
+    getClientsForOptions: vi.fn().mockResolvedValue({
+      clients: overrides,
+    }),
+  };
+}
+
 test("tryRunThemeCommand returns false for unrelated commands", async () => {
   await expect(tryRunThemeCommand(["post"], {} as never)).resolves.toBe(false);
 });
@@ -107,6 +115,178 @@ test("tryRunThemeCommand fetches the active theme when listing in table mode", a
     uninstalled: undefined,
   });
   expect(fetchActivatedTheme).toHaveBeenCalledOnce();
+});
+
+test("tryRunThemeCommand dispatches get subcommands", async () => {
+  silenceStdout();
+
+  const getTheme = vi.fn().mockResolvedValue({
+    data: {
+      apiVersion: "theme.halo.run/v1alpha1",
+      kind: "Theme",
+      metadata: { name: "demo-theme" },
+      spec: {
+        displayName: "Demo Theme",
+        author: { name: "Halo" },
+      },
+    },
+  });
+  const runtimeMock = {
+    getClientsForOptions: vi.fn().mockResolvedValue({
+      clients: {
+        core: {
+          theme: {
+            theme: {
+              getTheme,
+            },
+          },
+        },
+      },
+    }),
+  };
+
+  await expect(
+    tryRunThemeCommand(["theme", "get", "demo-theme", "--json"], runtimeMock as never),
+  ).resolves.toBe(true);
+
+  expect(getTheme).toHaveBeenCalledWith({ name: "demo-theme" });
+});
+
+test("tryRunThemeCommand dispatches install subcommands from urls", async () => {
+  silenceStdout();
+
+  const installThemeFromUri = vi.fn().mockResolvedValue({
+    data: {
+      apiVersion: "theme.halo.run/v1alpha1",
+      kind: "Theme",
+      metadata: { name: "demo-theme" },
+      spec: {
+        displayName: "Demo Theme",
+        author: { name: "Halo" },
+      },
+    },
+  });
+  const runtimeMock = {
+    getClientsForOptions: vi.fn().mockResolvedValue({
+      clients: {
+        console: {
+          theme: {
+            theme: {
+              installThemeFromUri,
+            },
+          },
+        },
+      },
+    }),
+  };
+
+  await expect(
+    tryRunThemeCommand(
+      ["theme", "install", "--url", "https://example.com/theme.zip", "--json"],
+      runtimeMock as never,
+    ),
+  ).resolves.toBe(true);
+
+  expect(installThemeFromUri).toHaveBeenCalledWith({
+    installFromUriRequest: {
+      uri: "https://example.com/theme.zip",
+    },
+  });
+});
+
+test("tryRunThemeCommand rejects unknown online install flags during parsing", async () => {
+  silenceStdout();
+
+  const runtimeMock = {
+    getClientsForOptions: vi.fn(),
+  };
+
+  await expect(
+    tryRunThemeCommand(["theme", "install", "--online"], runtimeMock as never),
+  ).rejects.toThrow(/Unknown option `--online`/i);
+});
+
+test("tryRunThemeCommand dispatches activate subcommands", async () => {
+  silenceStdout();
+
+  const activateTheme = vi.fn().mockResolvedValue({
+    data: {
+      metadata: { name: "demo-theme" },
+    },
+  });
+  const runtimeMock = createThemeRuntimeMock({
+    console: {
+      theme: {
+        theme: {
+          activateTheme,
+        },
+      },
+    },
+  });
+
+  await expect(
+    tryRunThemeCommand(["theme", "activate", "demo-theme", "--json"], runtimeMock as never),
+  ).resolves.toBe(true);
+
+  expect(activateTheme).toHaveBeenCalledWith({ name: "demo-theme" });
+});
+
+test("tryRunThemeCommand dispatches reload subcommands", async () => {
+  silenceStdout();
+
+  const reload = vi.fn().mockResolvedValue({
+    data: {
+      metadata: { name: "demo-theme" },
+    },
+  });
+  const runtimeMock = createThemeRuntimeMock({
+    console: {
+      theme: {
+        theme: {
+          reload,
+        },
+      },
+    },
+  });
+
+  await expect(
+    tryRunThemeCommand(["theme", "reload", "demo-theme", "--json"], runtimeMock as never),
+  ).resolves.toBe(true);
+
+  expect(reload).toHaveBeenCalledWith({ name: "demo-theme" });
+});
+
+test("tryRunThemeCommand dispatches upgrade subcommands from urls", async () => {
+  silenceStdout();
+
+  const upgradeThemeFromUri = vi.fn().mockResolvedValue({
+    data: {
+      metadata: { name: "demo-theme" },
+    },
+  });
+  const runtimeMock = createThemeRuntimeMock({
+    console: {
+      theme: {
+        theme: {
+          upgradeThemeFromUri,
+        },
+      },
+    },
+  });
+
+  await expect(
+    tryRunThemeCommand(
+      ["theme", "upgrade", "demo-theme", "--url", "https://example.com/theme.zip", "--json"],
+      runtimeMock as never,
+    ),
+  ).resolves.toBe(true);
+
+  expect(upgradeThemeFromUri).toHaveBeenCalledWith({
+    name: "demo-theme",
+    upgradeFromUriRequest: {
+      uri: "https://example.com/theme.zip",
+    },
+  });
 });
 
 test("tryRunThemeCommand dispatches delete subcommands", async () => {

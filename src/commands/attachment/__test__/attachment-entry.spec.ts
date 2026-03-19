@@ -61,3 +61,122 @@ test("tryRunAttachmentCommand dispatches list subcommands", async () => {
     keyword: "halo",
   });
 });
+
+test("tryRunAttachmentCommand dispatches get subcommands", async () => {
+  silenceStdout();
+
+  const getAttachment = vi.fn().mockResolvedValue({
+    data: {
+      metadata: {
+        name: "attachment-1",
+      },
+      spec: {
+        displayName: "image.png",
+      },
+      status: {
+        permalink: "https://example.com/image.png",
+      },
+    },
+  });
+  const runtimeMock = {
+    getClientsForOptions: vi.fn().mockResolvedValue({
+      profile: {
+        baseUrl: "https://example.com",
+      },
+      clients: {
+        axios: {},
+      },
+    }),
+  };
+
+  const { AttachmentV1alpha1Api } = await import("@halo-dev/api-client");
+  vi.spyOn(AttachmentV1alpha1Api.prototype, "getAttachment").mockImplementation(getAttachment);
+
+  await expect(
+    tryRunAttachmentCommand(["attachment", "get", "attachment-1", "--json"], runtimeMock as never),
+  ).resolves.toBe(true);
+
+  expect(runtimeMock.getClientsForOptions).toHaveBeenCalledOnce();
+  expect(getAttachment).toHaveBeenCalledWith({
+    name: "attachment-1",
+  });
+});
+
+test("tryRunAttachmentCommand dispatches upload subcommands from urls", async () => {
+  silenceStdout();
+
+  const uploadAttachmentForConsole = vi.fn().mockResolvedValue({
+    data: {
+      metadata: {
+        name: "attachment-1",
+      },
+      spec: {
+        displayName: "image.png",
+      },
+      status: {
+        permalink: "https://example.com/image.png",
+      },
+    },
+  });
+  const runtimeMock = {
+    getClientsForOptions: vi.fn().mockResolvedValue({
+      profile: {
+        baseUrl: "https://example.com",
+      },
+      clients: {
+        axios: {},
+      },
+    }),
+  };
+
+  const { AttachmentV1alpha1ConsoleApi } = await import("@halo-dev/api-client");
+  vi.spyOn(AttachmentV1alpha1ConsoleApi.prototype, "uploadAttachmentForConsole").mockImplementation(
+    uploadAttachmentForConsole,
+  );
+
+  await expect(
+    tryRunAttachmentCommand(
+      ["attachment", "upload", "--url", "https://example.com/image.png", "--json"],
+      runtimeMock as never,
+    ),
+  ).resolves.toBe(true);
+
+  expect(runtimeMock.getClientsForOptions).toHaveBeenCalledOnce();
+  expect(uploadAttachmentForConsole).toHaveBeenCalledWith({
+    url: "https://example.com/image.png",
+    filename: "image.png",
+  });
+});
+
+test("tryRunAttachmentCommand dispatches delete subcommands", async () => {
+  silenceStdout();
+
+  const deleteAttachment = vi.fn().mockResolvedValue({});
+  const runtimeMock = {
+    getClientsForOptions: vi.fn().mockResolvedValue({
+      profile: {
+        baseUrl: "https://example.com",
+      },
+      clients: {
+        axios: {},
+      },
+    }),
+  };
+
+  const { AttachmentV1alpha1Api } = await import("@halo-dev/api-client");
+  vi.spyOn(AttachmentV1alpha1Api.prototype, "deleteAttachment").mockImplementation(
+    deleteAttachment,
+  );
+
+  await expect(
+    tryRunAttachmentCommand(
+      ["attachment", "delete", "attachment-1", "--json", "--force"],
+      runtimeMock as never,
+    ),
+  ).resolves.toBe(true);
+
+  expect(runtimeMock.getClientsForOptions).toHaveBeenCalledOnce();
+  expect(deleteAttachment).toHaveBeenCalledWith({
+    name: "attachment-1",
+  });
+});
