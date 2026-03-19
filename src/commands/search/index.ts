@@ -5,6 +5,7 @@ import cac, { type CAC } from "cac";
 import { tryRunCommandCliRoute } from "../../utils/command-router.js";
 import { CliError } from "../../utils/errors.js";
 import { parseNumberOption } from "../../utils/options.js";
+import { printExecutionTarget } from "../../utils/output.js";
 import { RuntimeContext } from "../../utils/runtime.js";
 import { normalizeBaseUrl } from "../../utils/url.js";
 import { printSearchResult } from "./format.js";
@@ -39,10 +40,19 @@ export async function resolveSearchBaseUrl(
   options: SearchCommandOptions,
 ): Promise<string> {
   if (options.url?.trim()) {
-    return normalizeBaseUrl(options.url);
+    const baseUrl = normalizeBaseUrl(options.url);
+    printExecutionTarget({ baseUrl }, options.json);
+    return baseUrl;
   }
 
   const profile = await runtime.configStore.getActiveResolvedProfile(options.profile);
+  printExecutionTarget(
+    {
+      profileName: profile.name,
+      baseUrl: profile.baseUrl,
+    },
+    options.json,
+  );
   return normalizeBaseUrl(profile.baseUrl);
 }
 

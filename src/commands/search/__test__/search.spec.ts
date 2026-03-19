@@ -1,6 +1,10 @@
-import { expect, test, vi } from "vitest";
+import { afterEach, expect, test, vi } from "vitest";
 
 import { buildSearchOption, resolveSearchBaseUrl } from "../index.js";
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 test("buildSearchOption requires keywords", () => {
   expect(() => buildSearchOption(undefined)).toThrow(/requires --keyword/i);
@@ -18,6 +22,7 @@ test("buildSearchOption rejects non-positive limits", () => {
 });
 
 test("resolveSearchBaseUrl prefers explicit urls", async () => {
+  const writeSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
   const runtimeMock = {
     configStore: {
       getActiveResolvedProfile: vi.fn(),
@@ -31,12 +36,15 @@ test("resolveSearchBaseUrl prefers explicit urls", async () => {
   ).resolves.toBe("https://www.halo.run");
 
   expect(runtimeMock.configStore.getActiveResolvedProfile).not.toHaveBeenCalled();
+  expect(writeSpy).toHaveBeenCalledWith(expect.stringContaining("https://www.halo.run"));
 });
 
 test("resolveSearchBaseUrl falls back to active profile urls", async () => {
+  const writeSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
   const runtimeMock = {
     configStore: {
       getActiveResolvedProfile: vi.fn().mockResolvedValue({
+        name: "demo",
         baseUrl: "https://demo.halo.run/",
       }),
     },
@@ -46,4 +54,23 @@ test("resolveSearchBaseUrl falls back to active profile urls", async () => {
     "https://demo.halo.run",
   );
   expect(runtimeMock.configStore.getActiveResolvedProfile).toHaveBeenCalledWith(undefined);
+  expect(writeSpy).toHaveBeenCalledWith(expect.stringContaining("https://demo.halo.run"));
+});
+
+test("resolveSearchBaseUrl skips execution target output in json mode", async () => {
+  const writeSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+  const runtimeMock = {
+    configStore: {
+      getActiveResolvedProfile: vi.fn(),
+    },
+  };
+
+  await expect(
+    resolveSearchBaseUrl(runtimeMock as never, {
+      url: "https://www.halo.run/",
+      json: true,
+    }),
+  ).resolves.toBe("https://www.halo.run");
+
+  expect(writeSpy).not.toHaveBeenCalled();
 });

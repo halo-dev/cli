@@ -1,8 +1,12 @@
-import { expect, test, vi } from "vitest";
+import { afterEach, expect, test, vi } from "vitest";
 
 import type { HaloProfile } from "../../shared/profile.js";
 import { buildAuthHeader, RuntimeContext } from "../runtime.js";
 import { normalizeBaseUrl } from "../url.js";
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 function createBearerProfile(): HaloProfile {
   return {
@@ -66,4 +70,31 @@ test("RuntimeContext.getClientsForResolvedProfile creates API clients", () => {
 
   expect(clients.axios.defaults.baseURL).toBe("https://demo.halo.run");
   expect(clients.axios.defaults.headers.Authorization).toBe("Bearer personal-access-token");
+});
+
+test("RuntimeContext.getClientsForOptions prints execution target", async () => {
+  const profile = createBearerProfile();
+  const configStore = {
+    getActiveResolvedProfile: vi.fn().mockResolvedValue(profile),
+  };
+  const runtime = new RuntimeContext(configStore as never);
+  const writeSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+
+  await runtime.getClientsForOptions({ profile: "demo" });
+
+  expect(writeSpy).toHaveBeenCalledWith(expect.stringContaining("https://demo.halo.run"));
+  expect(writeSpy).toHaveBeenCalledWith(expect.stringContaining("bearer"));
+});
+
+test("RuntimeContext.getClientsForOptions skips execution target in json mode", async () => {
+  const profile = createBearerProfile();
+  const configStore = {
+    getActiveResolvedProfile: vi.fn().mockResolvedValue(profile),
+  };
+  const runtime = new RuntimeContext(configStore as never);
+  const writeSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+
+  await runtime.getClientsForOptions({ profile: "demo", json: true });
+
+  expect(writeSpy).not.toHaveBeenCalled();
 });

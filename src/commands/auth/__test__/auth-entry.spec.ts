@@ -113,6 +113,57 @@ test("tryRunAuthCommand dispatches profile doctor subcommands", async () => {
   expect(runtimeMock.configStore.inspectProfileCredentials).toHaveBeenCalledOnce();
 });
 
+test("tryRunAuthCommand keeps auth login --json free of target banners", async () => {
+  const writeSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+
+  const runtimeMock = {
+    configStore: {
+      getStoredProfile: vi.fn().mockResolvedValue(undefined),
+      upsertProfile: vi.fn().mockResolvedValue({
+        activeProfile: "local",
+        profiles: {},
+      }),
+    },
+    getClientsForResolvedProfile: vi.fn().mockReturnValue({
+      console: {
+        user: {
+          getCurrentUserDetail: vi.fn().mockResolvedValue({
+            data: {
+              user: {
+                metadata: { name: "admin" },
+                spec: { displayName: "Admin" },
+              },
+            },
+          }),
+        },
+      },
+    }),
+  };
+
+  await expect(
+    tryRunAuthCommand(
+      [
+        "auth",
+        "login",
+        "--profile",
+        "local",
+        "--url",
+        "https://demo.halo.run",
+        "--auth-type",
+        "bearer",
+        "--token",
+        "token-value",
+        "--json",
+      ],
+      runtimeMock as never,
+    ),
+  ).resolves.toBe(true);
+
+  expect(runtimeMock.getClientsForResolvedProfile).toHaveBeenCalledOnce();
+  expect(writeSpy).toHaveBeenCalledWith(expect.stringContaining('"profile": {'));
+  expect(writeSpy).not.toHaveBeenCalledWith(expect.stringContaining("TARGET"));
+});
+
 test("tryRunAuthCommand shows help for bare profile subcommands", async () => {
   silenceStdout();
 

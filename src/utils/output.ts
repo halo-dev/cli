@@ -1,7 +1,31 @@
+import chalk from "chalk";
 import Table from "cli-table3";
+
+export interface ExecutionTarget {
+  profileName?: string;
+  baseUrl: string;
+}
 
 export function printJson(value: unknown): void {
   process.stdout.write(`${JSON.stringify(value, null, 2)}\n`);
+}
+
+export function printExecutionTarget(target: ExecutionTarget, json = false): void {
+  if (json) {
+    return;
+  }
+
+  const badge = chalk.bold.black.bgCyan(" TARGET ");
+  const location = chalk.bold.cyanBright(target.baseUrl);
+
+  if (target.profileName) {
+    process.stdout.write(
+      `${badge} ${chalk.dim("profile")} ${chalk.bold.white(target.profileName)} ${chalk.dim("->")} ${location}\n\n`,
+    );
+    return;
+  }
+
+  process.stdout.write(`${badge} ${chalk.dim("url")} ${location}\n\n`);
 }
 
 function resolveTerminalWidth(): number {

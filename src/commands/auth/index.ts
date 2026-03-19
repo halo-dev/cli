@@ -7,7 +7,7 @@ import { tryRunCommandCliRoute, tryRunNestedCliRoute } from "../../utils/command
 import { confirmDangerousAction } from "../../utils/confirmation.js";
 import { CliError } from "../../utils/errors.js";
 import { isInteractive } from "../../utils/options.js";
-import { printJson } from "../../utils/output.js";
+import { printExecutionTarget, printJson } from "../../utils/output.js";
 import { RuntimeContext } from "../../utils/runtime.js";
 import { normalizeBaseUrl } from "../../utils/url.js";
 import {
@@ -65,7 +65,14 @@ export function createProfileTimestamp(existing?: Pick<StoredHaloProfile, "creat
   };
 }
 
-async function validateProfile(profile: HaloProfile, runtime: RuntimeContext) {
+async function validateProfile(profile: HaloProfile, runtime: RuntimeContext, json = false) {
+  printExecutionTarget(
+    {
+      profileName: profile.name,
+      baseUrl: profile.baseUrl,
+    },
+    json,
+  );
   const clients = runtime.getClientsForResolvedProfile(profile);
   const response = await clients.console.user.getCurrentUserDetail();
   return response.data;
@@ -257,7 +264,7 @@ function buildAuthCli(runtime: RuntimeContext): CAC {
         ...timestamps,
       };
 
-      const user = await validateProfile(profile, runtime);
+      const user = await validateProfile(profile, runtime, options.json);
       await runtime.configStore.upsertProfile(profile, true);
       const storedProfile = toStoredHaloProfile(profile);
 

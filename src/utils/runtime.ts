@@ -3,6 +3,7 @@ import axios, { type AxiosInstance } from "axios";
 
 import type { HaloProfile } from "../shared/profile.js";
 import { ConfigStore } from "./config-store.js";
+import { printExecutionTarget } from "./output.js";
 import { normalizeBaseUrl } from "./url.js";
 
 export interface HaloClients {
@@ -13,6 +14,7 @@ export interface HaloClients {
 
 export interface ProfileSelectionOptions {
   profile?: string;
+  json?: boolean;
 }
 
 export function buildAuthHeader(profile: HaloProfile): string {
@@ -62,6 +64,13 @@ export class RuntimeContext {
     options?: ProfileSelectionOptions,
   ): Promise<{ profile: HaloProfile; clients: HaloClients }> {
     const profile = await this.getResolvedProfile(options);
+    printExecutionTarget(
+      {
+        profileName: profile.name,
+        baseUrl: profile.baseUrl,
+      },
+      options?.json,
+    );
     return {
       profile,
       clients: this.getClientsForResolvedProfile(profile),
