@@ -202,6 +202,16 @@ Before publishing, verify the package contents:
 npm pack --dry-run
 ```
 
+Create a release version locally without publishing to npm:
+
+```sh
+vp run release
+vp run release:dry
+```
+
+This uses `release-it` to bump the version, create a release commit and git tag, push them upstream, and create a GitHub Release.
+It does not publish the package to npm.
+
 The published package should include:
 
 - `dist/`

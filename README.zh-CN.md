@@ -202,6 +202,16 @@ vp pack
 npm pack --dry-run
 ```
 
+通过命令执行版本发布流程，但不发布到 npm：
+
+```sh
+vp run release
+vp run release:dry
+```
+
+这里使用 `release-it` 来更新版本号、生成 release commit、创建 git tag、推送到远端，并创建 GitHub Release。
+不会发布到 npm。
+
 发布包中应包含：
 
 - `dist/`
