@@ -45,7 +45,12 @@ interface BackupDeleteOptions extends BackupCommandOptions {
 }
 
 function createSpinner(enabled: boolean, text: string) {
-  return enabled ? ora(text).start() : undefined;
+  return enabled
+    ? ora({
+        text,
+        discardStdin: false,
+      }).start()
+    : undefined;
 }
 
 function sleep(ms: number): Promise<void> {
