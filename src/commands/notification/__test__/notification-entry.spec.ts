@@ -159,7 +159,7 @@ test("tryRunNotificationCommand dispatches notification get subcommands", async 
   expect(listUserNotifications).toHaveBeenCalledWith({
     username: "demo-user",
     size: 1,
-    fieldSelector: ["metadata.name==notification-1"],
+    fieldSelector: ["metadata.name=notification-1"],
   });
 });
 

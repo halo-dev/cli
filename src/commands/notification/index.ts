@@ -88,7 +88,7 @@ async function getNotificationByName(
   const response = await api.listUserNotifications({
     username,
     size: 1,
-    fieldSelector: [`metadata.name==${name}`],
+    fieldSelector: [`metadata.name=${name}`],
   });
   const notification = response.data.items[0];
 
