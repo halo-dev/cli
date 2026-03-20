@@ -70,11 +70,10 @@ function getCommentListWidths(): number[] {
   const nameWidth = 36;
   const ownerWidth = 18;
   const approvedWidth = 9;
-  const hiddenWidth = 8;
   const createdAtWidth = 17;
-  const reservedWidth = nameWidth + ownerWidth + approvedWidth + hiddenWidth + createdAtWidth + 10;
+  const reservedWidth = nameWidth + ownerWidth + approvedWidth + createdAtWidth + 8;
   const contentWidth = Math.min(Math.max(26, width - reservedWidth), 56);
-  return [nameWidth, ownerWidth, contentWidth, approvedWidth, hiddenWidth, createdAtWidth];
+  return [nameWidth, ownerWidth, contentWidth, approvedWidth, createdAtWidth];
 }
 
 function getReplyListWidths(): number[] {
@@ -137,11 +136,10 @@ export function printCommentList(list: ListedCommentList, json = false): void {
     truncateDisplayText(resolveCommentOwnerName(item), widths[1]!),
     truncateDisplayText(stripHtmlTags(item.comment.spec.content), widths[2]!),
     item.comment.spec.approved ? "yes" : "no",
-    item.comment.spec.hidden ? "yes" : "no",
     formatTimestamp(item.comment.metadata.creationTimestamp ?? undefined),
   ]);
 
-  printTable(["NAME", "OWNER", "CONTENT", "APPROVED", "HIDDEN", "CREATED AT"], rows, widths);
+  printTable(["NAME", "OWNER", "CONTENT", "APPROVED", "CREATED AT"], rows, widths);
   printPaginationFooter({
     page: list.page,
     size: list.size,
