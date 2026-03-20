@@ -4,6 +4,12 @@
 
 一个用于管理 [Halo](https://www.halo.run) 实例的命令行工具。
 
+<p>
+<a href="https://www.npmjs.com/package/@halo-dev/cli"><img alt="NPM Downloads" src="https://img.shields.io/npm/dm/%40halo-dev%2Fcli"></a>
+<a href="https://www.npmjs.com/package/@halo-dev/cli"><img alt="NPM Version" src="https://img.shields.io/npm/v/%40halo-dev%2Fcli"></a>
+<a href="https://www.npmjs.com/package/@halo-dev/cli"><img alt="NPM Last Update" src="https://img.shields.io/npm/last-update/%40halo-dev%2Fcli"></a>
+</p>
+
 [![asciicast](https://asciinema.org/a/LiTFpF00sFMKnNGX.svg)](https://asciinema.org/a/LiTFpF00sFMKnNGX)
 
 ## 安装
