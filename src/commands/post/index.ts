@@ -15,11 +15,11 @@ import {
   parseCsvOption,
   parseNumberOption,
 } from "../../utils/options.js";
-import { printDetailObject, printJson } from "../../utils/output.js";
+import { printJson } from "../../utils/output.js";
 import { type HaloClients, RuntimeContext } from "../../utils/runtime.js";
 import { normalizeBaseUrl } from "../../utils/url.js";
 import { openUrlInBrowser, resolvePostOpenUrl } from "./browser.js";
-import { printPostList } from "./format.js";
+import { printPostDetail, printPostList } from "./format.js";
 import {
   CONTENT_JSON_ANNOTATION,
   extractDraftContent,
@@ -501,13 +501,7 @@ function buildPostCli(runtime: RuntimeContext): CAC {
     .action(async (name: string, options: PostCommandOptions) => {
       const { clients } = await runtime.getClientsForOptions(options);
       const detail = await loadPostDetail(clients, name);
-
-      if (options.json) {
-        printJson(detail);
-        return;
-      }
-
-      printDetailObject(detail as unknown as Record<string, unknown>);
+      printPostDetail(detail, options.json);
     });
 
   postCli

@@ -1,9 +1,9 @@
-import type { ListedPostList } from "@halo-dev/api-client";
+import type { ListedPostList, Post } from "@halo-dev/api-client";
 import Table from "cli-table3";
 import dayjs from "dayjs";
 import stringWidth from "string-width";
 
-import { printJson, printPaginationFooter } from "../../utils/output.js";
+import { printDetailObject, printJson, printPaginationFooter } from "../../utils/output.js";
 
 function resolveTerminalWidth(): number {
   return process.stdout.columns && process.stdout.columns > 0 ? process.stdout.columns : 120;
@@ -117,4 +117,31 @@ export function printPostList(list: ListedPostList, json = false): void {
     hasPrevious: list.hasPrevious,
     itemLabel: "post",
   });
+}
+
+interface PostDetailPayload {
+  post: Post;
+  content: {
+    raw: string;
+    content: string;
+    rawType: string;
+  };
+}
+
+export function printPostDetail(detail: PostDetailPayload, json = false): void {
+  if (json) {
+    printJson(detail);
+    return;
+  }
+
+  printDetailObject({
+    metadata: detail.post.metadata,
+    spec: detail.post.spec,
+    status: detail.post.status,
+    content: {
+      rawType: detail.content.rawType,
+    },
+  });
+
+  process.stdout.write('\nUse "--json" to view the full content payload.\n');
 }

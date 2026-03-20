@@ -8,10 +8,10 @@ import { tryRunCommandCliRoute } from "../../utils/command-router.js";
 import { confirmDangerousAction } from "../../utils/confirmation.js";
 import { CliError } from "../../utils/errors.js";
 import { parseBooleanOption, parseNumberOption } from "../../utils/options.js";
-import { printDetailObject, printJson } from "../../utils/output.js";
+import { printJson } from "../../utils/output.js";
 import { type HaloClients, RuntimeContext } from "../../utils/runtime.js";
 import { openUrlInBrowser, resolveSinglePageOpenUrl } from "./browser.js";
-import { printSinglePageList } from "./format.js";
+import { printSinglePageDetail, printSinglePageList } from "./format.js";
 import { normalizeCreateSinglePageInput, normalizeUpdateSinglePageInput } from "./input.js";
 
 interface SinglePageCommandOptions {
@@ -288,13 +288,7 @@ function buildSinglePageCli(runtime: RuntimeContext): CAC {
     .action(async (name: string, options: SinglePageCommandOptions) => {
       const { clients } = await runtime.getClientsForOptions(options);
       const detail = await loadSinglePageDetail(clients, name);
-
-      if (options.json) {
-        printJson(detail);
-        return;
-      }
-
-      printDetailObject(detail as unknown as Record<string, unknown>);
+      printSinglePageDetail(detail, options.json);
     });
 
   singlePageCli

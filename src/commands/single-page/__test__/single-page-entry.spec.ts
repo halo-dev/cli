@@ -117,6 +117,53 @@ test("tryRunSinglePageCommand dispatches get subcommands", async () => {
   expect(fetchSinglePageHeadContent).toHaveBeenCalledWith({ name: "about" });
 });
 
+test("tryRunSinglePageCommand prints single page detail in table mode", async () => {
+  const stdoutSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+
+  const getSinglePage = vi.fn().mockResolvedValue({
+    data: {
+      metadata: { name: "about" },
+      spec: { title: "About", publish: true },
+      status: {},
+    },
+  });
+  const fetchSinglePageHeadContent = vi.fn().mockResolvedValue({
+    data: { raw: "# About\nBody", rawType: "markdown" },
+  });
+  const runtimeMock = {
+    getClientsForOptions: vi.fn().mockResolvedValue({
+      clients: {
+        core: {
+          content: {
+            singlePage: {
+              getSinglePage,
+            },
+          },
+        },
+        console: {
+          content: {
+            singlePage: {
+              fetchSinglePageHeadContent,
+            },
+          },
+        },
+      },
+    }),
+  };
+
+  await expect(
+    tryRunSinglePageCommand(["single-page", "get", "about"], runtimeMock as never),
+  ).resolves.toBe(true);
+
+  const output = stdoutSpy.mock.calls.map((call) => String(call[0])).join("");
+  expect(output).toContain("metadata.name");
+  expect(output).toContain("about");
+  expect(output).toContain("content.rawType");
+  expect(output).toContain("markdown");
+  expect(output).not.toContain("# About");
+  expect(output).toContain('Use "--json" to view the full content payload.');
+});
+
 test("tryRunSinglePageCommand dispatches export-json subcommands", async () => {
   silenceStdout();
 

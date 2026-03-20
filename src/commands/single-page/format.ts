@@ -1,9 +1,9 @@
-import type { ListedSinglePageList } from "@halo-dev/api-client";
+import type { ListedSinglePageList, SinglePage } from "@halo-dev/api-client";
 import Table from "cli-table3";
 import dayjs from "dayjs";
 import stringWidth from "string-width";
 
-import { printJson, printPaginationFooter } from "../../utils/output.js";
+import { printDetailObject, printJson, printPaginationFooter } from "../../utils/output.js";
 
 function resolveTerminalWidth(): number {
   return process.stdout.columns && process.stdout.columns > 0 ? process.stdout.columns : 120;
@@ -117,4 +117,31 @@ export function printSinglePageList(list: ListedSinglePageList, json = false): v
     hasPrevious: list.hasPrevious,
     itemLabel: "single page",
   });
+}
+
+interface SinglePageDetailPayload {
+  page: SinglePage;
+  content: {
+    raw: string;
+    content: string;
+    rawType: string;
+  };
+}
+
+export function printSinglePageDetail(detail: SinglePageDetailPayload, json = false): void {
+  if (json) {
+    printJson(detail);
+    return;
+  }
+
+  printDetailObject({
+    metadata: detail.page.metadata,
+    spec: detail.page.spec,
+    status: detail.page.status,
+    content: {
+      rawType: detail.content.rawType,
+    },
+  });
+
+  process.stdout.write('\nUse "--json" to view the full content payload.\n');
 }

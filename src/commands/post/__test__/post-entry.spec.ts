@@ -103,6 +103,53 @@ test("tryRunPostCommand dispatches get subcommands", async () => {
   expect(fetchPostHeadContent).toHaveBeenCalledWith({ name: "post-1" });
 });
 
+test("tryRunPostCommand prints post detail in table mode", async () => {
+  const stdoutSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+
+  const getPost = vi.fn().mockResolvedValue({
+    data: {
+      metadata: { name: "post-1" },
+      spec: { title: "Hello Halo", publish: true },
+      status: {},
+    },
+  });
+  const fetchPostHeadContent = vi.fn().mockResolvedValue({
+    data: { raw: "# Hello Halo\nBody", rawType: "markdown" },
+  });
+  const runtimeMock = {
+    getClientsForOptions: vi.fn().mockResolvedValue({
+      clients: {
+        core: {
+          content: {
+            post: {
+              getPost,
+            },
+          },
+        },
+        console: {
+          content: {
+            post: {
+              fetchPostHeadContent,
+            },
+          },
+        },
+      },
+    }),
+  };
+
+  await expect(tryRunPostCommand(["post", "get", "post-1"], runtimeMock as never)).resolves.toBe(
+    true,
+  );
+
+  const output = stdoutSpy.mock.calls.map((call) => String(call[0])).join("");
+  expect(output).toContain("metadata.name");
+  expect(output).toContain("post-1");
+  expect(output).toContain("content.rawType");
+  expect(output).toContain("markdown");
+  expect(output).not.toContain("# Hello Halo");
+  expect(output).toContain('Use "--json" to view the full content payload.');
+});
+
 test("tryRunPostCommand dispatches export-json subcommands", async () => {
   silenceStdout();
 
