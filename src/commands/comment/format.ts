@@ -180,11 +180,10 @@ export function printReplyList(list: ListedReplyList | ListedReply[], json = fal
     truncateDisplayText(resolveCommentOwnerName(item), widths[1]!),
     truncateDisplayText(stripHtmlTags(item.reply.spec.content), widths[2]!),
     item.reply.spec.approved ? "yes" : "no",
-    item.reply.spec.hidden ? "yes" : "no",
     formatTimestamp(item.reply.metadata.creationTimestamp ?? undefined),
   ]);
 
-  printTable(["NAME", "OWNER", "CONTENT", "APPROVED", "HIDDEN", "CREATED AT"], rows, widths);
+  printTable(["NAME", "OWNER", "CONTENT", "APPROVED", "CREATED AT"], rows, widths);
 
   if (Array.isArray(list)) {
     process.stdout.write(`\n${total} repl${total === 1 ? "y" : "ies"}\n`);

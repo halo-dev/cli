@@ -149,6 +149,7 @@ test("printReplyList supports array input and pluralizes summary", () => {
   const tableOutput = String(stdoutSpy.mock.calls[0]?.[0]);
   const summaryOutput = String(stdoutSpy.mock.calls[1]?.[0]);
 
+  expect(tableOutput).not.toContain("HIDDEN");
   expect(tableOutput).toContain("reply-1");
   expect(tableOutput).toContain("Reply User");
   expect(tableOutput).toContain("First reply");
