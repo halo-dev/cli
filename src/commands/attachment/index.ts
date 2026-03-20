@@ -4,6 +4,7 @@ import { basename } from "node:path";
 
 import { AttachmentV1alpha1Api, AttachmentV1alpha1ConsoleApi } from "@halo-dev/api-client";
 import cac, { type CAC } from "cac";
+import { lookup as lookupMimeType } from "mime-types";
 import ora from "ora";
 import prettyBytes from "pretty-bytes";
 
@@ -67,8 +68,9 @@ export function resolveAttachmentUploadSource(options: AttachmentUploadOptions):
 async function loadFileAsAttachment(filePath: string): Promise<File> {
   const normalizedPath = filePath.trim();
   const buffer = await readFile(normalizedPath);
+  const mediaType = lookupMimeType(normalizedPath) || "application/octet-stream";
   return new File([buffer], basename(normalizedPath), {
-    type: "application/octet-stream",
+    type: mediaType,
   });
 }
 

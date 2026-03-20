@@ -148,6 +148,63 @@ test("tryRunAttachmentCommand dispatches upload subcommands from urls", async ()
   });
 });
 
+test("tryRunAttachmentCommand infers media type for local file uploads", async () => {
+  silenceStdout();
+
+  const uploadAttachmentForConsole = vi.fn().mockResolvedValue({
+    data: {
+      metadata: {
+        name: "attachment-1",
+      },
+      spec: {
+        displayName: "image.png",
+      },
+      status: {
+        permalink: "https://example.com/image.png",
+      },
+    },
+  });
+  const runtimeMock = {
+    getClientsForOptions: vi.fn().mockResolvedValue({
+      profile: {
+        baseUrl: "https://example.com",
+      },
+      clients: {
+        axios: {},
+      },
+    }),
+  };
+
+  const { AttachmentV1alpha1ConsoleApi } = await import("@halo-dev/api-client");
+  vi.spyOn(AttachmentV1alpha1ConsoleApi.prototype, "uploadAttachmentForConsole").mockImplementation(
+    uploadAttachmentForConsole,
+  );
+
+  const fsPromises = await import("node:fs/promises");
+  const tempFilePath = "/tmp/halo-cli-attachment-upload-image.png";
+  await fsPromises.writeFile(tempFilePath, Buffer.from("png"));
+
+  try {
+    await expect(
+      tryRunAttachmentCommand(
+        ["attachment", "upload", "--file", tempFilePath, "--json"],
+        runtimeMock as never,
+      ),
+    ).resolves.toBe(true);
+  } finally {
+    await fsPromises.unlink(tempFilePath).catch(() => undefined);
+  }
+
+  expect(runtimeMock.getClientsForOptions).toHaveBeenCalledOnce();
+  expect(uploadAttachmentForConsole).toHaveBeenCalledOnce();
+  expect(uploadAttachmentForConsole.mock.calls[0]?.[0]).toMatchObject({
+    file: expect.objectContaining({
+      name: "halo-cli-attachment-upload-image.png",
+      type: "image/png",
+    }),
+  });
+});
+
 test("tryRunAttachmentCommand dispatches delete subcommands", async () => {
   silenceStdout();
 

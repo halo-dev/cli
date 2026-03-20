@@ -42,6 +42,9 @@ importers:
       dayjs:
         specifier: ^1.11.20
         version: 1.11.20
+      mime-types:
+        specifier: ^3.0.2
+        version: 3.0.2
       ora:
         specifier: ^9.3.0
         version: 9.3.0
@@ -55,6 +58,9 @@ importers:
         specifier: ^8.2.0
         version: 8.2.0
     devDependencies:
+      '@types/mime-types':
+        specifier: ^3.0.1
+        version: 3.0.1
       '@types/node':
         specifier: ^24.12.0
         version: 24.12.0
@@ -1100,6 +1106,9 @@ packages:
 
   '@types/estree@1.0.8':
     resolution: {integrity: sha512-dWHzHa2WqEXI/O1E9OjrocMTKJl2mSrEolh1Iomrv6U+JuNwaHXsXx9bLu5gG7BUWFIN0skIQJQ/L1rIex4X6w==}
+
+  '@types/mime-types@3.0.1':
+    resolution: {integrity: sha512-xRMsfuQbnRq1Ef+C+RKaENOxXX87Ygl38W1vDfPHRku02TgQr+Qd8iivLtAMcR0KF5/29xlnFihkTlbqFrGOVQ==}
 
   '@types/node@24.12.0':
     resolution: {integrity: sha512-GYDxsZi3ChgmckRT9HPU0WEhKLP08ev/Yfcq2AstjrDASOYCSXeyjDsHg4v5t4jOj7cyDX3vmprafKlWIG9MXQ==}
@@ -3018,6 +3027,8 @@ snapshots:
   '@types/deep-eql@4.0.2': {}
 
   '@types/estree@1.0.8': {}
+
+  '@types/mime-types@3.0.1': {}
 
   '@types/node@24.12.0':
     dependencies:
