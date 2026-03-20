@@ -73,7 +73,12 @@ async function loadFileAsAttachment(filePath: string): Promise<File> {
 }
 
 function createSpinner(enabled: boolean, text: string) {
-  return enabled ? ora(text).start() : undefined;
+  return enabled
+    ? ora({
+        text,
+        discardStdin: false,
+      }).start()
+    : undefined;
 }
 
 function buildAttachmentCli(runtime: RuntimeContext): CAC {
