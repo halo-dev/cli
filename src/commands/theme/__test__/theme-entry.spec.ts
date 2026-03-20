@@ -1,5 +1,13 @@
 import { afterEach, expect, test, vi } from "vitest";
 
+vi.mock("@inquirer/prompts", () => ({
+  checkbox: vi.fn(),
+  confirm: vi.fn(),
+  input: vi.fn(),
+}));
+
+import { confirm, input } from "@inquirer/prompts";
+
 import { tryRunThemeCommand } from "../index.js";
 
 afterEach(() => {
@@ -8,6 +16,17 @@ afterEach(() => {
 
 function silenceStdout() {
   return vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+}
+
+function setInteractiveTerminal() {
+  Object.defineProperty(process.stdin, "isTTY", {
+    value: true,
+    configurable: true,
+  });
+  Object.defineProperty(process.stdout, "isTTY", {
+    value: true,
+    configurable: true,
+  });
 }
 
 function createThemeRuntimeMock(overrides: Record<string, unknown>) {
@@ -325,6 +344,371 @@ test("tryRunThemeCommand dispatches upgrade subcommands from urls", async () => 
     name: "demo-theme",
     upgradeFromUriRequest: {
       uri: "https://example.com/theme.zip",
+    },
+  });
+});
+
+test("tryRunThemeCommand dispatches online upgrade commands after release note confirmation", async () => {
+  const stdoutSpy = silenceStdout();
+  setInteractiveTerminal();
+  vi.mocked(confirm).mockResolvedValue(true);
+  vi.mocked(input).mockResolvedValue("y");
+
+  const getTheme = vi.fn().mockResolvedValue({
+    data: {
+      metadata: {
+        name: "demo-theme",
+        annotations: {
+          "store.halo.run/app-id": "demo-theme-app",
+        },
+      },
+      spec: {
+        displayName: "Demo Theme",
+      },
+    },
+  });
+  const upgradeThemeFromUri = vi.fn().mockResolvedValue({
+    data: {
+      metadata: { name: "demo-theme" },
+    },
+  });
+  const runtimeMock = createThemeRuntimeMock({
+    core: {
+      theme: {
+        theme: {
+          getTheme,
+        },
+      },
+      secret: {
+        getSecret: vi.fn().mockResolvedValue({
+          data: {
+            stringData: {},
+          },
+        }),
+      },
+    },
+    console: {
+      theme: {
+        theme: {
+          upgradeThemeFromUri,
+        },
+      },
+    },
+    axios: {
+      get: vi.fn().mockResolvedValue({
+        data: {
+          build: {
+            name: "halo",
+            version: "2.20.0",
+          },
+        },
+      }),
+    },
+  });
+
+  vi.spyOn((await import("axios")).default, "create").mockReturnValue({
+    get: vi.fn().mockImplementation((url: string) => {
+      if (url === "/apis/api.store.halo.run/v1alpha1/applications/demo-theme-app") {
+        return Promise.resolve({
+          data: {
+            latestRelease: {
+              release: {
+                metadata: {
+                  name: "release-1",
+                },
+              },
+              assets: [
+                {
+                  metadata: {
+                    name: "theme.zip",
+                  },
+                },
+              ],
+            },
+          },
+        });
+      }
+
+      if (
+        url ===
+        "/apis/api.store.halo.run/v1alpha1/applications/demo-theme-app/releases/release-1/download/theme.zip"
+      ) {
+        return Promise.resolve({
+          data: {
+            url: "https://downloads.example.com/demo-theme.zip",
+          },
+        });
+      }
+
+      return Promise.reject(new Error(`Unexpected app store get call: ${url}`));
+    }),
+  } as never);
+
+  await expect(
+    tryRunThemeCommand(
+      ["theme", "upgrade", "demo-theme", "--online", "--json"],
+      runtimeMock as never,
+    ),
+  ).resolves.toBe(true);
+
+  expect(stdoutSpy).toHaveBeenCalledWith(
+    "- Demo Theme: https://www.halo.run/store/apps/demo-theme-app/releases/release-1\n",
+  );
+  expect(upgradeThemeFromUri).toHaveBeenCalledWith({
+    name: "demo-theme",
+    upgradeFromUriRequest: {
+      uri: "https://downloads.example.com/demo-theme.zip",
+    },
+  });
+});
+
+test("tryRunThemeCommand skips release note confirmation with --yes", async () => {
+  vi.clearAllMocks();
+  silenceStdout();
+
+  const getTheme = vi.fn().mockResolvedValue({
+    data: {
+      metadata: {
+        name: "demo-theme",
+        annotations: {
+          "store.halo.run/app-id": "demo-theme-app",
+        },
+      },
+      spec: {
+        displayName: "Demo Theme",
+      },
+    },
+  });
+  const upgradeThemeFromUri = vi.fn().mockResolvedValue({
+    data: {
+      metadata: { name: "demo-theme" },
+    },
+  });
+  const runtimeMock = createThemeRuntimeMock({
+    core: {
+      theme: {
+        theme: {
+          getTheme,
+        },
+      },
+      secret: {
+        getSecret: vi.fn().mockResolvedValue({
+          data: {
+            stringData: {},
+          },
+        }),
+      },
+    },
+    console: {
+      theme: {
+        theme: {
+          upgradeThemeFromUri,
+        },
+      },
+    },
+    axios: {
+      get: vi.fn().mockResolvedValue({
+        data: {
+          build: {
+            name: "halo",
+            version: "2.20.0",
+          },
+        },
+      }),
+    },
+  });
+
+  vi.spyOn((await import("axios")).default, "create").mockReturnValue({
+    get: vi.fn().mockImplementation((url: string) => {
+      if (url === "/apis/api.store.halo.run/v1alpha1/applications/demo-theme-app") {
+        return Promise.resolve({
+          data: {
+            latestRelease: {
+              release: {
+                metadata: {
+                  name: "release-1",
+                },
+              },
+              assets: [
+                {
+                  metadata: {
+                    name: "theme.zip",
+                  },
+                },
+              ],
+            },
+          },
+        });
+      }
+
+      if (
+        url ===
+        "/apis/api.store.halo.run/v1alpha1/applications/demo-theme-app/releases/release-1/download/theme.zip"
+      ) {
+        return Promise.resolve({
+          data: {
+            url: "https://downloads.example.com/demo-theme.zip",
+          },
+        });
+      }
+
+      return Promise.reject(new Error(`Unexpected app store get call: ${url}`));
+    }),
+  } as never);
+
+  await expect(
+    tryRunThemeCommand(
+      ["theme", "upgrade", "demo-theme", "--online", "--yes", "--json"],
+      runtimeMock as never,
+    ),
+  ).resolves.toBe(true);
+
+  expect(confirm).not.toHaveBeenCalled();
+  expect(input).not.toHaveBeenCalled();
+  expect(upgradeThemeFromUri).toHaveBeenCalledOnce();
+});
+
+test("tryRunThemeCommand upgrades batch theme candidates after release note confirmation", async () => {
+  const stdoutSpy = silenceStdout();
+  setInteractiveTerminal();
+  vi.mocked(confirm).mockResolvedValue(true);
+
+  const listThemes = vi.fn().mockResolvedValue({
+    data: {
+      items: [
+        {
+          metadata: {
+            name: "demo-theme",
+            annotations: {
+              "store.halo.run/app-id": "demo-theme-app",
+            },
+          },
+          spec: {
+            version: "1.0.0",
+            displayName: "Demo Theme",
+          },
+        },
+      ],
+      total: 1,
+      hasNext: false,
+    },
+  });
+  const upgradeThemeFromUri = vi.fn().mockResolvedValue({
+    data: {
+      metadata: { name: "demo-theme" },
+    },
+  });
+  const runtimeMock = createThemeRuntimeMock({
+    core: {
+      secret: {
+        getSecret: vi.fn().mockResolvedValue({
+          data: {
+            stringData: {},
+          },
+        }),
+      },
+    },
+    console: {
+      theme: {
+        theme: {
+          listThemes,
+          upgradeThemeFromUri,
+        },
+      },
+    },
+    axios: {
+      get: vi.fn().mockResolvedValue({
+        data: {
+          build: {
+            name: "halo",
+            version: "2.20.0",
+          },
+        },
+      }),
+    },
+  });
+
+  vi.spyOn((await import("axios")).default, "create").mockReturnValue({
+    get: vi
+      .fn()
+      .mockImplementation((url: string, options?: { params?: Record<string, unknown> }) => {
+        if (url === "/apis/api.store.halo.run/v1alpha1/applications") {
+          expect(options).toEqual({
+            params: {
+              type: "THEME",
+              names: ["demo-theme-app"],
+            },
+          });
+
+          return Promise.resolve({
+            data: {
+              items: [
+                {
+                  downloadable: true,
+                  application: {
+                    metadata: {
+                      name: "demo-theme-app",
+                    },
+                  },
+                  latestRelease: {
+                    spec: {
+                      version: "1.1.0",
+                      requires: ">=2.0.0",
+                    },
+                  },
+                },
+              ],
+            },
+          });
+        }
+
+        if (url === "/apis/api.store.halo.run/v1alpha1/applications/demo-theme-app") {
+          return Promise.resolve({
+            data: {
+              latestRelease: {
+                release: {
+                  metadata: {
+                    name: "release-1",
+                  },
+                },
+                assets: [
+                  {
+                    metadata: {
+                      name: "theme.zip",
+                    },
+                  },
+                ],
+              },
+            },
+          });
+        }
+
+        if (
+          url ===
+          "/apis/api.store.halo.run/v1alpha1/applications/demo-theme-app/releases/release-1/download/theme.zip"
+        ) {
+          return Promise.resolve({
+            data: {
+              url: "https://downloads.example.com/demo-theme.zip",
+            },
+          });
+        }
+
+        return Promise.reject(new Error(`Unexpected app store get call: ${url}`));
+      }),
+  } as never);
+
+  await expect(
+    tryRunThemeCommand(["theme", "upgrade", "--all", "--json"], runtimeMock as never),
+  ).resolves.toBe(true);
+
+  expect(stdoutSpy).toHaveBeenCalledWith(
+    "- Demo Theme: https://www.halo.run/store/apps/demo-theme-app/releases/release-1\n",
+  );
+  expect(upgradeThemeFromUri).toHaveBeenCalledWith({
+    name: "demo-theme",
+    upgradeFromUriRequest: {
+      uri: "https://downloads.example.com/demo-theme.zip",
     },
   });
 });

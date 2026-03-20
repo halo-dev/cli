@@ -8,8 +8,9 @@ import cac, { type CAC } from "cac";
 import ora, { type Ora } from "ora";
 
 import {
+  confirmAppStoreReleaseReview,
   createAppStoreClient,
-  resolveLatestAppStoreDownloadUrl,
+  resolveLatestAppStoreRelease,
   resolvePluginAppStoreAppId,
   resolvePluginUpdates,
   resolvePluginUpgradeSource,
@@ -41,6 +42,7 @@ interface PluginMutationOptions extends PluginCommandOptions {
 }
 
 interface BatchUpgradeResult {
+  cancelled?: boolean;
   upgraded: Array<{ name: string; fromVersion?: string; toVersion: string }>;
   skipped: Array<{
     name: string;
@@ -49,6 +51,13 @@ interface BatchUpgradeResult {
     reason: string;
   }>;
   failed: Array<{ name: string; error: string }>;
+}
+
+interface PreparedPluginUpgradeCandidate {
+  plugin: Plugin;
+  update: { latestVersion: string; compatible: boolean };
+  releaseUrl: string;
+  downloadUrl: string;
 }
 
 interface BatchUpgradeProgressEvent {
@@ -350,9 +359,56 @@ async function upgradeAllPlugins(
     });
   }
 
-  onProgress?.({ type: "queued", count: selectedCandidates.length });
-
+  const preparedCandidates: PreparedPluginUpgradeCandidate[] = [];
   for (const item of selectedCandidates) {
+    try {
+      const appId = resolvePluginAppStoreAppId(item.plugin);
+      const release = await resolveLatestAppStoreRelease(appStoreClient, appId);
+      preparedCandidates.push({
+        ...item,
+        releaseUrl: release.releaseUrl,
+        downloadUrl: release.downloadUrl,
+      });
+    } catch (error) {
+      result.failed.push({
+        name: item.plugin.metadata.name,
+        error: error instanceof Error ? error.message : "Unknown upgrade error.",
+      });
+
+      onProgress?.({
+        type: "failed",
+        name: item.plugin.metadata.name,
+        fromVersion: item.plugin.spec.version,
+        toVersion: item.update.latestVersion,
+        error: error instanceof Error ? error.message : "Unknown upgrade error.",
+      });
+    }
+  }
+
+  if (preparedCandidates.length === 0) {
+    return result;
+  }
+
+  const confirmed = await confirmAppStoreReleaseReview(
+    {
+      commandPath: "halo plugin upgrade --all",
+      actionLabel: "upgrading App Store plugins",
+      items: preparedCandidates.map((item) => ({
+        name: item.plugin.spec.displayName ?? item.plugin.metadata.name,
+        releaseUrl: item.releaseUrl,
+      })),
+    },
+    options,
+  );
+
+  if (!confirmed) {
+    result.cancelled = true;
+    return result;
+  }
+
+  onProgress?.({ type: "queued", count: preparedCandidates.length });
+
+  for (const item of preparedCandidates) {
     const { plugin, update } = item;
 
     if (!update.compatible) {
@@ -380,11 +436,9 @@ async function upgradeAllPlugins(
         toVersion: update.latestVersion,
       });
 
-      const appId = resolvePluginAppStoreAppId(plugin);
-      const downloadUrl = await resolveLatestAppStoreDownloadUrl(appStoreClient, appId);
       await clients.console.plugin.plugin.upgradePluginFromUri({
         name: plugin.metadata.name,
-        upgradeFromUriRequest: { uri: downloadUrl },
+        upgradeFromUriRequest: { uri: item.downloadUrl },
       });
 
       onProgress?.({
@@ -475,6 +529,13 @@ function reportBatchUpgradeProgress(
 }
 
 function printBatchUpgradeResult(result: BatchUpgradeResult, json = false): void {
+  if (result.cancelled) {
+    if (!json) {
+      process.stdout.write("Cancelled upgrading App Store plugins.\n");
+    }
+    return;
+  }
+
   if (json) {
     printJson(result);
     return;
@@ -644,7 +705,6 @@ function buildPluginCli(runtime: RuntimeContext): CAC {
     .option("-y, --yes", "Skip selection and upgrade all compatible plugins")
     .action(async (name: string | undefined, options: PluginCommandOptions) => {
       const spinner = createSpinnerReporter(options.json);
-      const { clients } = await runtime.getClientsForOptions(options);
       const target = resolvePluginUpgradeTarget(name, options);
 
       if (target.mode === "all") {
@@ -661,6 +721,7 @@ function buildPluginCli(runtime: RuntimeContext): CAC {
         return;
       }
 
+      const { clients } = await runtime.getClientsForOptions(options);
       const source = resolvePluginUpgradeSource(options);
 
       let response;
@@ -685,12 +746,32 @@ function buildPluginCli(runtime: RuntimeContext): CAC {
           const pluginResponse = await clients.core.plugin.plugin.getPlugin({ name: target.name });
           const appId = resolvePluginAppStoreAppId(pluginResponse.data);
           const appStoreClient = await createAppStoreClient(clients);
-          const downloadUrl = await resolveLatestAppStoreDownloadUrl(appStoreClient, appId);
+          const release = await resolveLatestAppStoreRelease(appStoreClient, appId);
 
-          spinner.update(`Upgrading plugin ${target.name} from Halo App Store...`);
+          spinner.stop();
+          const confirmed = await confirmAppStoreReleaseReview(
+            {
+              commandPath: "halo plugin upgrade",
+              actionLabel: `upgrading plugin ${target.name}`,
+              items: [
+                {
+                  name: pluginResponse.data.spec?.displayName ?? target.name,
+                  releaseUrl: release.releaseUrl,
+                },
+              ],
+              requireTypedYes: true,
+            },
+            options,
+          );
+
+          if (!confirmed) {
+            return;
+          }
+
+          spinner.start(`Upgrading plugin ${target.name} from Halo App Store...`);
           response = await clients.console.plugin.plugin.upgradePluginFromUri({
             name: target.name,
-            upgradeFromUriRequest: { uri: downloadUrl },
+            upgradeFromUriRequest: { uri: release.downloadUrl },
           });
           spinner.succeed(`Upgraded plugin ${target.name}.`);
         }

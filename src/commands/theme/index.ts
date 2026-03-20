@@ -4,8 +4,9 @@ import cac, { type CAC } from "cac";
 import ora, { type Ora } from "ora";
 
 import {
+  confirmAppStoreReleaseReview,
   createAppStoreClient,
-  resolveLatestAppStoreDownloadUrl,
+  resolveLatestAppStoreRelease,
   resolveThemeAppStoreAppId,
   resolveThemeUpdates,
   resolvePluginUpgradeSource,
@@ -37,6 +38,7 @@ interface ThemeMutationOptions extends ThemeCommandOptions {
 }
 
 interface BatchUpgradeResult {
+  cancelled?: boolean;
   upgraded: Array<{ name: string; fromVersion?: string; toVersion: string }>;
   skipped: Array<{
     name: string;
@@ -45,6 +47,13 @@ interface BatchUpgradeResult {
     reason: string;
   }>;
   failed: Array<{ name: string; error: string }>;
+}
+
+interface PreparedThemeUpgradeCandidate {
+  theme: Theme;
+  update: { latestVersion: string; compatible: boolean };
+  releaseUrl: string;
+  downloadUrl: string;
 }
 
 interface BatchUpgradeProgressEvent {
@@ -360,9 +369,56 @@ async function upgradeAllThemes(
     });
   }
 
-  onProgress?.({ type: "queued", count: selectedCandidates.length });
-
+  const preparedCandidates: PreparedThemeUpgradeCandidate[] = [];
   for (const item of selectedCandidates) {
+    try {
+      const appId = resolveThemeAppStoreAppId(item.theme);
+      const release = await resolveLatestAppStoreRelease(appStoreClient, appId);
+      preparedCandidates.push({
+        ...item,
+        releaseUrl: release.releaseUrl,
+        downloadUrl: release.downloadUrl,
+      });
+    } catch (error) {
+      result.failed.push({
+        name: item.theme.metadata.name,
+        error: error instanceof Error ? error.message : "Unknown upgrade error.",
+      });
+
+      onProgress?.({
+        type: "failed",
+        name: item.theme.metadata.name,
+        fromVersion: item.theme.spec.version,
+        toVersion: item.update.latestVersion,
+        error: error instanceof Error ? error.message : "Unknown upgrade error.",
+      });
+    }
+  }
+
+  if (preparedCandidates.length === 0) {
+    return result;
+  }
+
+  const confirmed = await confirmAppStoreReleaseReview(
+    {
+      commandPath: "halo theme upgrade --all",
+      actionLabel: "upgrading App Store themes",
+      items: preparedCandidates.map((item) => ({
+        name: item.theme.spec.displayName ?? item.theme.metadata.name,
+        releaseUrl: item.releaseUrl,
+      })),
+    },
+    options,
+  );
+
+  if (!confirmed) {
+    result.cancelled = true;
+    return result;
+  }
+
+  onProgress?.({ type: "queued", count: preparedCandidates.length });
+
+  for (const item of preparedCandidates) {
     try {
       onProgress?.({
         type: "upgrading",
@@ -371,11 +427,9 @@ async function upgradeAllThemes(
         toVersion: item.update.latestVersion,
       });
 
-      const appId = resolveThemeAppStoreAppId(item.theme);
-      const downloadUrl = await resolveLatestAppStoreDownloadUrl(appStoreClient, appId);
       await clients.console.theme.theme.upgradeThemeFromUri({
         name: item.theme.metadata.name,
-        upgradeFromUriRequest: { uri: downloadUrl },
+        upgradeFromUriRequest: { uri: item.downloadUrl },
       });
 
       onProgress?.({
@@ -466,6 +520,13 @@ function reportBatchUpgradeProgress(
 }
 
 function printBatchUpgradeResult(result: BatchUpgradeResult, json = false): void {
+  if (result.cancelled) {
+    if (!json) {
+      process.stdout.write("Cancelled upgrading App Store themes.\n");
+    }
+    return;
+  }
+
   if (json) {
     printJson(result);
     return;
@@ -571,7 +632,6 @@ function buildThemeCli(runtime: RuntimeContext): CAC {
     .option("-y, --yes", "Skip selection and upgrade all compatible themes")
     .action(async (name: string | undefined, options: ThemeCommandOptions) => {
       const spinner = createSpinnerReporter(options.json);
-      const { clients } = await runtime.getClientsForOptions(options);
       const target = resolveThemeUpgradeTarget(name, options);
 
       if (target.mode === "all") {
@@ -588,6 +648,7 @@ function buildThemeCli(runtime: RuntimeContext): CAC {
         return;
       }
 
+      const { clients } = await runtime.getClientsForOptions(options);
       const source = resolvePluginUpgradeSource(options);
       let response;
 
@@ -613,12 +674,32 @@ function buildThemeCli(runtime: RuntimeContext): CAC {
           });
           const appId = resolveThemeAppStoreAppId(themeResponse.data);
           const appStoreClient = await createAppStoreClient(clients);
-          const downloadUrl = await resolveLatestAppStoreDownloadUrl(appStoreClient, appId);
+          const release = await resolveLatestAppStoreRelease(appStoreClient, appId);
 
-          spinner.update(`Upgrading theme ${target.name} from Halo App Store...`);
+          spinner.stop();
+          const confirmed = await confirmAppStoreReleaseReview(
+            {
+              commandPath: "halo theme upgrade",
+              actionLabel: `upgrading theme ${target.name}`,
+              items: [
+                {
+                  name: themeResponse.data.spec?.displayName ?? target.name,
+                  releaseUrl: release.releaseUrl,
+                },
+              ],
+              requireTypedYes: true,
+            },
+            options,
+          );
+
+          if (!confirmed) {
+            return;
+          }
+
+          spinner.start(`Upgrading theme ${target.name} from Halo App Store...`);
           response = await clients.console.theme.theme.upgradeThemeFromUri({
             name: target.name,
-            upgradeFromUriRequest: { uri: downloadUrl },
+            upgradeFromUriRequest: { uri: release.downloadUrl },
           });
           spinner.succeed(`Upgraded theme ${target.name}.`);
         }

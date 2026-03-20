@@ -1,9 +1,19 @@
-import { expect, test } from "vitest";
+import { afterEach, expect, test, vi } from "vitest";
+
+vi.mock("@inquirer/prompts", () => ({
+  confirm: vi.fn(),
+  input: vi.fn(),
+}));
+
+import { confirm } from "@inquirer/prompts";
 
 import {
   APP_STORE_PAT_SECRET_NAME,
+  buildAppStoreReleaseUrl,
+  confirmAppStoreReleaseReview,
   formatHaloProAuthorizationToken,
   getAppStoreHeaders,
+  resolveLatestAppStoreRelease,
   resolveLatestAppStoreDownloadUrl,
   resolvePluginAppStoreAppId,
   resolvePluginUpdateInfo,
@@ -11,6 +21,10 @@ import {
   resolveThemeAppStoreAppId,
   satisfiesRequires,
 } from "../app-store.js";
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 test("resolvePluginUpgradeSource accepts url source", () => {
   expect(resolvePluginUpgradeSource({ url: "https://example.com/plugin.jar" })).toEqual({
@@ -245,6 +259,114 @@ test("resolveLatestAppStoreDownloadUrl resolves the latest downloadable asset UR
 
   await expect(resolveLatestAppStoreDownloadUrl(appStoreClient, " demo-app ")).resolves.toBe(
     "https://downloads.example.com/plugin.jar",
+  );
+});
+
+test("resolveLatestAppStoreRelease resolves the latest release detail", async () => {
+  const appStoreClient = {
+    get: async (url: string) => {
+      if (url === "/apis/api.store.halo.run/v1alpha1/applications/demo-app") {
+        return {
+          data: {
+            latestRelease: {
+              release: {
+                metadata: {
+                  name: "release-1",
+                },
+              },
+              assets: [
+                {
+                  metadata: {
+                    name: "plugin.jar",
+                  },
+                },
+              ],
+            },
+          },
+        };
+      }
+
+      if (
+        url ===
+        "/apis/api.store.halo.run/v1alpha1/applications/demo-app/releases/release-1/download/plugin.jar"
+      ) {
+        return {
+          data: {
+            url: "https://downloads.example.com/plugin.jar",
+          },
+        };
+      }
+
+      throw new Error(`Unexpected app store get call: ${url}`);
+    },
+  } as never;
+
+  await expect(resolveLatestAppStoreRelease(appStoreClient, "demo-app")).resolves.toEqual({
+    appName: "demo-app",
+    releaseName: "release-1",
+    releaseUrl: "https://www.halo.run/store/apps/demo-app/releases/release-1",
+    downloadUrl: "https://downloads.example.com/plugin.jar",
+  });
+});
+
+test("buildAppStoreReleaseUrl builds Halo App Store release pages", () => {
+  expect(buildAppStoreReleaseUrl(" demo-app ", " release-1 ")).toBe(
+    "https://www.halo.run/store/apps/demo-app/releases/release-1",
+  );
+});
+
+test("confirmAppStoreReleaseReview skips prompting with --yes", async () => {
+  await expect(
+    confirmAppStoreReleaseReview(
+      {
+        commandPath: "halo plugin upgrade",
+        actionLabel: "upgrading App Store plugins",
+        items: [
+          {
+            name: "Demo Plugin",
+            releaseUrl: "https://www.halo.run/store/apps/demo/releases/release-1",
+          },
+        ],
+      },
+      { yes: true },
+    ),
+  ).resolves.toBe(true);
+
+  expect(confirm).not.toHaveBeenCalled();
+});
+
+test("confirmAppStoreReleaseReview returns false when user cancels", async () => {
+  Object.defineProperty(process.stdin, "isTTY", {
+    value: true,
+    configurable: true,
+  });
+  Object.defineProperty(process.stdout, "isTTY", {
+    value: true,
+    configurable: true,
+  });
+
+  vi.mocked(confirm).mockResolvedValue(false);
+  const stdoutSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+
+  await expect(
+    confirmAppStoreReleaseReview(
+      {
+        commandPath: "halo plugin upgrade",
+        actionLabel: "upgrading App Store plugins",
+        items: [
+          {
+            name: "Demo Plugin",
+            releaseUrl: "https://www.halo.run/store/apps/demo/releases/release-1",
+          },
+        ],
+      },
+      {},
+    ),
+  ).resolves.toBe(false);
+
+  expect(stdoutSpy).toHaveBeenCalledWith("Release notes:\n");
+  expect(stdoutSpy).toHaveBeenCalledWith(
+    "- Demo Plugin: https://www.halo.run/store/apps/demo/releases/release-1\n",
   );
 });
 

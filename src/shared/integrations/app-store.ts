@@ -1,4 +1,5 @@
 import type { Plugin, Theme } from "@halo-dev/api-client";
+import { confirm, input } from "@inquirer/prompts";
 import axios, { type AxiosInstance } from "axios";
 import semver from "semver";
 
@@ -19,6 +20,30 @@ export interface PluginUpdateInfo {
 export interface ThemeUpdateInfo {
   latestVersion: string;
   compatible: boolean;
+}
+
+export interface AppStoreLatestRelease {
+  appName: string;
+  releaseName: string;
+  releaseUrl: string;
+  downloadUrl: string;
+}
+
+export interface AppStoreReleaseConfirmationOptions {
+  json?: boolean;
+  yes?: boolean;
+}
+
+interface AppStoreReleaseConfirmationItem {
+  name: string;
+  releaseUrl: string;
+}
+
+interface AppStoreReleaseConfirmationConfig {
+  commandPath: string;
+  actionLabel: string;
+  items: AppStoreReleaseConfirmationItem[];
+  requireTypedYes?: boolean;
 }
 
 interface AppStoreReleaseAsset {
@@ -475,6 +500,33 @@ export async function resolveLatestAppStoreDownloadUrl(
   appStoreClient: AxiosInstance,
   appId: string,
 ): Promise<string> {
+  const release = await resolveLatestAppStoreRelease(appStoreClient, appId);
+  return release.downloadUrl;
+}
+
+export function buildAppStoreReleaseUrl(
+  appName: string,
+  releaseName: string,
+  baseUrl = DEFAULT_APP_STORE_BASE_URL,
+): string {
+  const normalizedAppName = appName.trim();
+  const normalizedReleaseName = releaseName.trim();
+
+  if (!normalizedAppName) {
+    throw new CliError("Halo App Store app id is empty.");
+  }
+
+  if (!normalizedReleaseName) {
+    throw new CliError("Halo App Store release name is empty.");
+  }
+
+  return `${normalizeBaseUrl(baseUrl)}/store/apps/${normalizedAppName}/releases/${normalizedReleaseName}`;
+}
+
+export async function resolveLatestAppStoreRelease(
+  appStoreClient: AxiosInstance,
+  appId: string,
+): Promise<AppStoreLatestRelease> {
   const appName = appId.trim();
   if (!appName) {
     throw new CliError("Halo App Store app id is empty.");
@@ -500,5 +552,60 @@ export async function resolveLatestAppStoreDownloadUrl(
     throw new CliError("The Halo App Store did not return a downloadable asset URL.");
   }
 
-  return downloadUrl;
+  return {
+    appName,
+    releaseName,
+    releaseUrl: buildAppStoreReleaseUrl(appName, releaseName),
+    downloadUrl,
+  };
+}
+
+export async function confirmAppStoreReleaseReview(
+  config: AppStoreReleaseConfirmationConfig,
+  options: AppStoreReleaseConfirmationOptions,
+): Promise<boolean> {
+  if (options.yes) {
+    return true;
+  }
+
+  if (!process.stdin.isTTY || !process.stdout.isTTY) {
+    throw new CliError(
+      `\`${config.commandPath}\` requires confirmation in interactive mode after reviewing release notes.`,
+    );
+  }
+
+  process.stdout.write("Release notes:\n");
+  for (const item of config.items) {
+    process.stdout.write(`- ${item.name}: ${item.releaseUrl}\n`);
+  }
+
+  const confirmed = await confirm({
+    message: `Have you reviewed the ${config.items.length === 1 ? "release notes above" : "release notes above for all selected items"}?`,
+    default: false,
+  });
+
+  if (!confirmed) {
+    if (!options.json) {
+      process.stdout.write(`Cancelled ${config.actionLabel}.\n`);
+    }
+    return false;
+  }
+
+  if (!config.requireTypedYes) {
+    return true;
+  }
+
+  const answer = await input({
+    message: "Type `y` to continue upgrading, or anything else to cancel",
+  });
+
+  if (answer.trim().toLowerCase() === "y") {
+    return true;
+  }
+
+  if (!options.json) {
+    process.stdout.write(`Cancelled ${config.actionLabel}.\n`);
+  }
+
+  return false;
 }
