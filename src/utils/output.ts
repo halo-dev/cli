@@ -1,4 +1,5 @@
-import chalk from "chalk";
+import { styleText } from "node:util";
+
 import Table from "cli-table3";
 
 export interface ExecutionTarget {
@@ -25,17 +26,17 @@ export function printExecutionTarget(target: ExecutionTarget, json = false): voi
     return;
   }
 
-  const badge = chalk.bold.black.bgCyan(" TARGET ");
-  const location = chalk.bold.cyanBright(target.baseUrl);
+  const badge = styleText(["bold", "black", "bgCyan"], " TARGET ");
+  const location = styleText(["bold", "cyanBright"], target.baseUrl);
 
   if (target.profileName) {
     process.stdout.write(
-      `${badge} ${chalk.dim("profile")} ${chalk.bold.white(target.profileName)} ${chalk.dim("->")} ${location}\n\n`,
+      `${badge} ${styleText("dim", "profile")} ${styleText(["bold", "white"], target.profileName)} ${styleText("dim", "->")} ${location}\n\n`,
     );
     return;
   }
 
-  process.stdout.write(`${badge} ${chalk.dim("url")} ${location}\n\n`);
+  process.stdout.write(`${badge} ${styleText("dim", "url")} ${location}\n\n`);
 }
 
 export function printPaginationFooter(options: PaginationFooterOptions): void {
