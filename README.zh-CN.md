@@ -4,6 +4,8 @@
 
 一个用于管理 [Halo](https://www.halo.run) 实例的命令行工具。
 
+[![asciicast](https://asciinema.org/a/LiTFpF00sFMKnNGX.svg)](https://asciinema.org/a/LiTFpF00sFMKnNGX)
+
 ## 安装
 
 ```sh

@@ -4,6 +4,8 @@
 
 A command-line tool for managing [Halo](https://www.halo.run) instances.
 
+[![asciicast](https://asciinema.org/a/LiTFpF00sFMKnNGX.svg)](https://asciinema.org/a/LiTFpF00sFMKnNGX)
+
 ## Install
 
 ```sh
