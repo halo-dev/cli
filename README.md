@@ -153,9 +153,11 @@ This package also ships with reusable skills under the root `skills/` directory.
 
 Included skills:
 
+- `halo`
 - `halo-shared`
 - `halo-auth`
 - `halo-content`
+- `halo-search`
 - `halo-operations`
 - `halo-moderation-notifications`
 
@@ -168,7 +170,7 @@ npx skills add halo-dev/cli
 Recommended starting point after installation:
 
 ```sh
-skills/halo-shared/SKILL.md
+skills/halo/SKILL.md
 ```
 
 ## Configuration

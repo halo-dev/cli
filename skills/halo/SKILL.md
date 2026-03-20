@@ -1,49 +1,59 @@
 ---
 name: halo
 version: 1.0.0
-description: "Complete Halo CLI skill set: authentication, content management, site operations, moderation, and notifications."
+description: Use when the task is to operate Halo CLI in general, or may involve login, profiles, posts, single pages, search, plugins, themes, attachments, backups, moments, comments, or notifications.
 references:
   - ../halo-shared
   - ../halo-auth
   - ../halo-content
+  - ../halo-search
   - ../halo-operations
   - ../halo-moderation-notifications
 metadata:
   openclaw:
-    category: "developer-tools"
+    category: developer-tools
     requires:
       bins: ["halo"]
     cliHelp: "halo --help"
 ---
 
-# halo
+# Halo
 
-This is the root skill for the Halo CLI. Importing this skill pulls in every
-domain-specific skill through the `references` list above, so tools such as
-openclaw can publish or install the full set in a single operation.
+This is the routing skill for the Halo CLI skill set.
 
-## Included skills
+If the request only says "use Halo CLI" or mixes multiple areas, start here, then jump to the domain skill that matches the task.
 
-| Skill                           | Description                                                                          |
-| ------------------------------- | ------------------------------------------------------------------------------------ |
-| `halo-shared`                   | Installation, authentication, profiles, global flags, JSON output, and safety rules. |
-| `halo-auth`                     | Authentication, profile management, and connection setup.                            |
-| `halo-content`                  | Post and single-page management.                                                     |
-| `halo-operations`               | Themes, plugins, attachments, backups, and moments.                                  |
-| `halo-moderation-notifications` | Comment moderation, reply workflows, and notification management.                    |
+## Skill Map
 
-## Quick start
+- `halo-shared`: shared rules, top-level command map, profiles, JSON output, destructive-action conventions
+- `halo-auth`: login, profile setup, profile switching, keyring and credential repair
+- `halo-content`: posts and single pages
+- `halo-search`: public site search
+- `halo-operations`: themes, plugins, attachments, backups, moments
+- `halo-moderation-notifications`: comments, replies, notifications
+
+## Fast Routing
+
+Use these commands to identify the right area:
 
 ```bash
-# Install the CLI globally
-npm install -g @halo-dev/cli
-
-# Log in to a Halo instance
-halo auth login --url https://your-halo.example --username admin
-
-# Explore available commands
 halo --help
+halo auth --help
+halo post --help
+halo single-page --help
+halo search --help
+halo plugin --help
+halo theme --help
+halo attachment --help
+halo backup --help
+halo moment --help
+halo comment --help
+halo notification --help
 ```
 
-Read `halo-shared` first for foundational conventions, then jump to the skill
-that matches your task.
+## Shared Defaults
+
+- Prefer an authenticated profile unless the task is public `halo search --url`.
+- Use `--profile <name>` when the environment matters.
+- Use `--json` for automation.
+- Use `--force` carefully for destructive non-interactive operations.

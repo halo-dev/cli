@@ -153,9 +153,11 @@ halo single-page get about --json
 
 包含的 skills：
 
+- `halo`
 - `halo-shared`
 - `halo-auth`
 - `halo-content`
+- `halo-search`
 - `halo-operations`
 - `halo-moderation-notifications`
 
@@ -168,7 +170,7 @@ npx skills add halo-dev/cli
 安装后，推荐先从这里开始：
 
 ```sh
-skills/halo-shared/SKILL.md
+skills/halo/SKILL.md
 ```
 
 ## 配置
