@@ -21,6 +21,7 @@ import {
   tryRunSinglePageCommand,
 } from "./commands/single-page/index.js";
 import { registerThemeCommands, tryRunThemeCommand } from "./commands/theme/index.js";
+import { getCompletionCandidates, renderCompletionScript } from "./utils/completion.js";
 import { formatError } from "./utils/errors.js";
 import { RuntimeContext } from "./utils/runtime.js";
 
@@ -78,6 +79,10 @@ for (const commandModule of commandModules) {
   commandModule.register(cli);
 }
 
+cli.command("completion <shell>", "Generate shell completion script").action((shell: string) => {
+  process.stdout.write(renderCompletionScript(shell));
+});
+
 cli.help();
 cli.version(packageJson.version);
 
@@ -86,6 +91,12 @@ async function main(): Promise<void> {
 
   if (args.length === 0) {
     cli.outputHelp();
+    return;
+  }
+
+  if (args[0] === "__complete") {
+    const current = process.env.HALO_COMP_CUR ?? "";
+    process.stdout.write(`${getCompletionCandidates(args.slice(1), current).join("\n")}\n`);
     return;
   }
 

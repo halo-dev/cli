@@ -129,6 +129,28 @@ halo post list --json
 halo single-page get about --json
 ```
 
+Enable shell completion:
+
+For `bash`:
+
+```sh
+eval "$(halo completion bash)"
+```
+
+For `zsh`:
+
+```sh
+eval "$(halo completion zsh)"
+```
+
+After enabling completion, you can use <kbd>Tab</kbd> to complete commands such as:
+
+```sh
+halo <TAB>
+halo auth <TAB>
+halo comment reply <TAB>
+```
+
 ## Main Command Areas
 
 Halo CLI currently includes these command groups:

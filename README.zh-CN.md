@@ -129,6 +129,28 @@ halo post list --json
 halo single-page get about --json
 ```
 
+启用终端补全：
+
+对于 `bash`：
+
+```sh
+eval "$(halo completion bash)"
+```
+
+对于 `zsh`：
+
+```sh
+eval "$(halo completion zsh)"
+```
+
+启用后，可以通过 <kbd>Tab</kbd> 补全这类命令：
+
+```sh
+halo <TAB>
+halo auth <TAB>
+halo comment reply <TAB>
+```
+
 ## 主要命令分组
 
 当前 Halo CLI 包含以下命令分组：
