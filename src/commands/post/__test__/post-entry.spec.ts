@@ -62,6 +62,7 @@ test("tryRunPostCommand dispatches list subcommands", async () => {
     keyword: "halo",
     publishPhase: undefined,
     categoryWithChildren: undefined,
+    labelSelector: ["content.halo.run/deleted=false"],
   });
 });
 

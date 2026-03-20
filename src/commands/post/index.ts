@@ -489,6 +489,7 @@ function buildPostCli(runtime: RuntimeContext): CAC {
         keyword: options.keyword,
         publishPhase: options.publishPhase as never,
         categoryWithChildren: options.category,
+        labelSelector: ["content.halo.run/deleted=false"],
       });
 
       printPostList(response.data, options.json);
