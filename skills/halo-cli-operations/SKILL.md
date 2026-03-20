@@ -1,9 +1,9 @@
 ---
-name: halo-operations
+name: halo-cli-operations
 version: 1.0.0
 description: Use when operating Halo themes, plugins, attachments, backups, or moments from the terminal, including install, upgrade, activate, upload, download, create, delete, and batch maintenance flows.
 references:
-  - ../halo-shared
+  - ../halo-cli-shared
 metadata:
   openclaw:
     category: developer-tools
@@ -12,7 +12,7 @@ metadata:
     cliHelp: "halo --help"
 ---
 
-# Halo Operations
+# Halo CLI Operations
 
 Use this skill for `halo theme`, `halo plugin`, `halo attachment`, `halo backup`, and `halo moment`.
 

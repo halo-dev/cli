@@ -1,9 +1,9 @@
 ---
-name: halo-content
+name: halo-cli-content
 version: 1.0.0
 description: Use when managing Halo posts or single pages from the terminal, including list, get, create, update, delete, open, export-json, import-json, categories, tags, and content files.
 references:
-  - ../halo-shared
+  - ../halo-cli-shared
 metadata:
   openclaw:
     category: content-management
@@ -12,11 +12,11 @@ metadata:
     cliHelp: "halo post --help && halo single-page --help"
 ---
 
-# Halo Content
+# Halo CLI Content
 
 Use this skill for `halo post` and `halo single-page`.
 
-If auth may not be ready, check `halo auth current` first or load `halo-auth`.
+If auth may not be ready, check `halo auth current` first or load `halo-cli-auth`.
 
 ## Commands
 

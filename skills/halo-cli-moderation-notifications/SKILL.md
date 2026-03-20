@@ -1,9 +1,9 @@
 ---
-name: halo-moderation-notifications
+name: halo-cli-moderation-notifications
 version: 1.0.0
 description: Use when moderating Halo comments or replies, creating official replies, listing unread notifications, deleting notifications, or marking notifications as read.
 references:
-  - ../halo-shared
+  - ../halo-cli-shared
 metadata:
   openclaw:
     category: content-management
@@ -12,7 +12,7 @@ metadata:
     cliHelp: "halo comment --help && halo notification --help"
 ---
 
-# Halo Moderation And Notifications
+# Halo CLI Moderation And Notifications
 
 Use this skill for `halo comment`, `halo comment reply`, and `halo notification`.
 

@@ -1,5 +1,5 @@
 ---
-name: halo-shared
+name: halo-cli-shared
 version: 1.0.0
 description: Use when a task broadly involves Halo CLI and the correct command area is not yet clear, or when you need shared rules for profiles, JSON output, help discovery, config paths, and destructive actions.
 metadata:
@@ -10,7 +10,7 @@ metadata:
     cliHelp: "halo --help"
 ---
 
-# Halo Shared
+# Halo CLI Shared
 
 Start here when the task says "use Halo CLI" but does not yet say whether it is auth, content, search, operations, or moderation.
 
@@ -80,8 +80,8 @@ Credentials are stored in the system keyring.
 
 ## Routing
 
-- Use `halo-auth` for login, current profile, profile list/use/delete, and credential repair.
-- Use `halo-content` for posts and single pages.
-- Use `halo-search` for public site search.
-- Use `halo-operations` for themes, plugins, attachments, backups, and moments.
-- Use `halo-moderation-notifications` for comments, replies, and notifications.
+- Use `halo-cli-auth` for login, current profile, profile list/use/delete, and credential repair.
+- Use `halo-cli-content` for posts and single pages.
+- Use `halo-cli-search` for public site search.
+- Use `halo-cli-operations` for themes, plugins, attachments, backups, and moments.
+- Use `halo-cli-moderation-notifications` for comments, replies, and notifications.

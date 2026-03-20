@@ -1,14 +1,14 @@
 ---
-name: halo
+name: halo-cli
 version: 1.0.0
 description: Use when the task is to operate Halo CLI in general, or may involve login, profiles, posts, single pages, search, plugins, themes, attachments, backups, moments, comments, or notifications.
 references:
-  - ../halo-shared
-  - ../halo-auth
-  - ../halo-content
-  - ../halo-search
-  - ../halo-operations
-  - ../halo-moderation-notifications
+  - ../halo-cli-shared
+  - ../halo-cli-auth
+  - ../halo-cli-content
+  - ../halo-cli-search
+  - ../halo-cli-operations
+  - ../halo-cli-moderation-notifications
 metadata:
   openclaw:
     category: developer-tools
@@ -17,7 +17,7 @@ metadata:
     cliHelp: "halo --help"
 ---
 
-# Halo
+# Halo CLI
 
 This is the routing skill for the Halo CLI skill set.
 
@@ -25,12 +25,12 @@ If the request only says "use Halo CLI" or mixes multiple areas, start here, the
 
 ## Skill Map
 
-- `halo-shared`: shared rules, top-level command map, profiles, JSON output, destructive-action conventions
-- `halo-auth`: login, profile setup, profile switching, keyring and credential repair
-- `halo-content`: posts and single pages
-- `halo-search`: public site search
-- `halo-operations`: themes, plugins, attachments, backups, moments
-- `halo-moderation-notifications`: comments, replies, notifications
+- `halo-cli-shared`: shared rules, top-level command map, profiles, JSON output, destructive-action conventions
+- `halo-cli-auth`: login, profile setup, profile switching, keyring and credential repair
+- `halo-cli-content`: posts and single pages
+- `halo-cli-search`: public site search
+- `halo-cli-operations`: themes, plugins, attachments, backups, moments
+- `halo-cli-moderation-notifications`: comments, replies, notifications
 
 ## Fast Routing
 

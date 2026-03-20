@@ -1,9 +1,9 @@
 ---
-name: halo-auth
+name: halo-cli-auth
 version: 1.0.0
 description: Use when working with Halo CLI login, bearer token or basic auth, profile setup, profile switching, current profile inspection, or fixing missing keyring credentials.
 references:
-  - ../halo-shared
+  - ../halo-cli-shared
 metadata:
   openclaw:
     category: developer-tools
@@ -12,7 +12,7 @@ metadata:
     cliHelp: "halo auth --help"
 ---
 
-# Halo Auth
+# Halo CLI Auth
 
 Use this skill for `halo auth` and `halo auth profile`.
 
@@ -88,7 +88,7 @@ halo auth login --profile production --url https://halo.example.com --auth-type 
 
 ## Routing
 
-- Use `halo-content` for posts and single pages.
-- Use `halo-search` for public site search.
-- Use `halo-operations` for themes, plugins, attachments, backups, and moments.
-- Use `halo-moderation-notifications` for comments, replies, and notifications.
+- Use `halo-cli-content` for posts and single pages.
+- Use `halo-cli-search` for public site search.
+- Use `halo-cli-operations` for themes, plugins, attachments, backups, and moments.
+- Use `halo-cli-moderation-notifications` for comments, replies, and notifications.

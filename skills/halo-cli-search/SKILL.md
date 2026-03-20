@@ -1,9 +1,9 @@
 ---
-name: halo-search
+name: halo-cli-search
 version: 1.0.0
 description: Use when searching public content on a Halo site with Halo CLI, especially for keyword search, site URL based search, result limits, or search without authenticated console access.
 references:
-  - ../halo-shared
+  - ../halo-cli-shared
 metadata:
   openclaw:
     category: developer-tools
@@ -12,7 +12,7 @@ metadata:
     cliHelp: "halo search --help"
 ---
 
-# Halo Search
+# Halo CLI Search
 
 Use this skill for `halo search`.
 
@@ -55,5 +55,5 @@ halo search --keyword "plugin" --limit 5 --json
 
 ## Related Skills
 
-- Use `halo-auth` if the task first needs a profile.
-- Use `halo-content` after search when the goal shifts to editing posts or pages.
+- Use `halo-cli-auth` if the task first needs a profile.
+- Use `halo-cli-content` after search when the goal shifts to editing posts or pages.
