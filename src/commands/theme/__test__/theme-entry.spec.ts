@@ -241,7 +241,7 @@ test("tryRunThemeCommand dispatches install subcommands from urls", async () => 
 
   await expect(
     tryRunThemeCommand(
-      ["theme", "install", "--url", "https://example.com/theme.zip", "--json"],
+      ["theme", "install", "--url", "https://example.com/theme.zip", "--yes", "--json"],
       runtimeMock as never,
     ),
   ).resolves.toBe(true);
@@ -251,6 +251,29 @@ test("tryRunThemeCommand dispatches install subcommands from urls", async () => 
       uri: "https://example.com/theme.zip",
     },
   });
+});
+
+test("tryRunThemeCommand rejects third-party install urls without --yes outside interactive terminals", async () => {
+  silenceStdout();
+
+  const runtimeMock = createThemeRuntimeMock({
+    console: {
+      theme: {
+        theme: {
+          installThemeFromUri: vi.fn(),
+        },
+      },
+    },
+  });
+
+  await expect(
+    tryRunThemeCommand(
+      ["theme", "install", "--url", "https://example.com/theme.zip", "--json"],
+      runtimeMock as never,
+    ),
+  ).rejects.toThrow(/requires confirmation in interactive mode.*or use --yes/i);
+
+  expect(runtimeMock.getClientsForOptions).not.toHaveBeenCalled();
 });
 
 test("tryRunThemeCommand rejects unknown online install flags during parsing", async () => {
@@ -335,7 +358,15 @@ test("tryRunThemeCommand dispatches upgrade subcommands from urls", async () => 
 
   await expect(
     tryRunThemeCommand(
-      ["theme", "upgrade", "demo-theme", "--url", "https://example.com/theme.zip", "--json"],
+      [
+        "theme",
+        "upgrade",
+        "demo-theme",
+        "--url",
+        "https://example.com/theme.zip",
+        "--yes",
+        "--json",
+      ],
       runtimeMock as never,
     ),
   ).resolves.toBe(true);

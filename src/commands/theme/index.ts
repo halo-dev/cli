@@ -16,6 +16,7 @@ import { confirmDangerousAction } from "../../utils/confirmation.js";
 import { CliError } from "../../utils/errors.js";
 import { printJson } from "../../utils/output.js";
 import { loadFileAsZip } from "../../utils/package-file.js";
+import { confirmThirdPartyPackageSource } from "../../utils/remote-source.js";
 import { RuntimeContext } from "../../utils/runtime.js";
 import { printTheme, printThemeList } from "./format.js";
 
@@ -592,13 +593,28 @@ function buildThemeCli(runtime: RuntimeContext): CAC {
     .option("--url <url>", "Remote ZIP URL")
     .option("--uri <uri>", "Remote ZIP URI")
     .option("--file <path>", "Local ZIP file path")
+    .option("-y, --yes", "Skip third-party URL confirmation")
     .action(async (options: ThemeCommandOptions) => {
       if (options.online) {
         throw new CliError("`halo theme install` does not support --online. Use --url or --file.");
       }
 
-      const { clients } = await runtime.getClientsForOptions(options);
       const source = resolveThemeInstallSource(options);
+      if (
+        source.url &&
+        !(await confirmThirdPartyPackageSource(
+          source.url,
+          {
+            commandPath: "halo theme install",
+            actionLabel: "installing theme",
+          },
+          options,
+        ))
+      ) {
+        return;
+      }
+
+      const { clients } = await runtime.getClientsForOptions(options);
       const formData = new FormData();
       if (source.file) {
         formData.append("file", await loadFileAsZip(source.file));
@@ -648,8 +664,22 @@ function buildThemeCli(runtime: RuntimeContext): CAC {
         return;
       }
 
-      const { clients } = await runtime.getClientsForOptions(options);
       const source = resolvePluginUpgradeSource(options);
+      if (
+        source.kind === "url" &&
+        !(await confirmThirdPartyPackageSource(
+          source.url,
+          {
+            commandPath: "halo theme upgrade",
+            actionLabel: `upgrading theme ${target.name}`,
+          },
+          options,
+        ))
+      ) {
+        return;
+      }
+
+      const { clients } = await runtime.getClientsForOptions(options);
       let response;
 
       try {

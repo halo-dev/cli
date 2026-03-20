@@ -73,7 +73,15 @@ test("tryRunPluginCommand dispatches single-plugin upgrade commands", async () =
 
   await expect(
     tryRunPluginCommand(
-      ["plugin", "upgrade", "demo-plugin", "--url", "https://example.com/plugin.jar", "--json"],
+      [
+        "plugin",
+        "upgrade",
+        "demo-plugin",
+        "--url",
+        "https://example.com/plugin.jar",
+        "--yes",
+        "--json",
+      ],
       runtimeMock as never,
     ),
   ).resolves.toBe(true);
@@ -285,7 +293,7 @@ test("tryRunPluginCommand dispatches install subcommands from urls", async () =>
 
   await expect(
     tryRunPluginCommand(
-      ["plugin", "install", "--url", "https://example.com/plugin.jar", "--json"],
+      ["plugin", "install", "--url", "https://example.com/plugin.jar", "--yes", "--json"],
       runtimeMock as never,
     ),
   ).resolves.toBe(true);
@@ -295,6 +303,29 @@ test("tryRunPluginCommand dispatches install subcommands from urls", async () =>
       uri: "https://example.com/plugin.jar",
     },
   });
+});
+
+test("tryRunPluginCommand rejects third-party install urls without --yes outside interactive terminals", async () => {
+  silenceStdout();
+
+  const runtimeMock = createPluginRuntimeMock({
+    console: {
+      plugin: {
+        plugin: {
+          installPluginFromUri: vi.fn(),
+        },
+      },
+    },
+  });
+
+  await expect(
+    tryRunPluginCommand(
+      ["plugin", "install", "--url", "https://example.com/plugin.jar", "--json"],
+      runtimeMock as never,
+    ),
+  ).rejects.toThrow(/requires confirmation in interactive mode.*or use --yes/i);
+
+  expect(runtimeMock.getClientsForOptions).not.toHaveBeenCalled();
 });
 
 test("tryRunPluginCommand dispatches install subcommands from files", async () => {

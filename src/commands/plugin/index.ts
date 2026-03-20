@@ -21,6 +21,7 @@ import { CliError } from "../../utils/errors.js";
 import { parseBooleanOption } from "../../utils/options.js";
 import { printJson } from "../../utils/output.js";
 import { loadFileAsJar } from "../../utils/package-file.js";
+import { confirmThirdPartyPackageSource } from "../../utils/remote-source.js";
 import { RuntimeContext } from "../../utils/runtime.js";
 import { printPlugin, printPluginList } from "./format.js";
 
@@ -670,13 +671,28 @@ function buildPluginCli(runtime: RuntimeContext): CAC {
     .option("--url <url>", "Remote JAR URL")
     .option("--uri <uri>", "Remote JAR URI")
     .option("--file <path>", "Local JAR file path")
+    .option("-y, --yes", "Skip third-party URL confirmation")
     .action(async (options: PluginCommandOptions) => {
       if (options.online) {
         throw new CliError("`halo plugin install` does not support --online. Use --url or --file.");
       }
 
-      const { clients } = await runtime.getClientsForOptions(options);
       const source = resolvePluginInstallSource(options);
+      if (
+        source.url &&
+        !(await confirmThirdPartyPackageSource(
+          source.url,
+          {
+            commandPath: "halo plugin install",
+            actionLabel: "installing plugin",
+          },
+          options,
+        ))
+      ) {
+        return;
+      }
+
+      const { clients } = await runtime.getClientsForOptions(options);
       const response = source.url
         ? await clients.console.plugin.plugin.installPluginFromUri({
             installFromUriRequest: { uri: source.url },
@@ -721,8 +737,22 @@ function buildPluginCli(runtime: RuntimeContext): CAC {
         return;
       }
 
-      const { clients } = await runtime.getClientsForOptions(options);
       const source = resolvePluginUpgradeSource(options);
+      if (
+        source.kind === "url" &&
+        !(await confirmThirdPartyPackageSource(
+          source.url,
+          {
+            commandPath: "halo plugin upgrade",
+            actionLabel: `upgrading plugin ${target.name}`,
+          },
+          options,
+        ))
+      ) {
+        return;
+      }
+
+      const { clients } = await runtime.getClientsForOptions(options);
 
       let response;
 
