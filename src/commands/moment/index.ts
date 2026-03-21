@@ -1,5 +1,3 @@
-import { readFile } from "node:fs/promises";
-
 import { input } from "@inquirer/prompts";
 import cac, { type CAC } from "cac";
 
@@ -38,7 +36,6 @@ interface MomentListOptions extends MomentCommandOptions {
 interface MomentMutationOptions extends MomentCommandOptions {
   name?: string;
   content?: string;
-  contentFile?: string;
   visible?: string;
   tags?: string;
   releaseTime?: string;
@@ -49,14 +46,7 @@ interface MomentDeleteOptions extends MomentCommandOptions {
   force?: boolean;
 }
 
-async function resolveMomentContent(
-  content?: string,
-  contentFile?: string,
-): Promise<string | undefined> {
-  if (contentFile?.trim()) {
-    return readFile(contentFile.trim(), "utf8");
-  }
-
+async function resolveMomentContent(content?: string): Promise<string | undefined> {
   return content;
 }
 
@@ -196,19 +186,18 @@ async function buildMomentCli(runtime: RuntimeContext): Promise<CAC> {
     .option("--json", "Output JSON")
     .option("--name <name>", "Explicit moment name")
     .option("--content <text>", "Moment content")
-    .option("--content-file <path>", "Read moment content from file")
     .option("--visible <state>", "Moment visibility: PUBLIC or PRIVATE")
     .option("--tags <tags>", "Comma-separated tags")
     .option("--release-time <datetime>", "Release time in ISO-8601 format")
     .option("--approved <boolean>", "Initial approval state")
     .action(async (options: MomentMutationOptions) => {
       const { clients } = await runtime.getClientsForOptions(options);
-      const resolvedContent = await resolveMomentContent(options.content, options.contentFile);
+      const resolvedContent = await resolveMomentContent(options.content);
       const content = (await promptForMomentContent(resolvedContent?.trim(), "create"))?.trim();
 
       if (!content) {
         throw new CliError(
-          "`halo moment create` requires content. Use --content, --content-file, or run interactively.",
+          "`halo moment create` requires content. Use --content or run interactively.",
         );
       }
 
@@ -222,7 +211,6 @@ async function buildMomentCli(runtime: RuntimeContext): Promise<CAC> {
     .option("--profile <name>", "Halo profile name")
     .option("--json", "Output JSON")
     .option("--content <text>", "Updated moment content")
-    .option("--content-file <path>", "Read updated content from file")
     .option("--visible <state>", "Moment visibility: PUBLIC or PRIVATE")
     .option("--tags <tags>", "Comma-separated tags")
     .option("--release-time <datetime>", "Release time in ISO-8601 format")
@@ -233,7 +221,7 @@ async function buildMomentCli(runtime: RuntimeContext): Promise<CAC> {
         `${MOMENT_API_BASE}/${encodeURIComponent(name)}`,
       );
       const existing = existingResponse.data;
-      const resolvedContent = await resolveMomentContent(options.content, options.contentFile);
+      const resolvedContent = await resolveMomentContent(options.content);
       const nextContent = await promptForMomentContent(
         resolvedContent?.trim() || existing.spec.content.raw,
         "update",
@@ -303,7 +291,7 @@ async function buildMomentCli(runtime: RuntimeContext): Promise<CAC> {
   momentCli.example((bin) => `${bin} list --page 1 --size 20`);
   momentCli.example((bin) => `${bin} get moment-abc123`);
   momentCli.example((bin) => `${bin} create --content "Hello Halo" --tags life,cli`);
-  momentCli.example((bin) => `${bin} update moment-abc123 --content-file ./moment.html`);
+  momentCli.example((bin) => `${bin} update moment-abc123 --content "<p>Hello Halo</p>"`);
   momentCli.example((bin) => `${bin} delete moment-abc123 --force`);
   momentCli.help();
 

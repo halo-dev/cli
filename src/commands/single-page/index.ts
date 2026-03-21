@@ -6,6 +6,7 @@ import cac, { type CAC } from "cac";
 
 import { tryRunCommandCliRoute } from "../../utils/command-router.js";
 import { confirmDangerousAction } from "../../utils/confirmation.js";
+import { DEFAULT_CONTENT_RAW_TYPE, renderContentByRawType } from "../../utils/content.js";
 import { CliError } from "../../utils/errors.js";
 import { parseBooleanOption, parseNumberOption } from "../../utils/options.js";
 import { printJson } from "../../utils/output.js";
@@ -119,12 +120,11 @@ export function parseSinglePageTransferPayload(raw: string): SinglePageTransferP
       : typeof contentRecord.content === "string"
         ? contentRecord.content
         : undefined;
-  const renderedContent =
-    typeof contentRecord.content === "string" ? contentRecord.content : rawContent;
   const rawType =
     typeof contentRecord.rawType === "string" && contentRecord.rawType.trim().length > 0
       ? contentRecord.rawType.trim()
-      : "markdown";
+      : DEFAULT_CONTENT_RAW_TYPE;
+  const renderedContent = rawContent ? renderContentByRawType(rawContent, rawType) : undefined;
 
   if (!rawContent || !renderedContent) {
     throw new CliError("Single page JSON payload must include `content.raw` or `content.content`.");
@@ -194,9 +194,9 @@ async function loadSinglePageDetail(
     clients.console.content.singlePage.fetchSinglePageHeadContent({ name }),
   ]);
 
+  const rawType = contentResponse.data.rawType ?? DEFAULT_CONTENT_RAW_TYPE;
   const raw = contentResponse.data.raw ?? contentResponse.data.content ?? "";
-  const content = contentResponse.data.content ?? contentResponse.data.raw ?? "";
-  const rawType = contentResponse.data.rawType ?? "markdown";
+  const content = renderContentByRawType(raw, rawType);
 
   return {
     page: pageResponse.data,
@@ -327,7 +327,6 @@ function buildSinglePageCli(runtime: RuntimeContext): CAC {
     .option("--title <title>", "Single page title")
     .option("--slug <slug>", "Single page slug")
     .option("--content <content>", "Inline single page content")
-    .option("--content-file <path>", "Read single page content from a file")
     .option("--raw-type <type>", "Content raw type, defaults to markdown")
     .option("--excerpt <excerpt>", "Explicit excerpt")
     .option("--cover <url>", "Cover image URL")
@@ -375,7 +374,6 @@ function buildSinglePageCli(runtime: RuntimeContext): CAC {
     .option("--title <title>", "Single page title")
     .option("--slug <slug>", "Single page slug")
     .option("--content <content>", "Inline single page content")
-    .option("--content-file <path>", "Read single page content from a file")
     .option("--raw-type <type>", "Content raw type, defaults to markdown")
     .option("--excerpt <excerpt>", "Explicit excerpt")
     .option("--cover <url>", "Cover image URL")
@@ -561,7 +559,10 @@ function buildSinglePageCli(runtime: RuntimeContext): CAC {
   singlePageCli.example((bin) => `${bin} export-json about --output ./single-page.json`);
   singlePageCli.example((bin) => `${bin} open about`);
   singlePageCli.example(
-    (bin) => `${bin} create --title "About" --content-file ./about.md --publish true`,
+    (bin) => `${bin} create --title "About" --content "# About" --publish true`,
+  );
+  singlePageCli.example(
+    (bin) => `${bin} create --title "About" --content "<h1>Hello Halo</h1>" --raw-type "html"`,
   );
   singlePageCli.example((bin) => `${bin} update about --title "About Halo"`);
   singlePageCli.example((bin) => `${bin} import-json --file ./single-page.json`);

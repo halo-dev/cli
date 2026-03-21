@@ -249,6 +249,149 @@ test("tryRunPostCommand exports json to an output file", async () => {
   }
 });
 
+test("tryRunPostCommand dispatches export-markdown subcommands with default output", async () => {
+  silenceStdout();
+
+  const previousCwd = process.cwd();
+  const tempDir = await mkdtemp(join(tmpdir(), "halo-post-export-markdown-default-"));
+
+  try {
+    process.chdir(tempDir);
+
+    const getPost = vi.fn().mockResolvedValue({
+      data: {
+        metadata: { name: "post-1" },
+        spec: {
+          title: "Hello Halo",
+          slug: "hello-halo",
+          excerpt: { autoGenerate: false, raw: "Summary" },
+          cover: "https://example.com/cover.png",
+          categories: [],
+          tags: [],
+          publish: true,
+        },
+      },
+    });
+    const fetchPostHeadContent = vi.fn().mockResolvedValue({
+      data: {
+        raw: "<h1>Hello Halo</h1>\n<p>HTML body</p>",
+        content: "<h1>Hello Halo</h1>\n<p>HTML body</p>",
+        rawType: "html",
+      },
+    });
+    const runtimeMock = {
+      getClientsForOptions: vi.fn().mockResolvedValue({
+        profile: { baseUrl: "https://example.com" },
+        clients: {
+          axios: {},
+          core: {
+            content: {
+              post: {
+                getPost,
+              },
+            },
+          },
+          console: {
+            content: {
+              post: {
+                fetchPostHeadContent,
+              },
+            },
+          },
+        },
+      }),
+    };
+
+    await expect(
+      tryRunPostCommand(["post", "export-markdown", "post-1"], runtimeMock as never),
+    ).resolves.toBe(true);
+
+    const output = await readFile(join(tempDir, "post-1.md"), "utf8");
+    expect(getPost).toHaveBeenCalledWith({ name: "post-1" });
+    expect(fetchPostHeadContent).toHaveBeenCalledWith({ name: "post-1" });
+    expect(output).toContain("title: Hello Halo");
+    expect(output).toContain("slug: hello-halo");
+    expect(output).toContain("excerpt: Summary");
+    expect(output).toContain("cover: https://example.com/cover.png");
+    expect(output).toContain("site: https://example.com");
+    expect(output).toContain("name: post-1");
+    expect(output).toContain("publish: true");
+    expect(output).toContain("<h1>Hello Halo</h1>");
+    expect(output).toContain("<p>HTML body</p>");
+  } finally {
+    process.chdir(previousCwd);
+    await rm(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("tryRunPostCommand exports markdown to a specific output file", async () => {
+  silenceStdout();
+
+  const tempDir = await mkdtemp(join(tmpdir(), "halo-post-export-markdown-"));
+  const outputPath = join(tempDir, "exported-post.md");
+
+  try {
+    const getPost = vi.fn().mockResolvedValue({
+      data: {
+        metadata: { name: "post-1" },
+        spec: {
+          title: "Hello Halo",
+          slug: "hello-halo",
+          excerpt: { autoGenerate: true },
+          cover: "",
+          categories: [],
+          tags: [],
+          publish: false,
+        },
+      },
+    });
+    const fetchPostHeadContent = vi.fn().mockResolvedValue({
+      data: {
+        raw: "# Hello Halo",
+        content: "<h1>Hello Halo</h1>\n",
+        rawType: "markdown",
+      },
+    });
+    const runtimeMock = {
+      getClientsForOptions: vi.fn().mockResolvedValue({
+        profile: { baseUrl: "https://example.com" },
+        clients: {
+          axios: {},
+          core: {
+            content: {
+              post: {
+                getPost,
+              },
+            },
+          },
+          console: {
+            content: {
+              post: {
+                fetchPostHeadContent,
+              },
+            },
+          },
+        },
+      }),
+    };
+
+    await expect(
+      tryRunPostCommand(
+        ["post", "export-markdown", "post-1", "--output", outputPath],
+        runtimeMock as never,
+      ),
+    ).resolves.toBe(true);
+
+    const output = await readFile(outputPath, "utf8");
+    expect(output).toContain("title: Hello Halo");
+    expect(output).toContain("slug: hello-halo");
+    expect(output).toContain("publish: false");
+    expect(output).toContain("# Hello Halo");
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+});
+
 test("tryRunPostCommand dispatches open subcommands in json mode", async () => {
   silenceStdout();
   const openUrlInBrowser = vi.spyOn(browserUtils, "openUrlInBrowser").mockResolvedValue();

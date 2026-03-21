@@ -1,5 +1,7 @@
 import { afterEach, expect, test, vi } from "vitest";
 
+import { renderContentByRawType } from "../../../utils/content.js";
+
 const ucPostApiState = vi.hoisted(() => ({
   implementation: {} as Record<string, unknown>,
 }));
@@ -91,6 +93,21 @@ test("tryRunPostCommand imports json as a new post when it does not exist", asyn
   ).resolves.toBe(true);
 
   expect(createMyPost).toHaveBeenCalledOnce();
+  expect(createMyPost).toHaveBeenCalledWith({
+    post: expect.objectContaining({
+      metadata: expect.objectContaining({
+        name: "post-1",
+        annotations: expect.objectContaining({
+          "content.halo.run/content-json": JSON.stringify({
+            raw: "# Halo",
+            content: renderContentByRawType("# Halo", "markdown"),
+            rawType: "markdown",
+          }),
+        }),
+      }),
+      spec: { publish: false },
+    }),
+  });
   expect(publishMyPost).toHaveBeenCalledWith({ name: "post-1" });
 });
 
@@ -177,6 +194,20 @@ test("tryRunPostCommand imports json by updating an existing post", async () => 
 
   expect(updateMyPost).toHaveBeenCalledOnce();
   expect(updateMyPostDraft).toHaveBeenCalledOnce();
+  expect(updateMyPostDraft).toHaveBeenCalledWith({
+    name: "post-1",
+    snapshot: expect.objectContaining({
+      metadata: expect.objectContaining({
+        annotations: expect.objectContaining({
+          "content.halo.run/content-json": JSON.stringify({
+            raw: "# Halo",
+            content: renderContentByRawType("# Halo", "markdown"),
+            rawType: "markdown",
+          }),
+        }),
+      }),
+    }),
+  });
   expect(publishMyPost).toHaveBeenCalledWith({ name: "post-1" });
 });
 

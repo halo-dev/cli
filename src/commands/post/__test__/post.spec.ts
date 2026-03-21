@@ -1,5 +1,6 @@
 import { expect, test } from "vitest";
 
+import { renderContentByRawType } from "../../../utils/content.js";
 import {
   parsePostTransferPayload,
   resolvePostTransferPayload,
@@ -90,7 +91,7 @@ test("parsePostTransferPayload normalizes exported post json", () => {
     },
     content: {
       raw: "# Halo",
-      content: "<h1>Halo</h1>",
+      content: renderContentByRawType("# Halo", "markdown"),
       rawType: "markdown",
     },
   });

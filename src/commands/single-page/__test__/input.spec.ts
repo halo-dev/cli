@@ -1,5 +1,6 @@
 import { expect, test } from "vitest";
 
+import { renderContentByRawType } from "../../../utils/content.js";
 import {
   normalizeCreateSinglePageInput,
   normalizeUpdateSinglePageInput,
@@ -36,7 +37,7 @@ test("normalizeCreateSinglePageInput builds a complete SinglePageRequest", async
   expect(request.page.spec.template).toBe("about");
   expect(request.page.spec.visible).toBe("PUBLIC");
   expect(request.content.raw).toBe("# About Halo");
-  expect(request.content.content).toBe("# About Halo");
+  expect(request.content.content).toBe(renderContentByRawType("# About Halo", "markdown"));
   expect(request.content.rawType).toBe("markdown");
   expect(request.content.version).toBeUndefined();
 });
@@ -89,9 +90,22 @@ test("normalizeUpdateSinglePageInput merges provided fields over current remote 
   expect(request.page.spec.pinned).toBe(false);
   expect(request.page.spec.visible).toBe("PRIVATE");
   expect(request.content.raw).toBe("new content");
-  expect(request.content.content).toBe("new content");
+  expect(request.content.content).toBe(renderContentByRawType("new content", "markdown"));
   expect(request.content.rawType).toBe("markdown");
   expect(request.content.version).toBeUndefined();
+});
+
+test("normalizeCreateSinglePageInput keeps html content unchanged when raw type is html", async () => {
+  const request = await normalizeCreateSinglePageInput({
+    title: "About HTML",
+    slug: "about-html",
+    content: "<h1>Hello Halo</h1>",
+    rawType: "html",
+  });
+
+  expect(request.content.raw).toBe("<h1>Hello Halo</h1>");
+  expect(request.content.content).toBe("<h1>Hello Halo</h1>");
+  expect(request.content.rawType).toBe("html");
 });
 
 test("normalizeUpdateSinglePageInput updates resource name when provided", async () => {

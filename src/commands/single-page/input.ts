@@ -9,11 +9,11 @@ import type {
 } from "@halo-dev/api-client";
 import { confirm, input } from "@inquirer/prompts";
 
+import { normalizeContentRawType, renderContentByRawType } from "../../utils/content.js";
 import { CliError } from "../../utils/errors.js";
 import { isInteractive } from "../../utils/options.js";
 import type { SinglePageMutationInput } from "./types.js";
 
-const DEFAULT_RAW_TYPE = "markdown";
 const SINGLE_PAGE_API_VERSION = "content.halo.run/v1alpha1";
 const SINGLE_PAGE_KIND = "SinglePage";
 
@@ -83,25 +83,15 @@ async function promptForMissing(
     });
   }
 
-  if (result.allowComment === undefined) {
-    result.allowComment = await confirm({
-      message: "Allow comments?",
-      default: defaults?.allowComment ?? true,
-    });
-  }
-
   return result;
 }
 
-function toContentUpdateParam(
-  raw: string,
-  rawType: string,
-  _currentContent?: ContentWrapper,
-): ContentUpdateParam {
+function toContentUpdateParam(raw: string, rawType: string): ContentUpdateParam {
+  const normalizedRawType = normalizeContentRawType(rawType);
   return {
     raw,
-    content: raw,
-    rawType,
+    content: renderContentByRawType(raw, normalizedRawType),
+    rawType: normalizedRawType,
   };
 }
 
@@ -120,7 +110,7 @@ export async function normalizeCreateSinglePageInput(
     );
   }
 
-  const rawType = prompted.rawType ?? DEFAULT_RAW_TYPE;
+  const rawType = normalizeContentRawType(prompted.rawType);
 
   return {
     page: {
@@ -162,7 +152,7 @@ export async function normalizeUpdateSinglePageInput(
 
   const resolvedContent = await resolveContent(prompted.content, prompted.contentFile);
   const nextRaw = resolvedContent ?? currentContent?.raw ?? "";
-  const nextRawType = prompted.rawType ?? currentContent?.rawType ?? DEFAULT_RAW_TYPE;
+  const nextRawType = normalizeContentRawType(prompted.rawType ?? currentContent?.rawType);
 
   return {
     page: {
@@ -189,6 +179,6 @@ export async function normalizeUpdateSinglePageInput(
         },
       },
     },
-    content: toContentUpdateParam(nextRaw, nextRawType, currentContent),
+    content: toContentUpdateParam(nextRaw, nextRawType),
   };
 }

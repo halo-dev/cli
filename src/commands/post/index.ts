@@ -8,6 +8,7 @@ import cac, { type CAC } from "cac";
 
 import { tryRunCommandCliRoute } from "../../utils/command-router.js";
 import { confirmDangerousAction } from "../../utils/confirmation.js";
+import { DEFAULT_CONTENT_RAW_TYPE, renderContentByRawType } from "../../utils/content.js";
 import { CliError } from "../../utils/errors.js";
 import {
   isInteractive,
@@ -25,9 +26,18 @@ import {
   extractDraftContent,
   normalizeCreatePostInput,
   normalizeUpdatePostInput,
+  promptCreatePostPrimaryFields,
   serializeDraftContent,
-  slugify,
+  slugifyTaxonomyDisplayName,
 } from "./input.js";
+import {
+  assertMarkdownTrackingSite,
+  buildPostMarkdownFrontMatter,
+  resolvePostMarkdownExportOutputPath,
+  resolvePostMarkdownImportPayload,
+  writePostMarkdownDocument,
+} from "./markdown.js";
+import type { PostMutationInput } from "./types.js";
 
 interface PostCommandOptions {
   profile?: string;
@@ -60,6 +70,11 @@ interface PostCommandOptions {
 interface PostJsonCommandOptions extends PostCommandOptions {
   file?: string;
   raw?: string;
+  output?: string;
+}
+
+interface PostMarkdownCommandOptions extends PostCommandOptions {
+  file?: string;
   output?: string;
 }
 
@@ -138,12 +153,11 @@ export function parsePostTransferPayload(raw: string): PostTransferPayload {
       : typeof contentRecord.content === "string"
         ? contentRecord.content
         : undefined;
-  const renderedContent =
-    typeof contentRecord.content === "string" ? contentRecord.content : rawContent;
   const rawType =
     typeof contentRecord.rawType === "string" && contentRecord.rawType.trim().length > 0
       ? contentRecord.rawType.trim()
-      : "markdown";
+      : DEFAULT_CONTENT_RAW_TYPE;
+  const renderedContent = rawContent ? renderContentByRawType(rawContent, rawType) : undefined;
 
   if (!rawContent || !renderedContent) {
     throw new CliError("Post JSON payload must include `content.raw` or `content.content`.");
@@ -252,9 +266,9 @@ async function loadPostDetail(clients: HaloClients, name: string): Promise<PostT
     clients.console.content.post.fetchPostHeadContent({ name }),
   ]);
 
+  const rawType = contentResponse.data.rawType ?? DEFAULT_CONTENT_RAW_TYPE;
   const raw = contentResponse.data.raw ?? contentResponse.data.content ?? "";
-  const content = contentResponse.data.content ?? contentResponse.data.raw ?? "";
-  const rawType = contentResponse.data.rawType ?? "markdown";
+  const content = renderContentByRawType(raw, rawType);
 
   return {
     post: postResponse.data,
@@ -339,7 +353,7 @@ async function resolveCategoryNames(
         },
         spec: {
           displayName,
-          slug: slugify(displayName),
+          slug: slugifyTaxonomyDisplayName(displayName, "category"),
           description: "",
           cover: "",
           template: "",
@@ -404,7 +418,7 @@ async function resolveTagNames(
         },
         spec: {
           displayName,
-          slug: slugify(displayName),
+          slug: slugifyTaxonomyDisplayName(displayName, "tag"),
           color: "#ffffff",
           cover: "",
         },
@@ -425,14 +439,197 @@ async function resolveTagNames(
   ];
 }
 
+async function resolveCategoryDisplayNames(
+  clients: HaloClients,
+  values?: string[],
+): Promise<string[] | undefined> {
+  if (!values || values.length === 0) {
+    return undefined;
+  }
+
+  const allCategories = await listCategories(clients);
+  const displayNames = values
+    .map((value) => {
+      const normalized = value.trim();
+      if (!normalized) {
+        return undefined;
+      }
+
+      const found = allCategories.find((item: Category) => item.metadata.name === normalized);
+      return found?.spec.displayName;
+    })
+    .filter((value): value is string => Boolean(value));
+
+  return displayNames.length > 0 ? displayNames : undefined;
+}
+
+async function resolveTagDisplayNames(
+  clients: HaloClients,
+  values?: string[],
+): Promise<string[] | undefined> {
+  if (!values || values.length === 0) {
+    return undefined;
+  }
+
+  const allTags = await listTags(clients);
+  const displayNames = values
+    .map((value) => {
+      const normalized = value.trim();
+      if (!normalized) {
+        return undefined;
+      }
+
+      const found = allTags.find((item: Tag) => item.metadata.name === normalized);
+      return found?.spec.displayName;
+    })
+    .filter((value): value is string => Boolean(value));
+
+  return displayNames.length > 0 ? displayNames : undefined;
+}
+
+async function importPostPayload(
+  ucPostApi: PostV1alpha1UcApi,
+  options: Pick<PostCommandOptions, "force">,
+  payload: PostTransferPayload,
+  commandPath: string,
+  targetName?: string,
+): Promise<{ action: "imported" | "updated"; name: string } | undefined> {
+  if (targetName) {
+    try {
+      const currentState = await loadEditablePostState(ucPostApi, targetName);
+
+      if (
+        !(await confirmDangerousAction(
+          {
+            commandPath,
+            actionLabel: "Update",
+            resourceLabel: "post",
+            resourceName: targetName,
+            cancellationVerb: "updating",
+          },
+          options,
+        ))
+      ) {
+        return undefined;
+      }
+
+      const updateResponse = await ucPostApi.updateMyPost({
+        name: targetName,
+        post: {
+          ...payload.post,
+          spec: {
+            ...payload.post.spec,
+            publish: currentState.post.spec.publish,
+          },
+        },
+      });
+
+      const updatedName = updateResponse.data.metadata.name;
+      const latestDraft = await ucPostApi.getMyPostDraft({
+        name: updatedName,
+        patched: true,
+      });
+
+      latestDraft.data.metadata = withSerializedContentAnnotation(
+        latestDraft.data.metadata,
+        payload.content,
+      );
+
+      await ucPostApi.updateMyPostDraft({
+        name: updatedName,
+        snapshot: latestDraft.data,
+      });
+
+      await syncPostPublishState(ucPostApi, updatedName, payload.post.spec.publish);
+      return {
+        action: "updated",
+        name: updatedName,
+      };
+    } catch (error) {
+      if (!axios.isAxiosError(error) || error.response?.status !== 404) {
+        throw error;
+      }
+    }
+  }
+
+  const createResponse = await ucPostApi.createMyPost({
+    post: {
+      ...payload.post,
+      metadata: withSerializedContentAnnotation(
+        payload.post.metadata,
+        payload.content,
+      ) as Post["metadata"],
+      spec: {
+        ...payload.post.spec,
+        publish: false,
+      },
+    },
+  });
+
+  const createdName = createResponse.data.metadata.name;
+  await syncPostPublishState(ucPostApi, createdName, payload.post.spec.publish);
+  return {
+    action: "imported",
+    name: createdName,
+  };
+}
+
+async function syncMarkdownFileAfterImport(
+  filePath: string,
+  profileBaseUrl: string,
+  clients: HaloClients,
+  detail: PostTransferPayload,
+): Promise<void> {
+  const [categories, tags] = await Promise.all([
+    resolveCategoryDisplayNames(clients, detail.post.spec.categories),
+    resolveTagDisplayNames(clients, detail.post.spec.tags),
+  ]);
+
+  await writePostMarkdownDocument(
+    filePath,
+    detail.content.raw,
+    buildPostMarkdownFrontMatter(detail.post, {
+      site: profileBaseUrl,
+      categories,
+      tags,
+    }),
+  );
+}
+
+async function exportMarkdownFile(
+  filePath: string,
+  profileBaseUrl: string,
+  clients: HaloClients,
+  detail: PostTransferPayload,
+): Promise<void> {
+  const [categories, tags] = await Promise.all([
+    resolveCategoryDisplayNames(clients, detail.post.spec.categories),
+    resolveTagDisplayNames(clients, detail.post.spec.tags),
+  ]);
+
+  await writePostMarkdownDocument(
+    filePath,
+    detail.content.raw,
+    buildPostMarkdownFrontMatter(detail.post, {
+      site: profileBaseUrl,
+      categories,
+      tags,
+    }),
+  );
+}
+
 async function enrichPostMutationInput(
   clients: HaloClients,
-  baseInput: ReturnType<typeof toMutationInput>,
+  baseInput: PostMutationInput,
   currentPost?: Post,
+  options?: {
+    promptForTaxonomy?: boolean;
+  },
 ) {
   const nextInput = { ...baseInput };
+  const promptForTaxonomy = options?.promptForTaxonomy ?? true;
 
-  if (nextInput.categories === undefined && isInteractive()) {
+  if (nextInput.categories === undefined && promptForTaxonomy && isInteractive()) {
     const categories = await listCategories(clients);
     const selectedDisplayNames = await promptTaxonomyDisplayNames(
       "categories",
@@ -447,7 +644,7 @@ async function enrichPostMutationInput(
     nextInput.categories = await resolveCategoryNames(clients, nextInput.categories);
   }
 
-  if (nextInput.tags === undefined && isInteractive()) {
+  if (nextInput.tags === undefined && promptForTaxonomy && isInteractive()) {
     const tags = await listTags(clients);
     const selectedDisplayNames = await promptTaxonomyDisplayNames(
       "tags",
@@ -537,7 +734,6 @@ function buildPostCli(runtime: RuntimeContext): CAC {
     .option("--title <title>", "Post title")
     .option("--slug <slug>", "Post slug")
     .option("--content <content>", "Inline post content")
-    .option("--content-file <path>", "Read post content from a file")
     .option("--raw-type <type>", "Content raw type, defaults to markdown")
     .option("--excerpt <excerpt>", "Explicit excerpt")
     .option("--categories <items>", "Comma separated category names")
@@ -558,7 +754,10 @@ function buildPostCli(runtime: RuntimeContext): CAC {
       );
 
       const postRequest = await normalizeCreatePostInput(
-        await enrichPostMutationInput(clients, toMutationInput(options)),
+        await enrichPostMutationInput(
+          clients,
+          await promptCreatePostPrimaryFields(toMutationInput(options)),
+        ),
       );
 
       const createResponse = await ucPostApi.createMyPost({
@@ -599,7 +798,6 @@ function buildPostCli(runtime: RuntimeContext): CAC {
     .option("--title <title>", "Post title")
     .option("--slug <slug>", "Post slug")
     .option("--content <content>", "Inline post content")
-    .option("--content-file <path>", "Read post content from a file")
     .option("--raw-type <type>", "Content raw type, defaults to markdown")
     .option("--excerpt <excerpt>", "Explicit excerpt")
     .option("--categories <items>", "Comma separated category names")
@@ -718,6 +916,19 @@ function buildPostCli(runtime: RuntimeContext): CAC {
     });
 
   postCli
+    .command("export-markdown <name>", "Export a post as a Markdown file")
+    .option("--profile <name>", "Halo profile name")
+    .option("--output <path>", "Write Markdown to a specific file path")
+    .action(async (name: string, options: PostMarkdownCommandOptions) => {
+      const { profile, clients } = await runtime.getClientsForOptions(options);
+      const detail = await loadPostDetail(clients, name);
+      const outputPath = resolvePostMarkdownExportOutputPath(name, options.output);
+
+      await exportMarkdownFile(outputPath, profile.baseUrl, clients, detail);
+      process.stdout.write(`Exported post ${name} to ${outputPath}.\n`);
+    });
+
+  postCli
     .command("import-json", "Import a post from JSON")
     .option("--profile <name>", "Halo profile name")
     .option("--json", "Output JSON")
@@ -732,80 +943,17 @@ function buildPostCli(runtime: RuntimeContext): CAC {
         normalizeBaseUrl(profile.baseUrl),
         clients.axios,
       );
-      const targetName = payload.post.metadata.name;
-      let resultName = targetName;
-      let action: "imported" | "updated" = "imported";
-
-      try {
-        const currentState = await loadEditablePostState(ucPostApi, targetName);
-
-        if (
-          !(await confirmDangerousAction(
-            {
-              commandPath: "halo post import-json",
-              actionLabel: "Update",
-              resourceLabel: "post",
-              resourceName: targetName,
-              cancellationVerb: "updating",
-            },
-            options,
-          ))
-        ) {
-          return;
-        }
-
-        const updateResponse = await ucPostApi.updateMyPost({
-          name: targetName,
-          post: {
-            ...payload.post,
-            spec: {
-              ...payload.post.spec,
-              publish: currentState.post.spec.publish,
-            },
-          },
-        });
-
-        resultName = updateResponse.data.metadata.name;
-
-        const latestDraft = await ucPostApi.getMyPostDraft({
-          name: resultName,
-          patched: true,
-        });
-
-        latestDraft.data.metadata = withSerializedContentAnnotation(
-          latestDraft.data.metadata,
-          payload.content,
-        );
-
-        await ucPostApi.updateMyPostDraft({
-          name: resultName,
-          snapshot: latestDraft.data,
-        });
-
-        await syncPostPublishState(ucPostApi, resultName, payload.post.spec.publish);
-        action = "updated";
-      } catch (error) {
-        if (!axios.isAxiosError(error) || error.response?.status !== 404) {
-          throw error;
-        }
-
-        const createResponse = await ucPostApi.createMyPost({
-          post: {
-            ...payload.post,
-            metadata: withSerializedContentAnnotation(
-              payload.post.metadata,
-              payload.content,
-            ) as Post["metadata"],
-            spec: {
-              ...payload.post.spec,
-              publish: false,
-            },
-          },
-        });
-
-        resultName = createResponse.data.metadata.name;
-        await syncPostPublishState(ucPostApi, resultName, payload.post.spec.publish);
+      const importResult = await importPostPayload(
+        ucPostApi,
+        options,
+        payload,
+        "halo post import-json",
+        payload.post.metadata.name,
+      );
+      if (!importResult) {
+        return;
       }
+      const { action, name: resultName } = importResult;
 
       const detail = await loadPostDetail(clients, resultName);
 
@@ -819,18 +967,95 @@ function buildPostCli(runtime: RuntimeContext): CAC {
       );
     });
 
+  postCli
+    .command("import-markdown", "Import a post from a Markdown file")
+    .option("--profile <name>", "Halo profile name")
+    .option("--json", "Output JSON")
+    .option("--file <path>", "Read post Markdown from a file")
+    .option("--force", "Update without confirmation when the tracked post already exists")
+    .action(async (options: PostMarkdownCommandOptions) => {
+      const { profile, clients } = await runtime.getClientsForOptions(options);
+      const markdownPayload = await resolvePostMarkdownImportPayload(options.file);
+      assertMarkdownTrackingSite(markdownPayload.trackedSite, profile.baseUrl);
+
+      const ucPostApi = new PostV1alpha1UcApi(
+        undefined,
+        normalizeBaseUrl(profile.baseUrl),
+        clients.axios,
+      );
+
+      const normalizedInput = await enrichPostMutationInput(
+        clients,
+        markdownPayload.mutationInput,
+        undefined,
+        {
+          promptForTaxonomy: false,
+        },
+      );
+      let currentState: Awaited<ReturnType<typeof loadEditablePostState>> | undefined;
+
+      if (markdownPayload.trackedName) {
+        try {
+          currentState = await loadEditablePostState(ucPostApi, markdownPayload.trackedName);
+        } catch (error) {
+          if (!axios.isAxiosError(error) || error.response?.status !== 404) {
+            throw error;
+          }
+        }
+      }
+
+      const postRequest = currentState
+        ? await normalizeUpdatePostInput(currentState.post, currentState.content, normalizedInput)
+        : await normalizeCreatePostInput(normalizedInput);
+
+      const payload: PostTransferPayload = {
+        post: postRequest.post,
+        content: postRequest.content,
+      };
+
+      const importResult = await importPostPayload(
+        ucPostApi,
+        options,
+        payload,
+        "halo post import-markdown",
+        currentState?.post.metadata.name,
+      );
+      if (!importResult) {
+        return;
+      }
+      const { action, name: resultName } = importResult;
+
+      const detail = await loadPostDetail(clients, resultName);
+      await syncMarkdownFileAfterImport(markdownPayload.filePath, profile.baseUrl, clients, detail);
+
+      if (options.json) {
+        printJson(detail);
+        return;
+      }
+
+      process.stdout.write(
+        `${action === "updated" ? "Updated existing post" : "Imported post"} ${resultName} from Markdown file ${markdownPayload.filePath}.\n`,
+      );
+    });
+
   postCli.usage("<command> [flags]");
   postCli.example((bin) => `${bin} list --page 1 --size 20`);
   postCli.example((bin) => `${bin} get my-post --json`);
   postCli.example((bin) => `${bin} export-json my-post`);
   postCli.example((bin) => `${bin} export-json my-post --output ./post.json`);
+  postCli.example((bin) => `${bin} export-markdown my-post`);
+  postCli.example((bin) => `${bin} export-markdown my-post --output ./post.md`);
   postCli.example((bin) => `${bin} open my-post`);
   postCli.example(
-    (bin) => `${bin} create --title "Hello Halo" --content-file ./post.md --publish true`,
+    (bin) => `${bin} create --title "Hello Halo" --content "# Hello Halo" --publish true`,
+  );
+  postCli.example(
+    (bin) => `${bin} create --title "Hello Halo" --content "<h1>Hello Halo</h1>" --raw-type "html"`,
   );
   postCli.example((bin) => `${bin} update my-post --title "Updated title" --tags Halo,CLI`);
   postCli.example((bin) => `${bin} import-json --file ./post.json`);
   postCli.example((bin) => `${bin} import-json --raw '{"post":...,"content":...}'`);
+  postCli.example((bin) => `${bin} import-markdown --file ./post.md`);
   postCli.example((bin) => `${bin} delete my-post --force`);
   postCli.help();
 

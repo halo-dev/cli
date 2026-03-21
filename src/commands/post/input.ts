@@ -4,11 +4,15 @@ import { readFile } from "node:fs/promises";
 import type { Content, ContentWrapper, Post, PostRequest, Snapshot } from "@halo-dev/api-client";
 import { confirm, input } from "@inquirer/prompts";
 
+import {
+  DEFAULT_CONTENT_RAW_TYPE,
+  normalizeContentRawType,
+  renderContentByRawType,
+} from "../../utils/content.js";
 import { CliError } from "../../utils/errors.js";
 import { isInteractive } from "../../utils/options.js";
 import type { PostMutationInput } from "./types.js";
 
-const DEFAULT_RAW_TYPE = "markdown";
 const POST_API_VERSION = "content.halo.run/v1alpha1";
 const POST_KIND = "Post";
 export const CONTENT_JSON_ANNOTATION = "content.halo.run/content-json";
@@ -22,6 +26,18 @@ export function slugify(value: string): string {
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/(^-|-$)/g, "") || "post"
+  );
+}
+
+export function slugifyTaxonomyDisplayName(value: string, fallback: "category" | "tag"): string {
+  return (
+    value
+      .trim()
+      .normalize("NFKC")
+      .replace(/\s+/gu, "-")
+      .replace(/[^\p{L}\p{N}\p{M}._~-]+/gu, "")
+      .replace(/-+/g, "-")
+      .replace(/(^-|-$)/g, "") || fallback
   );
 }
 
@@ -50,10 +66,12 @@ export function extractDraftContent(snapshot: Snapshot): ContentWrapper | undefi
     try {
       const parsed = JSON.parse(contentJson) as Partial<Content>;
       if (typeof parsed.raw === "string" || typeof parsed.content === "string") {
+        const raw = parsed.raw ?? parsed.content ?? "";
+        const rawType = parsed.rawType ?? snapshot.spec.rawType ?? DEFAULT_CONTENT_RAW_TYPE;
         return {
-          raw: parsed.raw ?? parsed.content ?? "",
-          content: parsed.content ?? parsed.raw ?? "",
-          rawType: parsed.rawType ?? snapshot.spec.rawType ?? DEFAULT_RAW_TYPE,
+          raw,
+          content: renderContentByRawType(raw, rawType),
+          rawType,
         };
       }
     } catch {
@@ -65,10 +83,12 @@ export function extractDraftContent(snapshot: Snapshot): ContentWrapper | undefi
   const patchedContent = annotations[PATCHED_CONTENT_ANNOTATION];
 
   if (patchedRaw || patchedContent) {
+    const raw = patchedRaw ?? patchedContent ?? "";
+    const rawType = snapshot.spec.rawType ?? DEFAULT_CONTENT_RAW_TYPE;
     return {
-      raw: patchedRaw ?? patchedContent ?? "",
-      content: patchedContent ?? patchedRaw ?? "",
-      rawType: snapshot.spec.rawType ?? DEFAULT_RAW_TYPE,
+      raw,
+      content: renderContentByRawType(raw, rawType),
+      rawType,
     };
   }
 
@@ -104,7 +124,7 @@ async function promptForMissing(
     });
   }
 
-  const needsContent = mode === "create" || (!result.content && !result.contentFile);
+  const needsContent = !result.content && !result.contentFile;
   if (needsContent) {
     result.content = await input({
       message: "Post content",
@@ -120,17 +140,30 @@ async function promptForMissing(
     });
   }
 
-  if (result.allowComment === undefined) {
-    result.allowComment = await confirm({
-      message: "Allow comments?",
-      default: defaults?.allowComment ?? true,
+  return result;
+}
+
+export async function promptCreatePostPrimaryFields(
+  inputState: PostMutationInput,
+): Promise<PostMutationInput> {
+  if (!isInteractive()) {
+    return inputState;
+  }
+
+  const result = { ...inputState };
+
+  if (!result.title) {
+    result.title = await input({
+      message: "Post title",
+      validate: (value) => (value.trim().length > 0 ? true : "Title is required."),
     });
   }
 
-  if (result.pinned === undefined) {
-    result.pinned = await confirm({
-      message: "Pin this post?",
-      default: defaults?.pinned ?? false,
+  if (!result.slug) {
+    result.slug = await input({
+      message: "Post slug",
+      default: result.title ? slugify(result.title) : undefined,
+      validate: (value) => (value.trim().length > 0 ? true : "Slug is required."),
     });
   }
 
@@ -145,6 +178,10 @@ export async function normalizeCreatePostInput(
   const slug = prompted.slug?.trim();
   const name = randomUUID();
   const raw = (await resolveContent(prompted.content, prompted.contentFile))?.trim();
+  const rawType = normalizeContentRawType(prompted.rawType);
+  const content = raw
+    ? (prompted.renderedContent?.trim() ?? renderContentByRawType(raw, rawType))
+    : raw;
 
   if (!title || !slug || !raw) {
     throw new CliError(
@@ -179,9 +216,9 @@ export async function normalizeCreatePostInput(
       },
     },
     content: {
-      content: raw,
+      content: content ?? raw,
       raw,
-      rawType: prompted.rawType ?? DEFAULT_RAW_TYPE,
+      rawType,
     },
   };
 }
@@ -197,6 +234,10 @@ export async function normalizeUpdatePostInput(
   });
 
   const resolvedContent = await resolveContent(prompted.content, prompted.contentFile);
+  const nextRaw = resolvedContent ?? currentContent?.raw ?? "";
+  const rawType = normalizeContentRawType(prompted.rawType ?? currentContent?.rawType);
+  const renderedContent =
+    prompted.renderedContent?.trim() ?? renderContentByRawType(nextRaw, rawType);
 
   return {
     post: {
@@ -227,9 +268,9 @@ export async function normalizeUpdatePostInput(
       },
     },
     content: {
-      content: resolvedContent ?? currentContent?.content ?? "",
-      raw: resolvedContent ?? currentContent?.raw ?? "",
-      rawType: prompted.rawType ?? currentContent?.rawType ?? DEFAULT_RAW_TYPE,
+      content: renderedContent,
+      raw: nextRaw,
+      rawType,
     },
   };
 }

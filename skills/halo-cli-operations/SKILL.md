@@ -106,7 +106,6 @@ Rule:
 halo moment list
 halo moment get <name>
 halo moment create --content "Hello from Halo CLI"
-halo moment create --content-file ./moment.txt
 halo moment update <name> --content "Updated content"
 halo moment delete <name> --force
 ```

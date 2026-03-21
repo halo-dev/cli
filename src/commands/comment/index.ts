@@ -36,7 +36,6 @@ interface CommentDeleteOptions extends CommentCommandOptions {
 
 interface CommentReplyCreateOptions extends CommentCommandOptions {
   content?: string;
-  contentFile?: string;
   quoteReply?: string;
   hidden?: boolean;
   allowNotification?: boolean;
@@ -75,17 +74,9 @@ export function buildReplyRequestPayload(
   };
 }
 
-async function resolveReplyContent(
-  content: string | undefined,
-  contentFile: string | undefined,
-): Promise<string | undefined> {
+async function resolveReplyContent(content: string | undefined): Promise<string | undefined> {
   if (content?.trim()) {
     return content;
-  }
-
-  if (contentFile?.trim()) {
-    const { readFile } = await import("node:fs/promises");
-    return readFile(contentFile.trim(), "utf8");
   }
 
   if (!isInteractive()) {
@@ -187,7 +178,6 @@ function buildCommentCli(runtime: RuntimeContext): CAC {
     .option("--profile <name>", "Halo profile name")
     .option("--json", "Output JSON")
     .option("--content <text>", "Reply content")
-    .option("--content-file <path>", "Read reply content from file")
     .option("--quote-reply <name>", "Reply to a specific reply")
     .option("--hidden", "Create reply as hidden")
     .option("--allow-notification", "Send notification, default true")
@@ -198,11 +188,11 @@ function buildCommentCli(runtime: RuntimeContext): CAC {
         profile.baseUrl,
         clients.axios,
       );
-      const content = (await resolveReplyContent(options.content, options.contentFile))?.trim();
+      const content = (await resolveReplyContent(options.content))?.trim();
 
       if (!content) {
         throw new CliError(
-          "`halo comment create-reply` requires content. Use --content, --content-file, or run interactively.",
+          "`halo comment create-reply` requires content. Use --content or run interactively.",
         );
       }
 

@@ -1,5 +1,6 @@
 import { expect, test } from "vitest";
 
+import { renderContentByRawType } from "../../../utils/content.js";
 import {
   CONTENT_JSON_ANNOTATION,
   PATCHED_CONTENT_ANNOTATION,
@@ -9,11 +10,18 @@ import {
   normalizeUpdatePostInput,
   serializeDraftContent,
   slugify,
+  slugifyTaxonomyDisplayName,
 } from "../input.js";
 
 test("slugify normalizes text and falls back for blank titles", () => {
   expect(slugify(" Hello, Halo CLI! ")).toBe("hello-halo-cli");
   expect(slugify("%%%")).toBe("post");
+});
+
+test("slugifyTaxonomyDisplayName preserves readable names and removes URL-hostile characters", () => {
+  expect(slugifyTaxonomyDisplayName("分类 一", "category")).toBe("分类-一");
+  expect(slugifyTaxonomyDisplayName("Halo / CLI?", "tag")).toBe("Halo-CLI");
+  expect(slugifyTaxonomyDisplayName("%%% ", "tag")).toBe("tag");
 });
 
 test("normalizeCreatePostInput builds a complete PostRequest", async () => {
@@ -38,6 +46,7 @@ test("normalizeCreatePostInput builds a complete PostRequest", async () => {
   expect(request.post.spec.publish).toBe(true);
   expect(request.post.spec.excerpt.autoGenerate).toBe(false);
   expect(request.content.raw).toBe("# Hello World");
+  expect(request.content.content).toBe(renderContentByRawType("# Hello World", "markdown"));
   expect(request.content.rawType).toBe("markdown");
 });
 
@@ -77,12 +86,26 @@ test("normalizeUpdatePostInput merges provided fields over current remote state"
   expect(request.post.spec.publish).toBe(true);
   expect(request.post.spec.pinned).toBe(true);
   expect(request.content.raw).toBe("new content");
+  expect(request.content.content).toBe(renderContentByRawType("new content", "markdown"));
+});
+
+test("normalizeCreatePostInput keeps html content unchanged when raw type is html", async () => {
+  const request = await normalizeCreatePostInput({
+    title: "Hello HTML",
+    slug: "hello-html",
+    content: "<h1>Hello Halo</h1>",
+    rawType: "html",
+  });
+
+  expect(request.content.raw).toBe("<h1>Hello Halo</h1>");
+  expect(request.content.content).toBe("<h1>Hello Halo</h1>");
+  expect(request.content.rawType).toBe("html");
 });
 
 test("extractDraftContent prefers serialized content annotation from draft snapshot", () => {
   const content = {
     raw: "# Hello from draft",
-    content: "<h1>Hello from draft</h1>",
+    content: renderContentByRawType("# Hello from draft", "markdown"),
     rawType: "markdown",
   };
 
@@ -136,7 +159,7 @@ test("extractDraftContent falls back to patched annotations", () => {
 
   expect(extracted).toEqual({
     raw: "# Draft",
-    content: "<p>Draft</p>",
+    content: renderContentByRawType("# Draft", "markdown"),
     rawType: "markdown",
   });
 });

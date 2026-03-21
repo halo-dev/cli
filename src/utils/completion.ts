@@ -87,8 +87,14 @@ const COMPLETION_TREE: CompletionNode = {
         "export-json": {
           flags: [...PROFILE_JSON_FLAGS, "--output"],
         },
+        "export-markdown": {
+          flags: ["--profile", "--output", ...HELP_FLAGS],
+        },
         "import-json": {
           flags: [...FORCE_FLAGS, "--file", "--raw"],
+        },
+        "import-markdown": {
+          flags: [...FORCE_FLAGS, "--file"],
         },
       },
     },

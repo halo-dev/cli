@@ -60,9 +60,10 @@ halo post get my-post --json
 Create or update:
 
 ```bash
-halo post create --title "Hello Halo" --content-file ./post.md --publish true
+halo post create --title "Hello Halo" --content "# Hello Halo" --publish true
+halo post create --title "Hello Halo" --content "<h1>Hello Halo</h1>" --raw-type html
 halo post update my-post --title "Updated title"
-halo post update my-post --content-file ./post.md --publish true
+halo post update my-post --content "Updated content" --publish true
 halo post update my-post --new-name my-post-renamed
 ```
 
@@ -71,7 +72,7 @@ Taxonomy-aware create/update:
 ```bash
 halo post create \
   --title "Release Notes" \
-  --content-file ./release.md \
+  --content "Release notes content" \
   --categories News,CLI \
   --tags Halo,Release
 ```
@@ -83,9 +84,18 @@ halo post export-json my-post --output ./post.json
 halo post import-json --file ./post.json --force
 ```
 
+Markdown round-trip:
+
+```bash
+halo post export-markdown my-post
+halo post export-markdown my-post --output ./post.md
+halo post import-markdown --file ./post.md --force
+```
+
 Rules:
 
-- Prefer one content source: `--content` or `--content-file`.
+- `--raw-type` defaults to `markdown`, so `--content` is rendered as Markdown unless you set `--raw-type html`.
+- Prefer `--content` for direct inline updates, or use `import-markdown` for Markdown files.
 - `open` only works for published content; with `--json` it returns the URL.
 - Import payload must contain `post.metadata.name`.
 - Import payload must contain `content.raw` or `content.content`.
@@ -102,7 +112,8 @@ halo single-page get about --json
 Create or update:
 
 ```bash
-halo single-page create --title "About" --content-file ./about.md --publish true
+halo single-page create --title "About" --content "# About" --publish true
+halo single-page create --title "About" --content "<h1>Hello Halo</h1>" --raw-type html
 halo single-page update about --title "About Halo"
 halo single-page update about --new-name about-page
 ```

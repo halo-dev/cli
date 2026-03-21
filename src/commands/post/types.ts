@@ -4,6 +4,7 @@ export interface PostMutationInput {
   slug?: string;
   content?: string;
   contentFile?: string;
+  renderedContent?: string;
   rawType?: string;
   excerpt?: string;
   categories?: string[];

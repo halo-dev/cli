@@ -29,6 +29,12 @@ test("getCompletionCandidates suggests nested comment reply commands", () => {
   );
 });
 
+test("getCompletionCandidates includes post markdown import/export commands", () => {
+  expect(getCompletionCandidates(["post"], "")).toEqual(
+    expect.arrayContaining(["import-markdown", "export-markdown"]),
+  );
+});
+
 test("getCompletionCandidates suggests flags when current token starts with dash", () => {
   expect(getCompletionCandidates(["post", "get"], "--")).toEqual(
     expect.arrayContaining(["--profile", "--json", "--help"]),

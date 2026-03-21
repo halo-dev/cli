@@ -1,5 +1,6 @@
 import { expect, test } from "vitest";
 
+import { renderContentByRawType } from "../../../utils/content.js";
 import {
   parseSinglePageTransferPayload,
   resolveSinglePageTransferPayload,
@@ -61,7 +62,7 @@ test("parseSinglePageTransferPayload normalizes exported single page json", () =
     },
     content: {
       raw: "# About Halo",
-      content: "<h1>About Halo</h1>",
+      content: renderContentByRawType("# About Halo", "markdown"),
       rawType: "markdown",
     },
   });
@@ -87,7 +88,7 @@ test("parseSinglePageTransferPayload falls back from content.content to content.
     },
     content: {
       raw: "# About Halo",
-      content: "# About Halo",
+      content: renderContentByRawType("# About Halo", "markdown"),
       rawType: "markdown",
     },
   });
