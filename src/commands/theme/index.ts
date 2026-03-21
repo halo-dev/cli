@@ -26,7 +26,6 @@ interface ThemeCommandOptions {
   page?: string;
   size?: string;
   url?: string;
-  uri?: string;
   file?: string;
   online?: boolean;
   all?: boolean;
@@ -187,7 +186,7 @@ export function resolveThemeInstallSource(options: ThemeCommandOptions): {
   url?: string;
   file?: string;
 } {
-  const url = options.url?.trim() || options.uri?.trim();
+  const url = options.url?.trim();
   const file = options.file?.trim();
 
   if (!url && !file) {
@@ -210,9 +209,9 @@ function resolveThemeUpgradeTarget(
       throw new CliError("`halo theme upgrade --all` does not accept a theme name.");
     }
 
-    if (options.url || options.uri || options.file) {
+    if (options.url || options.file) {
       throw new CliError(
-        "`halo theme upgrade --all` only supports App Store upgrades. Do not combine it with --url, --uri, or --file.",
+        "`halo theme upgrade --all` only supports App Store upgrades. Do not combine it with --url or --file.",
       );
     }
 
@@ -591,7 +590,6 @@ function buildThemeCli(runtime: RuntimeContext): CAC {
     .option("--profile <name>", "Halo profile name")
     .option("--json", "Output JSON")
     .option("--url <url>", "Remote ZIP URL")
-    .option("--uri <uri>", "Remote ZIP URI")
     .option("--file <path>", "Local ZIP file path")
     .option("-y, --yes", "Skip third-party URL confirmation")
     .action(async (options: ThemeCommandOptions) => {
@@ -641,7 +639,6 @@ function buildThemeCli(runtime: RuntimeContext): CAC {
     .option("--profile <name>", "Halo profile name")
     .option("--json", "Output JSON")
     .option("--url <url>", "Remote ZIP URL")
-    .option("--uri <uri>", "Remote ZIP URI")
     .option("--file <path>", "Local ZIP file path")
     .option("--online", "Upgrade from the Halo App Store")
     .option("--all", "Upgrade all compatible App Store themes")
@@ -801,7 +798,7 @@ function buildThemeCli(runtime: RuntimeContext): CAC {
   themeCli.example((bin) => `${bin} list`);
   themeCli.example((bin) => `${bin} get ThemeName`);
   themeCli.example((bin) => `${bin} current`);
-  themeCli.example((bin) => `${bin} install --uri file:///tmp/example.zip`);
+  themeCli.example((bin) => `${bin} install --url https://example.com/theme.zip`);
   themeCli.example((bin) => `${bin} install --url https://example.com/theme.zip`);
   themeCli.example((bin) => `${bin} upgrade ThemeName --online`);
   themeCli.example((bin) => `${bin} activate ThemeName`);

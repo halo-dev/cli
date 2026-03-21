@@ -104,7 +104,6 @@ interface HaloProActivation {
 
 export interface PluginUpgradeSourceOptions {
   url?: string;
-  uri?: string;
   file?: string;
   online?: boolean;
 }
@@ -135,7 +134,7 @@ async function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T
 export function resolvePluginUpgradeSource(
   options: PluginUpgradeSourceOptions,
 ): PluginUpgradeSource {
-  const url = options.url?.trim() || options.uri?.trim();
+  const url = options.url?.trim();
   const file = options.file?.trim();
   const online = Boolean(options.online);
   const sourceCount = Number(Boolean(url)) + Number(Boolean(file)) + Number(online);

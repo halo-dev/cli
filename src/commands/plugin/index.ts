@@ -31,7 +31,6 @@ interface PluginCommandOptions {
   keyword?: string;
   enabled?: string;
   url?: string;
-  uri?: string;
   file?: string;
   online?: boolean;
   all?: boolean;
@@ -89,9 +88,9 @@ export function resolvePluginUpgradeTarget(
       throw new CliError("`halo plugin upgrade --all` does not accept a plugin name.");
     }
 
-    if (options.url || options.uri || options.file) {
+    if (options.url || options.file) {
       throw new CliError(
-        "`halo plugin upgrade --all` only supports App Store upgrades. Do not combine it with --url, --uri, or --file.",
+        "`halo plugin upgrade --all` only supports App Store upgrades. Do not combine it with --url or --file.",
       );
     }
 
@@ -195,7 +194,7 @@ export function resolvePluginInstallSource(options: PluginCommandOptions): {
   url?: string;
   file?: string;
 } {
-  const url = options.url?.trim() || options.uri?.trim();
+  const url = options.url?.trim();
   const file = options.file?.trim();
 
   if (!url && !file) {
@@ -669,7 +668,6 @@ function buildPluginCli(runtime: RuntimeContext): CAC {
     .option("--profile <name>", "Halo profile name")
     .option("--json", "Output JSON")
     .option("--url <url>", "Remote JAR URL")
-    .option("--uri <uri>", "Remote JAR URI")
     .option("--file <path>", "Local JAR file path")
     .option("-y, --yes", "Skip third-party URL confirmation")
     .action(async (options: PluginCommandOptions) => {
@@ -714,7 +712,6 @@ function buildPluginCli(runtime: RuntimeContext): CAC {
     .option("--profile <name>", "Halo profile name")
     .option("--json", "Output JSON")
     .option("--url <url>", "Remote JAR URL")
-    .option("--uri <uri>", "Remote JAR URI")
     .option("--file <path>", "Local JAR file path")
     .option("--online", "Upgrade from the Halo App Store")
     .option("--all", "Upgrade all compatible App Store plugins")
@@ -820,7 +817,6 @@ function buildPluginCli(runtime: RuntimeContext): CAC {
   pluginCli.example((bin) => `${bin} enable PluginName --force`);
   pluginCli.example((bin) => `${bin} disable PluginName --force`);
   pluginCli.example((bin) => `${bin} uninstall PluginName --force`);
-  pluginCli.example((bin) => `${bin} install --uri file:///tmp/example.jar`);
   pluginCli.example((bin) => `${bin} install --url https://example.com/plugin.jar`);
   pluginCli.example((bin) => `${bin} upgrade PluginName --online`);
   pluginCli.example((bin) => `${bin} upgrade --all --online --yes`);

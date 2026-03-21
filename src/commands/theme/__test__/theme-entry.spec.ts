@@ -286,6 +286,13 @@ test("tryRunThemeCommand rejects unknown online install flags during parsing", a
   await expect(
     tryRunThemeCommand(["theme", "install", "--online"], runtimeMock as never),
   ).rejects.toThrow(/Unknown option `--online`/i);
+
+  await expect(
+    tryRunThemeCommand(
+      ["theme", "install", "--uri", "https://example.com/theme.zip"],
+      runtimeMock as never,
+    ),
+  ).rejects.toThrow(/Unknown option `--uri`/i);
 });
 
 test("tryRunThemeCommand dispatches activate subcommands", async () => {

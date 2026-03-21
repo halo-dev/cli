@@ -20,13 +20,6 @@ test("resolvePluginInstallSource accepts urls", () => {
   });
 });
 
-test("resolvePluginInstallSource accepts uri aliases", () => {
-  expect(resolvePluginInstallSource({ uri: " https://example.com/plugin.jar " })).toEqual({
-    url: "https://example.com/plugin.jar",
-    file: undefined,
-  });
-});
-
 test("resolvePluginInstallSource accepts files", () => {
   expect(resolvePluginInstallSource({ file: " ./plugin.jar " })).toEqual({
     url: undefined,

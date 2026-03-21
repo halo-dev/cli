@@ -20,13 +20,6 @@ test("resolveThemeInstallSource accepts urls", () => {
   });
 });
 
-test("resolveThemeInstallSource accepts uri aliases", () => {
-  expect(resolveThemeInstallSource({ uri: " https://example.com/theme.zip " })).toEqual({
-    url: "https://example.com/theme.zip",
-    file: undefined,
-  });
-});
-
 test("resolveThemeInstallSource accepts files", () => {
   expect(resolveThemeInstallSource({ file: " ./theme.zip " })).toEqual({
     url: undefined,

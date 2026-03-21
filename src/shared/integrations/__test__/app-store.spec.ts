@@ -33,13 +33,6 @@ test("resolvePluginUpgradeSource accepts url source", () => {
   });
 });
 
-test("resolvePluginUpgradeSource accepts uri alias", () => {
-  expect(resolvePluginUpgradeSource({ uri: "https://example.com/plugin.jar" })).toEqual({
-    kind: "url",
-    url: "https://example.com/plugin.jar",
-  });
-});
-
 test("resolvePluginUpgradeSource accepts file source", () => {
   expect(resolvePluginUpgradeSource({ file: "./plugin.jar" })).toEqual({
     kind: "file",

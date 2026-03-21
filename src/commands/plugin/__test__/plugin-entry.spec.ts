@@ -609,6 +609,13 @@ test("tryRunPluginCommand rejects unknown install flags during parsing", async (
   await expect(
     tryRunPluginCommand(["plugin", "install", "--online"], runtimeMock as never),
   ).rejects.toThrow(/Unknown option `--online`/i);
+
+  await expect(
+    tryRunPluginCommand(
+      ["plugin", "install", "--uri", "https://example.com/plugin.jar"],
+      runtimeMock as never,
+    ),
+  ).rejects.toThrow(/Unknown option `--uri`/i);
 });
 
 test("tryRunPluginCommand rejects invalid --all combinations", async () => {

@@ -45,7 +45,7 @@ Rules:
 
 - `theme list` marks the active theme in table output.
 - Local theme install uses `--file`.
-- `theme install --url|--uri` and `theme upgrade --url|--uri` prompt for confirmation when the remote host is not `www.halo.run`; use `--yes` to bypass that prompt in automation or other non-interactive runs.
+- `theme install --url` and `theme upgrade --url` prompt for confirmation when the remote host is not `www.halo.run`; use `--yes` to bypass that prompt in automation or other non-interactive runs.
 - `upgrade --all` is for App Store-aware upgrades, not direct `--file` or `--url` sources.
 
 ## Plugins
@@ -65,7 +65,7 @@ halo plugin uninstall <name> --force
 Rules:
 
 - Plugin upgrades can use App Store-aware logic.
-- `plugin install --url|--uri` and `plugin upgrade --url|--uri` prompt for confirmation when the remote host is not `www.halo.run`; use `--yes` to bypass that prompt in automation or other non-interactive runs.
+- `plugin install --url` and `plugin upgrade --url` prompt for confirmation when the remote host is not `www.halo.run`; use `--yes` to bypass that prompt in automation or other non-interactive runs.
 - Treat `disable`, `upgrade`, and `uninstall` as mutating operations.
 
 ## Attachments
