@@ -4,6 +4,7 @@ import { join } from "node:path";
 
 import { expect, test } from "vitest";
 
+import { renderContentByRawType } from "../../../utils/content.js";
 import {
   buildPostMarkdownFrontMatter,
   parsePostMarkdownDocument,
@@ -69,7 +70,10 @@ test("resolvePostMarkdownImportPayload derives title, slug, and rendered markdow
     expect(payload.mutationInput.slug).toBe("hello-world");
     expect(payload.mutationInput.rawType).toBe("markdown");
     expect(payload.mutationInput.content).toBe("# Hello World\n\nParagraph.");
-    expect(payload.mutationInput.renderedContent).toContain("<h1>Hello World</h1>");
+    expect(payload.mutationInput.renderedContent).toBe(
+      renderContentByRawType("# Hello World\n\nParagraph.", "markdown"),
+    );
+    expect(payload.mutationInput.renderedContent).toContain('id="hello-world"');
   } finally {
     await rm(tempDir, { recursive: true, force: true });
   }

@@ -1,5 +1,6 @@
 import { afterEach, expect, test, vi } from "vitest";
 
+import { renderContentByRawType } from "../../../utils/content.js";
 import { tryRunSinglePageCommand } from "../index.js";
 
 afterEach(() => {
@@ -87,7 +88,7 @@ test("tryRunSinglePageCommand imports json as a new single page when it does not
       },
       content: {
         raw: "# About",
-        content: "<h1>About</h1>\n",
+        content: renderContentByRawType("# About", "markdown"),
         rawType: "markdown",
       },
     },
@@ -169,7 +170,7 @@ test("tryRunSinglePageCommand imports json by updating an existing single page",
       },
       content: {
         raw: "# About",
-        content: "<h1>About</h1>\n",
+        content: renderContentByRawType("# About", "markdown"),
         rawType: "markdown",
       },
     },

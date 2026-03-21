@@ -1,4 +1,5 @@
 import MarkdownIt from "markdown-it";
+import MarkdownItAnchor from "markdown-it-anchor";
 
 export const DEFAULT_CONTENT_RAW_TYPE = "markdown";
 
@@ -9,6 +10,8 @@ const markdownIt = new MarkdownIt({
   linkify: true,
   typographer: true,
 });
+
+markdownIt.use(MarkdownItAnchor);
 
 export function normalizeContentRawType(rawType?: string): string {
   const normalized = rawType?.trim();

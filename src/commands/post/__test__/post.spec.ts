@@ -58,14 +58,18 @@ test("withSerializedContentAnnotation preserves existing annotations", () => {
     },
     {
       raw: "# Halo",
-      content: "<h1>Halo</h1>",
+      content: renderContentByRawType("# Halo", "markdown"),
       rawType: "markdown",
     },
   );
 
   expect(metadata.annotations).toMatchObject({
     existing: "value",
-    [CONTENT_JSON_ANNOTATION]: '{"raw":"# Halo","content":"<h1>Halo</h1>","rawType":"markdown"}',
+    [CONTENT_JSON_ANNOTATION]: JSON.stringify({
+      raw: "# Halo",
+      content: renderContentByRawType("# Halo", "markdown"),
+      rawType: "markdown",
+    }),
   });
 });
 

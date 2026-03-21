@@ -132,7 +132,7 @@ halo:
     expect(promptState.checkbox).not.toHaveBeenCalled();
     expect(
       createMyPost.mock.calls[0]?.[0]?.post?.metadata?.annotations?.[CONTENT_JSON_ANNOTATION],
-    ).toContain("<h1>Hello Halo</h1>");
+    ).toContain('id=\\"hello-halo\\"');
 
     const fileContent = await readFile(filePath, "utf8");
     expect(fileContent).toContain("title: Hello Halo");
