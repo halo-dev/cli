@@ -16,7 +16,7 @@ import {
   parseCsvOption,
   parseNumberOption,
 } from "../../utils/options.js";
-import { printJson } from "../../utils/output.js";
+import { printJson, printResourceMutationSuccess } from "../../utils/output.js";
 import { type HaloClients, RuntimeContext } from "../../utils/runtime.js";
 import { normalizeBaseUrl } from "../../utils/url.js";
 import { openUrlInBrowser, resolvePostOpenUrl } from "./browser.js";
@@ -27,6 +27,7 @@ import {
   normalizeCreatePostInput,
   normalizeUpdatePostInput,
   promptCreatePostPrimaryFields,
+  promptUpdatePostPrimaryFields,
   serializeDraftContent,
   slugifyTaxonomyDisplayName,
 } from "./input.js";
@@ -787,7 +788,14 @@ function buildPostCli(runtime: RuntimeContext): CAC {
         return;
       }
 
-      process.stdout.write(`Created post ${latestPost.data.metadata.name}.\n`);
+      printResourceMutationSuccess({
+        message: "Post created successfully.",
+        baseUrl: profile.baseUrl,
+        name: latestPost.data.metadata.name,
+        permalink: latestPost.data.status?.permalink,
+        resourceLabel: "Post",
+        inspectCommand: `halo post get ${latestPost.data.metadata.name}`,
+      });
     });
 
   postCli
@@ -823,10 +831,13 @@ function buildPostCli(runtime: RuntimeContext): CAC {
         currentState.content,
         await enrichPostMutationInput(
           clients,
-          {
-            ...toMutationInput(options),
-            name: options.newName,
-          },
+          await promptUpdatePostPrimaryFields(
+            {
+              ...toMutationInput(options),
+              name: options.newName,
+            },
+            currentState.post,
+          ),
           currentState.post,
         ),
       );
@@ -867,7 +878,14 @@ function buildPostCli(runtime: RuntimeContext): CAC {
         return;
       }
 
-      process.stdout.write(`Updated post ${latestPost.data.metadata.name}.\n`);
+      printResourceMutationSuccess({
+        message: "Post updated successfully.",
+        baseUrl: profile.baseUrl,
+        name: latestPost.data.metadata.name,
+        permalink: latestPost.data.status?.permalink,
+        resourceLabel: "Post",
+        inspectCommand: `halo post get ${latestPost.data.metadata.name}`,
+      });
     });
 
   postCli
@@ -962,9 +980,17 @@ function buildPostCli(runtime: RuntimeContext): CAC {
         return;
       }
 
-      process.stdout.write(
-        `${action === "updated" ? "Updated existing post" : "Imported post"} ${resultName} from ${sourceLabel}.\n`,
-      );
+      printResourceMutationSuccess({
+        message:
+          action === "updated"
+            ? `Post import updated an existing post from ${sourceLabel}.`
+            : `Post imported successfully from ${sourceLabel}.`,
+        baseUrl: profile.baseUrl,
+        name: detail.post.metadata.name,
+        permalink: detail.post.status?.permalink,
+        resourceLabel: "Post",
+        inspectCommand: `halo post get ${detail.post.metadata.name}`,
+      });
     });
 
   postCli
@@ -1033,9 +1059,17 @@ function buildPostCli(runtime: RuntimeContext): CAC {
         return;
       }
 
-      process.stdout.write(
-        `${action === "updated" ? "Updated existing post" : "Imported post"} ${resultName} from Markdown file ${markdownPayload.filePath}.\n`,
-      );
+      printResourceMutationSuccess({
+        message:
+          action === "updated"
+            ? `Markdown import updated an existing post from ${markdownPayload.filePath}.`
+            : `Markdown post imported successfully from ${markdownPayload.filePath}.`,
+        baseUrl: profile.baseUrl,
+        name: detail.post.metadata.name,
+        permalink: detail.post.status?.permalink,
+        resourceLabel: "Post",
+        inspectCommand: `halo post get ${detail.post.metadata.name}`,
+      });
     });
 
   postCli.usage("<command> [flags]");

@@ -270,3 +270,90 @@ halo:
     await rm(tempDir, { recursive: true, force: true });
   }
 });
+
+test("tryRunPostCommand prints markdown import summary when permalink is unavailable", async () => {
+  const stdoutSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+
+  const tempDir = await mkdtemp(join(tmpdir(), "halo-post-import-markdown-summary-"));
+  const filePath = join(tempDir, "hello-halo.md");
+
+  try {
+    await writeFile(
+      filePath,
+      `---
+title: Hello Halo
+---
+# Hello Halo
+`,
+      "utf8",
+    );
+
+    const createMyPost = vi.fn().mockResolvedValue({
+      data: { metadata: { name: "post-1" } },
+    });
+
+    ucPostApiState.implementation = {
+      createMyPost,
+      publishMyPost: vi.fn().mockResolvedValue(undefined),
+      unpublishMyPost: vi.fn().mockResolvedValue(undefined),
+    };
+
+    const getPost = vi.fn().mockResolvedValue({
+      data: {
+        metadata: { name: "post-1" },
+        spec: {
+          title: "Hello Halo",
+          slug: "hello-halo",
+          excerpt: { autoGenerate: true },
+          cover: "",
+          categories: [],
+          tags: [],
+          publish: false,
+        },
+        status: {},
+      },
+    });
+    const fetchPostHeadContent = vi.fn().mockResolvedValue({
+      data: {
+        raw: "# Hello Halo",
+        content: "<h1>Hello Halo</h1>\n",
+        rawType: "markdown",
+      },
+    });
+    const runtimeMock = {
+      getClientsForOptions: vi.fn().mockResolvedValue({
+        profile: { baseUrl: "https://example.com" },
+        clients: {
+          axios: {},
+          core: {
+            content: {
+              post: {
+                getPost,
+              },
+            },
+          },
+          console: {
+            content: {
+              post: {
+                fetchPostHeadContent,
+              },
+            },
+          },
+        },
+      }),
+    };
+
+    await expect(
+      tryRunPostCommand(["post", "import-markdown", "--file", filePath], runtimeMock as never),
+    ).resolves.toBe(true);
+
+    const output = stdoutSpy.mock.calls.map((call) => String(call[0])).join("");
+    expect(output).toContain(`Markdown post imported successfully from ${filePath}.`);
+    expect(output).toContain("\n\nmetadata.name: post-1");
+    expect(output).toContain("metadata.name: post-1");
+    expect(output).toContain("permalink: (not available until published)");
+    expect(output).toContain("inspect: halo post get post-1");
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+});

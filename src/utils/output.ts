@@ -2,9 +2,20 @@ import { styleText } from "node:util";
 
 import Table from "cli-table3";
 
+import { resolvePermalinkUrl } from "./browser.js";
+
 export interface ExecutionTarget {
   profileName?: string;
   baseUrl: string;
+}
+
+export interface ResourceMutationSuccessOptions {
+  message: string;
+  baseUrl: string;
+  name: string;
+  permalink?: string;
+  resourceLabel: string;
+  inspectCommand: string;
 }
 
 export interface PaginationFooterOptions {
@@ -37,6 +48,22 @@ export function printExecutionTarget(target: ExecutionTarget, json = false): voi
   }
 
   process.stdout.write(`${badge} ${styleText("dim", "url")} ${location}\n\n`);
+}
+
+export function printResourceMutationSuccess(options: ResourceMutationSuccessOptions): void {
+  process.stdout.write(`${options.message}\n\n`);
+  process.stdout.write(`metadata.name: ${options.name}\n`);
+
+  const normalizedPermalink = options.permalink?.trim();
+  if (normalizedPermalink) {
+    process.stdout.write(
+      `permalink: ${resolvePermalinkUrl(options.baseUrl, normalizedPermalink, options.resourceLabel)}\n`,
+    );
+  } else {
+    process.stdout.write("permalink: (not available until published)\n");
+  }
+
+  process.stdout.write(`inspect: ${options.inspectCommand}\n`);
 }
 
 export function printPaginationFooter(options: PaginationFooterOptions): void {

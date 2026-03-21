@@ -170,6 +170,35 @@ export async function promptCreatePostPrimaryFields(
   return result;
 }
 
+export async function promptUpdatePostPrimaryFields(
+  inputState: PostMutationInput,
+  currentPost: Post,
+): Promise<PostMutationInput> {
+  if (!isInteractive()) {
+    return inputState;
+  }
+
+  const result = { ...inputState };
+
+  if (!result.title) {
+    result.title = await input({
+      message: "Post title",
+      default: currentPost.spec.title,
+      validate: (value) => (value.trim().length > 0 ? true : "Title is required."),
+    });
+  }
+
+  if (!result.slug) {
+    result.slug = await input({
+      message: "Post slug",
+      default: currentPost.spec.slug ?? (result.title ? slugify(result.title) : undefined),
+      validate: (value) => (value.trim().length > 0 ? true : "Slug is required."),
+    });
+  }
+
+  return result;
+}
+
 export async function normalizeCreatePostInput(
   inputState: PostMutationInput,
 ): Promise<PostRequest> {

@@ -9,7 +9,7 @@ import { confirmDangerousAction } from "../../utils/confirmation.js";
 import { DEFAULT_CONTENT_RAW_TYPE, renderContentByRawType } from "../../utils/content.js";
 import { CliError } from "../../utils/errors.js";
 import { parseBooleanOption, parseNumberOption } from "../../utils/options.js";
-import { printJson } from "../../utils/output.js";
+import { printJson, printResourceMutationSuccess } from "../../utils/output.js";
 import { type HaloClients, RuntimeContext } from "../../utils/runtime.js";
 import { openUrlInBrowser, resolveSinglePageOpenUrl } from "./browser.js";
 import { printSinglePageDetail, printSinglePageList } from "./format.js";
@@ -336,7 +336,7 @@ function buildSinglePageCli(runtime: RuntimeContext): CAC {
     .option("--allow-comment <true|false>", "Whether comments are allowed")
     .option("--priority <number>", "Single page priority")
     .action(async (options: SinglePageCommandOptions) => {
-      const { clients } = await runtime.getClientsForOptions(options);
+      const { profile, clients } = await runtime.getClientsForOptions(options);
       const request = await normalizeCreateSinglePageInput(toMutationInput(options));
 
       const createResponse = await clients.console.content.singlePage.draftSinglePage({
@@ -363,7 +363,14 @@ function buildSinglePageCli(runtime: RuntimeContext): CAC {
         return;
       }
 
-      process.stdout.write(`Created single page ${latestPage.metadata.name}.\n`);
+      printResourceMutationSuccess({
+        message: "Single page created successfully.",
+        baseUrl: profile.baseUrl,
+        name: latestPage.metadata.name,
+        permalink: latestPage.status?.permalink,
+        resourceLabel: "Single page",
+        inspectCommand: `halo single-page get ${latestPage.metadata.name}`,
+      });
     });
 
   singlePageCli
@@ -383,7 +390,7 @@ function buildSinglePageCli(runtime: RuntimeContext): CAC {
     .option("--allow-comment <true|false>", "Whether comments are allowed")
     .option("--priority <number>", "Single page priority")
     .action(async (name: string, options: SinglePageCommandOptions) => {
-      const { clients } = await runtime.getClientsForOptions(options);
+      const { profile, clients } = await runtime.getClientsForOptions(options);
       const currentState = await loadEditableSinglePageState(clients, name);
 
       const request = await normalizeUpdateSinglePageInput(
@@ -420,7 +427,14 @@ function buildSinglePageCli(runtime: RuntimeContext): CAC {
         return;
       }
 
-      process.stdout.write(`Updated single page ${updatedPage.metadata.name}.\n`);
+      printResourceMutationSuccess({
+        message: "Single page updated successfully.",
+        baseUrl: profile.baseUrl,
+        name: updatedPage.metadata.name,
+        permalink: updatedPage.status?.permalink,
+        resourceLabel: "Single page",
+        inspectCommand: `halo single-page get ${updatedPage.metadata.name}`,
+      });
     });
 
   singlePageCli
@@ -478,7 +492,7 @@ function buildSinglePageCli(runtime: RuntimeContext): CAC {
     .option("--force", "Update without confirmation when the single page already exists")
     .action(async (options: SinglePageJsonCommandOptions) => {
       const { payload, sourceLabel } = await resolveSinglePageTransferInput(options);
-      const { clients } = await runtime.getClientsForOptions(options);
+      const { profile, clients } = await runtime.getClientsForOptions(options);
       const targetName = payload.page.metadata.name;
       let resultName = targetName;
       let action: "imported" | "updated" = "imported";
@@ -547,9 +561,17 @@ function buildSinglePageCli(runtime: RuntimeContext): CAC {
         return;
       }
 
-      process.stdout.write(
-        `${action === "updated" ? "Updated existing single page" : "Imported single page"} ${resultName} from ${sourceLabel}.\n`,
-      );
+      printResourceMutationSuccess({
+        message:
+          action === "updated"
+            ? `Single page import updated an existing page from ${sourceLabel}.`
+            : `Single page imported successfully from ${sourceLabel}.`,
+        baseUrl: profile.baseUrl,
+        name: detail.page.metadata.name,
+        permalink: detail.page.status?.permalink,
+        resourceLabel: "Single page",
+        inspectCommand: `halo single-page get ${detail.page.metadata.name}`,
+      });
     });
 
   singlePageCli.usage("<command> [flags]");

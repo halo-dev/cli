@@ -211,6 +211,79 @@ test("tryRunPostCommand imports json by updating an existing post", async () => 
   expect(publishMyPost).toHaveBeenCalledWith({ name: "post-1" });
 });
 
+test("tryRunPostCommand prints import summary with permalink and inspect command", async () => {
+  const stdoutSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+
+  const getMyPost = vi.fn().mockRejectedValue({
+    isAxiosError: true,
+    response: { status: 404 },
+  });
+  const createMyPost = vi.fn().mockResolvedValue({
+    data: { metadata: { name: "post-1" } },
+  });
+  const publishMyPost = vi.fn().mockResolvedValue(undefined);
+  ucPostApiState.implementation = {
+    getMyPost,
+    getMyPostDraft: vi.fn(),
+    updateMyPost: vi.fn(),
+    updateMyPostDraft: vi.fn(),
+    createMyPost,
+    publishMyPost,
+    unpublishMyPost: vi.fn(),
+  };
+
+  const getPost = vi.fn().mockResolvedValue({
+    data: {
+      metadata: { name: "post-1" },
+      status: { permalink: "/archives/post-1" },
+    },
+  });
+  const fetchPostHeadContent = vi.fn().mockResolvedValue({
+    data: { raw: "# Halo", content: "<h1>Halo</h1>", rawType: "markdown" },
+  });
+  const runtimeMock = {
+    getClientsForOptions: vi.fn().mockResolvedValue({
+      profile: { baseUrl: "https://example.com/console" },
+      clients: {
+        axios: {},
+        core: {
+          content: {
+            post: {
+              getPost,
+            },
+          },
+        },
+        console: {
+          content: {
+            post: {
+              fetchPostHeadContent,
+            },
+          },
+        },
+      },
+    }),
+  };
+
+  await expect(
+    tryRunPostCommand(
+      [
+        "post",
+        "import-json",
+        "--raw",
+        '{"post":{"metadata":{"name":"post-1"},"spec":{"publish":true}},"content":{"raw":"# Halo","content":"<h1>Halo</h1>","rawType":"markdown"}}',
+      ],
+      runtimeMock as never,
+    ),
+  ).resolves.toBe(true);
+
+  const output = stdoutSpy.mock.calls.map((call) => String(call[0])).join("");
+  expect(output).toContain("Post imported successfully from inline JSON.");
+  expect(output).toContain("\n\nmetadata.name: post-1");
+  expect(output).toContain("metadata.name: post-1");
+  expect(output).toContain("permalink: https://example.com/archives/post-1");
+  expect(output).toContain("inspect: halo post get post-1");
+});
+
 test("tryRunPostCommand rejects invalid inline json", async () => {
   const runtimeMock = {
     getClientsForOptions: vi.fn(),

@@ -5,6 +5,7 @@ import {
   printExecutionTarget,
   printJson,
   printPaginationFooter,
+  printResourceMutationSuccess,
 } from "../output.js";
 
 afterEach(() => {
@@ -76,6 +77,45 @@ test("printExecutionTarget prints url label when no profile name is available", 
   expect(String(stdoutSpy.mock.calls[0]?.[0])).toContain("TARGET");
   expect(String(stdoutSpy.mock.calls[0]?.[0])).toContain("url");
   expect(String(stdoutSpy.mock.calls[0]?.[0])).toContain("https://demo.halo.run");
+});
+
+test("printResourceMutationSuccess prints metadata name, absolute permalink, and inspect command", () => {
+  const stdoutSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+
+  printResourceMutationSuccess({
+    message: "Post created successfully.",
+    baseUrl: "https://demo.halo.run/console",
+    name: "hello-world",
+    permalink: "/archives/hello-world",
+    resourceLabel: "Post",
+    inspectCommand: "halo post get hello-world",
+  });
+
+  expect(stdoutSpy.mock.calls.map((call) => String(call[0])).join("")).toBe(
+    "Post created successfully.\n\n" +
+      "metadata.name: hello-world\n" +
+      "permalink: https://demo.halo.run/archives/hello-world\n" +
+      "inspect: halo post get hello-world\n",
+  );
+});
+
+test("printResourceMutationSuccess shows unavailable permalink for unpublished resources", () => {
+  const stdoutSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+
+  printResourceMutationSuccess({
+    message: "Single page updated successfully.",
+    baseUrl: "https://demo.halo.run",
+    name: "about",
+    resourceLabel: "Single page",
+    inspectCommand: "halo single-page get about",
+  });
+
+  expect(stdoutSpy.mock.calls.map((call) => String(call[0])).join("")).toBe(
+    "Single page updated successfully.\n\n" +
+      "metadata.name: about\n" +
+      "permalink: (not available until published)\n" +
+      "inspect: halo single-page get about\n",
+  );
 });
 
 test("printDetailObject flattens nested values into table output", () => {

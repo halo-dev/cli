@@ -179,6 +179,84 @@ test("tryRunSinglePageCommand imports json by updating an existing single page",
   expect(fetchSinglePageHeadContent).toHaveBeenCalledWith({ name: "about" });
 });
 
+test("tryRunSinglePageCommand prints single page import summary with permalink and inspect command", async () => {
+  const stdoutSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+
+  const getSinglePage = vi
+    .fn()
+    .mockRejectedValueOnce({
+      isAxiosError: true,
+      response: { status: 404 },
+    })
+    .mockResolvedValue({
+      data: {
+        metadata: { name: "about" },
+        spec: { publish: true },
+        status: { permalink: "/about" },
+      },
+    });
+  const draftSinglePage = vi.fn().mockResolvedValue({
+    data: {
+      metadata: { name: "about" },
+      spec: { publish: false },
+      status: {},
+    },
+  });
+  const publishSinglePage = vi.fn().mockResolvedValue({
+    data: {
+      metadata: { name: "about" },
+      spec: { publish: true },
+      status: { permalink: "/about" },
+    },
+  });
+  const fetchSinglePageHeadContent = vi.fn().mockResolvedValue({
+    data: { raw: "# About", content: "<h1>About</h1>", rawType: "markdown" },
+  });
+
+  const runtimeMock = {
+    getClientsForOptions: vi.fn().mockResolvedValue({
+      profile: { baseUrl: "https://example.com/console" },
+      clients: {
+        core: {
+          content: {
+            singlePage: {
+              getSinglePage,
+            },
+          },
+        },
+        console: {
+          content: {
+            singlePage: {
+              draftSinglePage,
+              publishSinglePage,
+              fetchSinglePageHeadContent,
+            },
+          },
+        },
+      },
+    }),
+  };
+
+  await expect(
+    tryRunSinglePageCommand(
+      [
+        "single-page",
+        "import-json",
+        "--raw",
+        '{"page":{"metadata":{"name":"about"},"spec":{"publish":true}},"content":{"raw":"# About","content":"<h1>About</h1>","rawType":"markdown"}}',
+      ],
+      runtimeMock as never,
+    ),
+  ).resolves.toBe(true);
+
+  const output = stdoutSpy.mock.calls.map((call) => String(call[0])).join("");
+  expect(output).toContain("Single page imported successfully from inline JSON.");
+  expect(output).toContain("\n\nmetadata.name: about");
+  expect(output).toContain("metadata.name: about");
+  expect(output).toContain("permalink: https://example.com/about");
+  expect(output).toContain("inspect: halo single-page get about");
+});
+
 test("tryRunSinglePageCommand rejects invalid inline json", async () => {
   const runtimeMock = {
     getClientsForOptions: vi.fn(),
