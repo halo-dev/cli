@@ -29,11 +29,21 @@ test("tryRunMomentCommand dispatches list subcommands", async () => {
       total: 0,
     },
   });
+  const getPlugin = vi.fn().mockResolvedValue({
+    data: { spec: { enabled: true } },
+  });
   const runtimeMock = {
     getClientsForOptions: vi.fn().mockResolvedValue({
       clients: {
         axios: {
           get,
+        },
+        core: {
+          plugin: {
+            plugin: {
+              getPlugin,
+            },
+          },
         },
       },
     }),

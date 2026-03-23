@@ -1,4 +1,5 @@
 import { input } from "@inquirer/prompts";
+import axios from "axios";
 import cac, { type CAC } from "cac";
 
 import { tryRunCommandCliRoute } from "../../utils/command-router.js";
@@ -11,10 +12,11 @@ import {
   parseNumberOption,
 } from "../../utils/options.js";
 import { printJson } from "../../utils/output.js";
-import { RuntimeContext } from "../../utils/runtime.js";
+import { type HaloClients, RuntimeContext } from "../../utils/runtime.js";
 import { printMoment, printMomentList } from "./format.js";
 import type { ListedMomentList, Moment, MomentVisible } from "./types.js";
 
+const MOMENTS_PLUGIN_NAME = "PluginMoments";
 const MOMENT_API_VERSION = "moment.halo.run/v1alpha1";
 const MOMENT_KIND = "Moment";
 const MOMENT_API_BASE = "/apis/uc.api.moment.halo.run/v1alpha1/moments";
@@ -44,6 +46,27 @@ interface MomentMutationOptions extends MomentCommandOptions {
 
 interface MomentDeleteOptions extends MomentCommandOptions {
   force?: boolean;
+}
+
+async function ensureMomentsPluginInstalled(clients: HaloClients): Promise<void> {
+  try {
+    const response = await clients.core.plugin.plugin.getPlugin({ name: MOMENTS_PLUGIN_NAME });
+    if (!response.data.spec.enabled) {
+      throw new CliError(
+        `The ${MOMENTS_PLUGIN_NAME} plugin is installed but not enabled. Enable it with: halo plugin enable ${MOMENTS_PLUGIN_NAME}`,
+      );
+    }
+  } catch (error) {
+    if (error instanceof CliError) {
+      throw error;
+    }
+    if (axios.isAxiosError(error) && error.response?.status === 404) {
+      throw new CliError(
+        `The ${MOMENTS_PLUGIN_NAME} plugin is not installed. Install it from the App Store or via: halo plugin install`,
+      );
+    }
+    throw error;
+  }
 }
 
 async function resolveMomentContent(content?: string): Promise<string | undefined> {
@@ -142,6 +165,12 @@ export function buildMomentPayload(
 async function buildMomentCli(runtime: RuntimeContext): Promise<CAC> {
   const momentCli = cac("halo moment");
 
+  async function getCheckedClients(options: MomentCommandOptions) {
+    const result = await runtime.getClientsForOptions(options);
+    await ensureMomentsPluginInstalled(result.clients);
+    return result;
+  }
+
   momentCli
     .command("list", "List moments")
     .option("--profile <name>", "Halo profile name")
@@ -153,7 +182,7 @@ async function buildMomentCli(runtime: RuntimeContext): Promise<CAC> {
     .option("--visible <state>", "Filter by visibility: PUBLIC or PRIVATE")
     .option("--approved <boolean>", "Filter by approval state")
     .action(async (options: MomentListOptions) => {
-      const { clients } = await runtime.getClientsForOptions(options);
+      const { clients } = await getCheckedClients(options);
       const response = await clients.axios.get<ListedMomentList>(MOMENT_API_BASE, {
         params: {
           page: parseNumberOption(options.page),
@@ -173,7 +202,7 @@ async function buildMomentCli(runtime: RuntimeContext): Promise<CAC> {
     .option("--profile <name>", "Halo profile name")
     .option("--json", "Output JSON")
     .action(async (name: string, options: MomentCommandOptions) => {
-      const { clients } = await runtime.getClientsForOptions(options);
+      const { clients } = await getCheckedClients(options);
       const response = await clients.axios.get<Moment>(
         `${MOMENT_API_BASE}/${encodeURIComponent(name)}`,
       );
@@ -191,7 +220,7 @@ async function buildMomentCli(runtime: RuntimeContext): Promise<CAC> {
     .option("--release-time <datetime>", "Release time in ISO-8601 format")
     .option("--approved <boolean>", "Initial approval state")
     .action(async (options: MomentMutationOptions) => {
-      const { clients } = await runtime.getClientsForOptions(options);
+      const { clients } = await getCheckedClients(options);
       const resolvedContent = await resolveMomentContent(options.content);
       const content = (await promptForMomentContent(resolvedContent?.trim(), "create"))?.trim();
 
@@ -216,7 +245,7 @@ async function buildMomentCli(runtime: RuntimeContext): Promise<CAC> {
     .option("--release-time <datetime>", "Release time in ISO-8601 format")
     .option("--approved <boolean>", "Approval state")
     .action(async (name: string, options: MomentMutationOptions) => {
-      const { clients } = await runtime.getClientsForOptions(options);
+      const { clients } = await getCheckedClients(options);
       const existingResponse = await clients.axios.get<Moment>(
         `${MOMENT_API_BASE}/${encodeURIComponent(name)}`,
       );
@@ -260,7 +289,7 @@ async function buildMomentCli(runtime: RuntimeContext): Promise<CAC> {
     .option("--json", "Output JSON")
     .option("--force", "Delete without confirmation")
     .action(async (name: string, options: MomentDeleteOptions) => {
-      const { clients } = await runtime.getClientsForOptions(options);
+      const { clients } = await getCheckedClients(options);
 
       if (
         !(await confirmDangerousAction(
