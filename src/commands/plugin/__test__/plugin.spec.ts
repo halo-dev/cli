@@ -15,26 +15,39 @@ afterEach(() => {
 
 test("resolvePluginInstallSource accepts urls", () => {
   expect(resolvePluginInstallSource({ url: " https://example.com/plugin.jar " })).toEqual({
+    kind: "url",
     url: "https://example.com/plugin.jar",
-    file: undefined,
   });
 });
 
 test("resolvePluginInstallSource accepts files", () => {
   expect(resolvePluginInstallSource({ file: " ./plugin.jar " })).toEqual({
-    url: undefined,
+    kind: "file",
     file: "./plugin.jar",
   });
 });
 
+test("resolvePluginInstallSource accepts app-id", () => {
+  expect(resolvePluginInstallSource({ appId: " app-SnwWD " })).toEqual({
+    kind: "app-store",
+    appId: "app-SnwWD",
+  });
+});
+
 test("resolvePluginInstallSource requires exactly one source", () => {
-  expect(() => resolvePluginInstallSource({})).toThrow(/Provide either --url or --file/);
+  expect(() => resolvePluginInstallSource({})).toThrow(/Provide exactly one install source/);
   expect(() =>
     resolvePluginInstallSource({
       url: "https://example.com/plugin.jar",
       file: "./plugin.jar",
     }),
-  ).toThrow(/Use only one plugin source/);
+  ).toThrow(/Use only one plugin install source/);
+  expect(() =>
+    resolvePluginInstallSource({
+      url: "https://example.com/plugin.jar",
+      appId: "app-SnwWD",
+    }),
+  ).toThrow(/Use only one plugin install source/);
 });
 
 test("confirmPluginMutation skips prompting with --force", async () => {

@@ -62,7 +62,7 @@ async function ensureMomentsPluginInstalled(clients: HaloClients): Promise<void>
     }
     if (axios.isAxiosError(error) && error.response?.status === 404) {
       throw new CliError(
-        `The ${MOMENTS_PLUGIN_NAME} plugin is not installed. Install it from the App Store or via: halo plugin install`,
+        `The ${MOMENTS_PLUGIN_NAME} plugin is not installed. Install it from the App Store with: halo plugin install --app-id app-SnwWD`,
       );
     }
     throw error;

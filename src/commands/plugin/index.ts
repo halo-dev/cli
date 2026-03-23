@@ -32,6 +32,7 @@ interface PluginCommandOptions {
   enabled?: string;
   url?: string;
   file?: string;
+  appId?: string;
   online?: boolean;
   all?: boolean;
   yes?: boolean;
@@ -190,22 +191,35 @@ function createSpinnerReporter(json = false): SpinnerReporter {
   return new SpinnerReporter(process.stdout.isTTY && !json);
 }
 
-export function resolvePluginInstallSource(options: PluginCommandOptions): {
-  url?: string;
-  file?: string;
-} {
+export type PluginInstallSource =
+  | { kind: "url"; url: string }
+  | { kind: "file"; file: string }
+  | { kind: "app-store"; appId: string };
+
+export function resolvePluginInstallSource(options: PluginCommandOptions): PluginInstallSource {
   const url = options.url?.trim();
   const file = options.file?.trim();
+  const appId = options.appId?.trim();
 
-  if (!url && !file) {
-    throw new CliError("Provide either --url or --file.");
+  const sourceCount = Number(Boolean(url)) + Number(Boolean(file)) + Number(Boolean(appId));
+
+  if (sourceCount === 0) {
+    throw new CliError("Provide exactly one install source: --url, --file, or --app-id.");
   }
 
-  if (url && file) {
-    throw new CliError("Use only one plugin source: --url or --file.");
+  if (sourceCount > 1) {
+    throw new CliError("Use only one plugin install source: --url, --file, or --app-id.");
   }
 
-  return { url, file };
+  if (url) {
+    return { kind: "url", url };
+  }
+
+  if (file) {
+    return { kind: "file", file };
+  }
+
+  return { kind: "app-store", appId: appId! };
 }
 
 function getPluginMutationVerb(action: "enable" | "disable" | "uninstall"): string {
@@ -669,15 +683,17 @@ function buildPluginCli(runtime: RuntimeContext): CAC {
     .option("--json", "Output JSON")
     .option("--url <url>", "Remote JAR URL")
     .option("--file <path>", "Local JAR file path")
-    .option("-y, --yes", "Skip third-party URL confirmation")
+    .option("--app-id <id>", "Halo App Store application ID")
+    .option("-y, --yes", "Skip confirmation prompts")
     .action(async (options: PluginCommandOptions) => {
       if (options.online) {
-        throw new CliError("`halo plugin install` does not support --online. Use --url or --file.");
+        throw new CliError("`halo plugin install` does not support --online. Use --app-id.");
       }
 
       const source = resolvePluginInstallSource(options);
+
       if (
-        source.url &&
+        source.kind === "url" &&
         !(await confirmThirdPartyPackageSource(
           source.url,
           {
@@ -691,20 +707,54 @@ function buildPluginCli(runtime: RuntimeContext): CAC {
       }
 
       const { clients } = await runtime.getClientsForOptions(options);
-      const response = source.url
-        ? await clients.console.plugin.plugin.installPluginFromUri({
+      const spinner = createSpinnerReporter(options.json);
+      let response;
+
+      try {
+        if (source.kind === "url") {
+          spinner.start("Installing plugin from remote URL...");
+          response = await clients.console.plugin.plugin.installPluginFromUri({
             installFromUriRequest: { uri: source.url },
-          })
-        : await clients.console.plugin.plugin.installPlugin({
-            file: await loadFileAsJar(source.file!),
           });
+          spinner.succeed(`Installed plugin ${response.data.metadata.name}.`);
+        } else if (source.kind === "file") {
+          spinner.start("Uploading local plugin package...");
+          response = await clients.console.plugin.plugin.installPlugin({
+            file: await loadFileAsJar(source.file),
+          });
+          spinner.succeed(`Installed plugin ${response.data.metadata.name}.`);
+        } else {
+          spinner.start(`Resolving App Store package for ${source.appId}...`);
+          const appStoreClient = await createAppStoreClient(clients);
+          const release = await resolveLatestAppStoreRelease(appStoreClient, source.appId);
+          spinner.stop();
+
+          const confirmed = await confirmAppStoreReleaseReview(
+            {
+              commandPath: "halo plugin install",
+              actionLabel: `installing plugin from App Store`,
+              items: [{ name: source.appId, releaseUrl: release.releaseUrl }],
+            },
+            options,
+          );
+
+          if (!confirmed) {
+            return;
+          }
+
+          spinner.start(`Installing plugin ${source.appId} from Halo App Store...`);
+          response = await clients.console.plugin.plugin.installPluginFromUri({
+            installFromUriRequest: { uri: release.downloadUrl },
+          });
+          spinner.succeed(`Installed plugin ${response.data.metadata.name}.`);
+        }
+      } finally {
+        spinner.stop();
+      }
 
       if (options.json) {
         printJson(response.data);
-        return;
       }
-
-      process.stdout.write(`Installed plugin ${response.data.metadata.name}.\n`);
     });
 
   pluginCli
@@ -818,6 +868,7 @@ function buildPluginCli(runtime: RuntimeContext): CAC {
   pluginCli.example((bin) => `${bin} disable PluginName --force`);
   pluginCli.example((bin) => `${bin} uninstall PluginName --force`);
   pluginCli.example((bin) => `${bin} install --url https://example.com/plugin.jar`);
+  pluginCli.example((bin) => `${bin} install --app-id app-SnwWD`);
   pluginCli.example((bin) => `${bin} upgrade PluginName --online`);
   pluginCli.example((bin) => `${bin} upgrade --all --online --yes`);
   pluginCli.help();
