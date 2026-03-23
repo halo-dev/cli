@@ -3,7 +3,7 @@ import {
   type Plugin,
   type PluginV1alpha1ConsoleApiListPluginsRequest,
 } from "@halo-dev/api-client";
-import { checkbox } from "@inquirer/prompts";
+import { checkbox, confirm } from "@inquirer/prompts";
 import cac, { type CAC } from "cac";
 import ora, { type Ora } from "ora";
 
@@ -754,6 +754,30 @@ function buildPluginCli(runtime: RuntimeContext): CAC {
 
       if (options.json) {
         printJson(response.data);
+        return;
+      }
+
+      const pluginName = response.data.metadata.name;
+      if (!response.data.spec.enabled) {
+        let shouldEnable = options.yes ?? false;
+        if (!shouldEnable && process.stdin.isTTY && process.stdout.isTTY) {
+          shouldEnable = await confirm({
+            message: `Enable plugin ${pluginName} now?`,
+            default: true,
+          });
+        }
+
+        if (shouldEnable) {
+          await clients.console.plugin.plugin.changePluginRunningState({
+            name: pluginName,
+            pluginRunningStateRequest: { enable: true },
+          });
+          process.stdout.write(`Enabled plugin ${pluginName}.\n`);
+        } else {
+          process.stdout.write(
+            `Plugin ${pluginName} installed but not enabled. Run \`halo plugin enable ${pluginName}\` to enable it.\n`,
+          );
+        }
       }
     });
 
