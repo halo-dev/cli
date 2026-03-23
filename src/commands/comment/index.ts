@@ -214,6 +214,10 @@ function buildCommentCli(runtime: RuntimeContext): CAC {
   commentCli.example(
     (bin) => `${bin} create-reply comment-abc123 --content "Thanks for your feedback"`,
   );
+  commentCli.example(
+    (bin) =>
+      `${bin} create-reply comment-abc123 --content "Thanks for your feedback" --quote-reply reply-abc123`,
+  );
   commentCli.example((bin) => `${bin} reply list comment-abc123`);
   commentCli.help();
 
