@@ -6,7 +6,7 @@ import { checkbox, input } from "@inquirer/prompts";
 import axios from "axios";
 import cac, { type CAC } from "cac";
 
-import { tryRunCommandCliRoute } from "../../utils/command-router.js";
+import { tryRunCommandCliRoute, tryRunNestedCliRoute } from "../../utils/command-router.js";
 import { confirmDangerousAction } from "../../utils/confirmation.js";
 import { DEFAULT_CONTENT_RAW_TYPE, renderContentByRawType } from "../../utils/content.js";
 import { CliError } from "../../utils/errors.js";
@@ -38,6 +38,7 @@ import {
   resolvePostMarkdownImportPayload,
   writePostMarkdownDocument,
 } from "./markdown.js";
+import { buildTagCli } from "./tag.js";
 import type { PostMutationInput } from "./types.js";
 
 interface PostCommandOptions {
@@ -1072,6 +1073,8 @@ function buildPostCli(runtime: RuntimeContext): CAC {
       });
     });
 
+  postCli.command("tag", "Tag management commands");
+
   postCli.usage("<command> [flags]");
   postCli.example((bin) => `${bin} list --page 1 --size 20`);
   postCli.example((bin) => `${bin} get my-post --json`);
@@ -1097,6 +1100,21 @@ function buildPostCli(runtime: RuntimeContext): CAC {
 }
 
 export async function tryRunPostCommand(args: string[], runtime: RuntimeContext): Promise<boolean> {
+  if (args[0] !== "post") {
+    return false;
+  }
+
+  if (
+    await tryRunNestedCliRoute({
+      branch: "tag",
+      cliName: "halo post tag",
+      args,
+      buildCli: () => buildTagCli(runtime),
+    })
+  ) {
+    return true;
+  }
+
   return tryRunCommandCliRoute({
     command: "post",
     cliName: "halo post",

@@ -1,4 +1,4 @@
-import type { ListedPostList, Post } from "@halo-dev/api-client";
+import type { ListedPostList, Post, Tag, TagList } from "@halo-dev/api-client";
 import Table from "cli-table3";
 import dayjs from "dayjs";
 import stringWidth from "string-width";
@@ -144,4 +144,92 @@ export function printPostDetail(detail: PostDetailPayload, json = false): void {
   });
 
   process.stdout.write('\nUse "--json" to view the full content payload.\n');
+}
+
+function getTagListWidths(): number[] {
+  const width = resolveTerminalWidth();
+  const nameWidth = 36;
+  const slugWidth = 24;
+  const colorWidth = 10;
+  const createdAtWidth = 17;
+  const reservedWidth = nameWidth + slugWidth + colorWidth + createdAtWidth + 8;
+  const displayNameWidth = Math.min(Math.max(20, width - reservedWidth), 40);
+  return [nameWidth, displayNameWidth, slugWidth, colorWidth, createdAtWidth];
+}
+
+export function printTagList(list: TagList, json = false): void {
+  if (json) {
+    printJson(list);
+    return;
+  }
+
+  const widths = getTagListWidths();
+  const table = new Table({
+    head: ["NAME", "DISPLAY NAME", "SLUG", "COLOR", "CREATED AT"],
+    colWidths: widths,
+    colAligns: ["left", "left", "left", "left", "left"],
+    style: {
+      compact: true,
+      head: [],
+      border: [],
+      "padding-left": 0,
+      "padding-right": 0,
+    },
+    wordWrap: false,
+    chars: {
+      top: "",
+      "top-mid": "",
+      "top-left": "",
+      "top-right": "",
+      bottom: "",
+      "bottom-mid": "",
+      "bottom-left": "",
+      "bottom-right": "",
+      left: "",
+      "left-mid": "",
+      mid: "",
+      "mid-mid": "",
+      right: "",
+      "right-mid": "",
+      middle: "  ",
+    },
+  });
+
+  for (const item of list.items) {
+    table.push([
+      item.metadata.name,
+      truncateDisplayText(item.spec.displayName, widths[1]!),
+      truncateDisplayText(item.spec.slug, widths[2]!),
+      item.spec.color ?? "",
+      formatTimestamp(item.metadata.creationTimestamp ?? undefined),
+    ]);
+  }
+
+  process.stdout.write(`${table.toString()}\n`);
+  printPaginationFooter({
+    page: list.page,
+    size: list.size,
+    total: list.total,
+    totalPages: list.totalPages,
+    hasNext: list.hasNext,
+    hasPrevious: list.hasPrevious,
+    itemLabel: "tag",
+  });
+}
+
+export function printTag(tag: Tag, json = false, successMessage?: string): void {
+  if (json) {
+    printJson(tag);
+    return;
+  }
+
+  if (successMessage) {
+    process.stdout.write(`${successMessage}\n\n`);
+  }
+
+  printDetailObject({
+    metadata: tag.metadata,
+    spec: tag.spec,
+    status: tag.status,
+  });
 }
