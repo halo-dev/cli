@@ -23,6 +23,7 @@ interface CommentDeleteOptions extends CommentCommandOptions {
 interface ReplyListOptions extends CommentCommandOptions {
   page?: string;
   size?: string;
+  comment?: string;
 }
 
 export function buildApprovePatch(): JsonPatchInner[] {
@@ -44,24 +45,37 @@ export function buildReplyCli(runtime: RuntimeContext): CAC {
   const replyCli = cac("halo comment reply");
 
   replyCli
-    .command("list <commentName>", "List replies for a comment")
+    .command("list", "List replies")
     .option("--profile <name>", "Halo profile name")
     .option("--json", "Output JSON")
-    .option("--page <number>", "Page number")
-    .option("--size <number>", "Page size")
-    .action(async (commentName: string, options: ReplyListOptions) => {
+    .option("--page <number>", "Page number", { default: 1 })
+    .option("--size <number>", "Page size", { default: 20 })
+    .option("--comment <name>", "Filter by comment name")
+    .action(async (options: ReplyListOptions) => {
       const { profile, clients } = await runtime.getClientsForOptions(options);
-      const replyConsoleApi = new ReplyV1alpha1ConsoleApi(
-        undefined,
-        profile.baseUrl,
-        clients.axios,
-      );
-      const response = await replyConsoleApi.listReplies({
-        commentName,
-        page: parseNumberOption(options.page),
-        size: parseNumberOption(options.size),
-      });
-      printReplyList(response.data, options.json);
+
+      if (options.comment) {
+        // Use Console API to list replies for a specific comment
+        const replyConsoleApi = new ReplyV1alpha1ConsoleApi(
+          undefined,
+          profile.baseUrl,
+          clients.axios,
+        );
+        const response = await replyConsoleApi.listReplies({
+          commentName: options.comment,
+          page: parseNumberOption(options.page),
+          size: parseNumberOption(options.size),
+        });
+        printReplyList(response.data, options.json);
+      } else {
+        // Use Core API to list all replies
+        const replyApi = new ReplyV1alpha1Api(undefined, profile.baseUrl, clients.axios);
+        const response = await replyApi.listReply({
+          page: parseNumberOption(options.page),
+          size: parseNumberOption(options.size),
+        });
+        printReplyList(response.data, options.json);
+      }
     });
 
   replyCli
@@ -124,7 +138,8 @@ export function buildReplyCli(runtime: RuntimeContext): CAC {
     });
 
   replyCli.usage("<command> [flags]");
-  replyCli.example((bin) => `${bin} list comment-abc123`);
+  replyCli.example((bin) => `${bin} list`);
+  replyCli.example((bin) => `${bin} list --comment comment-abc123`);
   replyCli.example((bin) => `${bin} get reply-abc123`);
   replyCli.example((bin) => `${bin} approve reply-abc123`);
   replyCli.example((bin) => `${bin} delete reply-abc123 --force`);

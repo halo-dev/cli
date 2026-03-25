@@ -4,6 +4,7 @@ import type {
   ListedReply,
   ListedReplyList,
   Reply,
+  ReplyList,
 } from "@halo-dev/api-client";
 import Table from "cli-table3";
 
@@ -166,22 +167,60 @@ export function printComment(comment: Comment, json = false): void {
   } as Record<string, unknown>);
 }
 
-export function printReplyList(list: ListedReplyList | ListedReply[], json = false): void {
+function formatReplyRow(
+  reply: Reply,
+  widths: number[],
+  ownerDisplayName?: string,
+): [string, string, string, string, string] {
+  return [
+    reply.metadata.name,
+    truncateDisplayText(ownerDisplayName ?? reply.spec.owner?.displayName ?? "", widths[1]!),
+    truncateDisplayText(stripHtmlTags(reply.spec.content), widths[2]!),
+    reply.spec.approved ? "yes" : "no",
+    formatTimestamp(reply.metadata.creationTimestamp ?? undefined),
+  ];
+}
+
+export function printReplyList(
+  list: ListedReplyList | ListedReply[] | ReplyList,
+  json = false,
+): void {
   if (json) {
     printJson(list);
     return;
   }
 
+  const widths = getReplyListWidths();
+
+  // Handle ReplyList from Core API (listReply)
+  if (
+    !Array.isArray(list) &&
+    "items" in list &&
+    list.items.length > 0 &&
+    !("reply" in list.items[0]!)
+  ) {
+    const replyList = list as ReplyList;
+    const rows = replyList.items.map((reply) => formatReplyRow(reply, widths));
+
+    printTable(["NAME", "OWNER", "CONTENT", "APPROVED", "CREATED AT"], rows, widths);
+    printPaginationFooter({
+      page: replyList.page,
+      size: replyList.size,
+      total: replyList.total,
+      totalPages: replyList.totalPages,
+      hasNext: replyList.hasNext,
+      hasPrevious: replyList.hasPrevious,
+      itemLabel: "reply",
+    });
+    return;
+  }
+
+  // Handle ListedReplyList from Console API (listReplies)
   const items = Array.isArray(list) ? list : list.items;
   const total = Array.isArray(list) ? list.length : list.total;
-  const widths = getReplyListWidths();
-  const rows = items.map((item) => [
-    item.reply.metadata.name,
-    truncateDisplayText(resolveCommentOwnerName(item), widths[1]!),
-    truncateDisplayText(stripHtmlTags(item.reply.spec.content), widths[2]!),
-    item.reply.spec.approved ? "yes" : "no",
-    formatTimestamp(item.reply.metadata.creationTimestamp ?? undefined),
-  ]);
+  const rows = (items as ListedReply[]).map((item) =>
+    formatReplyRow(item.reply, widths, item.owner?.displayName),
+  );
 
   printTable(["NAME", "OWNER", "CONTENT", "APPROVED", "CREATED AT"], rows, widths);
 

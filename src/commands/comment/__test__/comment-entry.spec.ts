@@ -99,7 +99,18 @@ test("tryRunCommentCommand dispatches reply list subcommands", async () => {
 
   await expect(
     tryRunCommentCommand(
-      ["comment", "reply", "list", "comment-1", "--page", "2", "--size", "10", "--json"],
+      [
+        "comment",
+        "reply",
+        "list",
+        "--comment",
+        "comment-1",
+        "--page",
+        "2",
+        "--size",
+        "10",
+        "--json",
+      ],
       runtimeMock as never,
     ),
   ).resolves.toBe(true);
