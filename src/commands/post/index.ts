@@ -20,6 +20,7 @@ import { printJson, printResourceMutationSuccess } from "../../utils/output.js";
 import { type HaloClients, RuntimeContext } from "../../utils/runtime.js";
 import { normalizeBaseUrl } from "../../utils/url.js";
 import { openUrlInBrowser, resolvePostOpenUrl } from "./browser.js";
+import { buildCategoryCli } from "./category.js";
 import { printPostDetail, printPostList } from "./format.js";
 import {
   CONTENT_JSON_ANNOTATION,
@@ -1073,6 +1074,7 @@ function buildPostCli(runtime: RuntimeContext): CAC {
       });
     });
 
+  postCli.command("category", "Category management commands");
   postCli.command("tag", "Tag management commands");
 
   postCli.usage("<command> [flags]");
@@ -1102,6 +1104,17 @@ function buildPostCli(runtime: RuntimeContext): CAC {
 export async function tryRunPostCommand(args: string[], runtime: RuntimeContext): Promise<boolean> {
   if (args[0] !== "post") {
     return false;
+  }
+
+  if (
+    await tryRunNestedCliRoute({
+      branch: "category",
+      cliName: "halo post category",
+      args,
+      buildCli: () => buildCategoryCli(runtime),
+    })
+  ) {
+    return true;
   }
 
   if (

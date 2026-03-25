@@ -1,4 +1,11 @@
-import type { ListedPostList, Post, Tag, TagList } from "@halo-dev/api-client";
+import type {
+  Category,
+  CategoryList,
+  ListedPostList,
+  Post,
+  Tag,
+  TagList,
+} from "@halo-dev/api-client";
 import Table from "cli-table3";
 import dayjs from "dayjs";
 import stringWidth from "string-width";
@@ -231,5 +238,93 @@ export function printTag(tag: Tag, json = false, successMessage?: string): void 
     metadata: tag.metadata,
     spec: tag.spec,
     status: tag.status,
+  });
+}
+
+function getCategoryListWidths(): number[] {
+  const width = resolveTerminalWidth();
+  const nameWidth = 36;
+  const slugWidth = 24;
+  const priorityWidth = 10;
+  const createdAtWidth = 17;
+  const reservedWidth = nameWidth + slugWidth + priorityWidth + createdAtWidth + 8;
+  const displayNameWidth = Math.min(Math.max(20, width - reservedWidth), 40);
+  return [nameWidth, displayNameWidth, slugWidth, priorityWidth, createdAtWidth];
+}
+
+export function printCategoryList(list: CategoryList, json = false): void {
+  if (json) {
+    printJson(list);
+    return;
+  }
+
+  const widths = getCategoryListWidths();
+  const table = new Table({
+    head: ["NAME", "DISPLAY NAME", "SLUG", "PRIORITY", "CREATED AT"],
+    colWidths: widths,
+    colAligns: ["left", "left", "left", "left", "left"],
+    style: {
+      compact: true,
+      head: [],
+      border: [],
+      "padding-left": 0,
+      "padding-right": 0,
+    },
+    wordWrap: false,
+    chars: {
+      top: "",
+      "top-mid": "",
+      "top-left": "",
+      "top-right": "",
+      bottom: "",
+      "bottom-mid": "",
+      "bottom-left": "",
+      "bottom-right": "",
+      left: "",
+      "left-mid": "",
+      mid: "",
+      "mid-mid": "",
+      right: "",
+      "right-mid": "",
+      middle: "  ",
+    },
+  });
+
+  for (const item of list.items) {
+    table.push([
+      item.metadata.name,
+      truncateDisplayText(item.spec.displayName, widths[1]!),
+      truncateDisplayText(item.spec.slug, widths[2]!),
+      String(item.spec.priority ?? ""),
+      formatTimestamp(item.metadata.creationTimestamp ?? undefined),
+    ]);
+  }
+
+  process.stdout.write(`${table.toString()}\n`);
+  printPaginationFooter({
+    page: list.page,
+    size: list.size,
+    total: list.total,
+    totalPages: list.totalPages,
+    hasNext: list.hasNext,
+    hasPrevious: list.hasPrevious,
+    itemLabel: "category",
+  });
+}
+
+export function printCategory(category: Category, json = false, successMessage?: string): void {
+  if (json) {
+    printJson(category);
+    return;
+  }
+
+  if (successMessage) {
+    process.stdout.write(`${successMessage}\n\n`);
+  }
+
+  printDetailObject({
+    metadata: category.metadata,
+    spec: category.spec,
+    status: category.status,
   });
 }
