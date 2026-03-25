@@ -35,6 +35,8 @@ Post workflows:
 - `delete <name>`
 - `export-json <name>`
 - `import-json`
+- `category` (subcommand)
+- `tag` (subcommand)
 
 Single-page workflows:
 
@@ -99,6 +101,33 @@ Rules:
 - `open` only works for published content; with `--json` it returns the URL.
 - Import payload must contain `post.metadata.name`.
 - Import payload must contain `content.raw` or `content.content`.
+
+## Post Categories
+
+Manage post categories:
+
+```bash
+halo post category list
+halo post category list --keyword Technology
+halo post category get category-abc123
+halo post category create --display-name "Technology" --slug "tech"
+halo post category create --display-name "News" --description "Latest news" --priority 100
+halo post category update category-abc123 --display-name "Tech News"
+halo post category delete category-abc123 --force
+```
+
+## Post Tags
+
+Manage post tags:
+
+```bash
+halo post tag list
+halo post tag list --keyword Halo
+halo post tag get tag-abc123
+halo post tag create --display-name "Halo" --slug "halo" --color "#1890ff"
+halo post tag update tag-abc123 --display-name "Halo CMS"
+halo post tag delete tag-abc123 --force
+```
 
 ## Single Pages
 

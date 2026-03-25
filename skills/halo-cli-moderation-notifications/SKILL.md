@@ -52,7 +52,8 @@ Useful filters for `comment list`:
 Common flows:
 
 ```bash
-halo comment reply list comment-abc123
+halo comment reply list
+halo comment reply list --comment comment-abc123
 halo comment reply get reply-abc123
 halo comment reply approve reply-abc123
 halo comment reply delete reply-abc123 --force

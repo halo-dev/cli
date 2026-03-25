@@ -96,6 +96,48 @@ const COMPLETION_TREE: CompletionNode = {
         "import-markdown": {
           flags: [...FORCE_FLAGS, "--file"],
         },
+        category: {
+          flags: HELP_FLAGS,
+          subcommands: {
+            list: { flags: [...PROFILE_JSON_FLAGS, "--page", "--size", "--keyword", "--sort"] },
+            get: { flags: PROFILE_JSON_FLAGS },
+            create: {
+              flags: [
+                ...PROFILE_JSON_FLAGS,
+                "--display-name",
+                "--slug",
+                "--description",
+                "--cover",
+                "--priority",
+              ],
+            },
+            update: {
+              flags: [
+                ...PROFILE_JSON_FLAGS,
+                "--display-name",
+                "--slug",
+                "--description",
+                "--cover",
+                "--priority",
+              ],
+            },
+            delete: { flags: FORCE_FLAGS },
+          },
+        },
+        tag: {
+          flags: HELP_FLAGS,
+          subcommands: {
+            list: { flags: [...PROFILE_JSON_FLAGS, "--page", "--size", "--keyword", "--sort"] },
+            get: { flags: PROFILE_JSON_FLAGS },
+            create: {
+              flags: [...PROFILE_JSON_FLAGS, "--display-name", "--slug", "--color", "--cover"],
+            },
+            update: {
+              flags: [...PROFILE_JSON_FLAGS, "--display-name", "--slug", "--color", "--cover"],
+            },
+            delete: { flags: FORCE_FLAGS },
+          },
+        },
       },
     },
     "single-page": {
@@ -205,7 +247,7 @@ const COMPLETION_TREE: CompletionNode = {
         reply: {
           flags: HELP_FLAGS,
           subcommands: {
-            list: { flags: PROFILE_JSON_FLAGS },
+            list: { flags: [...PROFILE_JSON_FLAGS, "--comment", "--page", "--size"] },
             get: { flags: PROFILE_JSON_FLAGS },
             approve: { flags: PROFILE_JSON_FLAGS },
             delete: { flags: FORCE_FLAGS },
