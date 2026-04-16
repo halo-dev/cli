@@ -1,6 +1,7 @@
 import { confirm } from "@inquirer/prompts";
 
 import { CliError } from "./errors.js";
+import { isInteractive } from "./options.js";
 import { printJson } from "./output.js";
 
 export const TRUSTED_REMOTE_PACKAGE_SOURCE_HOST = "www.halo.run";
@@ -48,7 +49,7 @@ export async function confirmThirdPartyPackageSource(
     return true;
   }
 
-  if (!process.stdin.isTTY || !process.stdout.isTTY) {
+  if (!isInteractive()) {
     throw new CliError(
       `\`${config.commandPath}\` requires confirmation in interactive mode for third-party package URLs or use --yes.`,
     );

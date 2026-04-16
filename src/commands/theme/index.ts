@@ -15,6 +15,7 @@ import {
 import { tryRunCommandCliRoute } from "../../utils/command-router.js";
 import { confirmDangerousAction } from "../../utils/confirmation.js";
 import { CliError } from "../../utils/errors.js";
+import { isInteractive } from "../../utils/options.js";
 import { printJson } from "../../utils/output.js";
 import { loadFileAsZip } from "../../utils/package-file.js";
 import { confirmThirdPartyPackageSource } from "../../utils/remote-source.js";
@@ -324,13 +325,7 @@ async function upgradeAllThemes(
 
   let selectedThemeNames = new Set(compatibleCandidates.map((item) => item.theme.metadata.name));
 
-  if (
-    compatibleCandidates.length > 0 &&
-    !options.yes &&
-    process.stdin.isTTY &&
-    process.stdout.isTTY &&
-    !options.json
-  ) {
+  if (compatibleCandidates.length > 0 && !options.yes && isInteractive() && !options.json) {
     onProgress?.({ type: "selecting", count: compatibleCandidates.length });
 
     const selected = await checkbox({

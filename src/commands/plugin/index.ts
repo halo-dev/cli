@@ -19,7 +19,7 @@ import {
 import { tryRunCommandCliRoute } from "../../utils/command-router.js";
 import { confirmDangerousAction } from "../../utils/confirmation.js";
 import { CliError } from "../../utils/errors.js";
-import { parseBooleanOption } from "../../utils/options.js";
+import { isInteractive, parseBooleanOption } from "../../utils/options.js";
 import { printJson } from "../../utils/output.js";
 import { loadFileAsJar } from "../../utils/package-file.js";
 import { confirmThirdPartyPackageSource } from "../../utils/remote-source.js";
@@ -328,13 +328,7 @@ async function upgradeAllPlugins(
 
   let selectedPluginNames = new Set(compatibleCandidates.map((item) => item.plugin.metadata.name));
 
-  if (
-    compatibleCandidates.length > 0 &&
-    !options.yes &&
-    process.stdin.isTTY &&
-    process.stdout.isTTY &&
-    !options.json
-  ) {
+  if (compatibleCandidates.length > 0 && !options.yes && isInteractive() && !options.json) {
     onProgress?.({ type: "selecting", count: compatibleCandidates.length });
 
     const selected = await checkbox({
@@ -768,7 +762,7 @@ function buildPluginCli(runtime: RuntimeContext): CAC {
       const pluginName = response.data.metadata.name;
       if (!response.data.spec.enabled) {
         let shouldEnable = options.yes ?? false;
-        if (!shouldEnable && process.stdin.isTTY && process.stdout.isTTY) {
+        if (!shouldEnable && isInteractive()) {
           shouldEnable = await confirm({
             message: `Enable plugin ${pluginName} now?`,
             default: true,

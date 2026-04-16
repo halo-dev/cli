@@ -4,6 +4,7 @@ import axios, { type AxiosInstance } from "axios";
 import semver from "semver";
 
 import { CliError } from "../../utils/errors.js";
+import { isInteractive } from "../../utils/options.js";
 import type { HaloClients } from "../../utils/runtime.js";
 import { normalizeBaseUrl } from "../../utils/url.js";
 
@@ -567,7 +568,7 @@ export async function confirmAppStoreReleaseReview(
     return true;
   }
 
-  if (!process.stdin.isTTY || !process.stdout.isTTY) {
+  if (!isInteractive()) {
     throw new CliError(
       `\`${config.commandPath}\` requires confirmation in interactive mode after reviewing release notes.`,
     );

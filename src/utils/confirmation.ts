@@ -1,6 +1,7 @@
 import { confirm } from "@inquirer/prompts";
 
 import { CliError } from "./errors.js";
+import { isInteractive } from "./options.js";
 import { printJson } from "./output.js";
 
 export interface DangerousActionOptions {
@@ -24,7 +25,7 @@ export async function confirmDangerousAction(
     return true;
   }
 
-  if (!process.stdin.isTTY || !process.stdout.isTTY) {
+  if (!isInteractive()) {
     throw new CliError(
       `\`${config.commandPath}\` requires confirmation in interactive mode or use --force.`,
     );
