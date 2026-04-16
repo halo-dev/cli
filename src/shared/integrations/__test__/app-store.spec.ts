@@ -18,6 +18,7 @@ import {
   resolvePluginAppStoreAppId,
   resolvePluginUpdateInfo,
   resolvePluginUpgradeSource,
+  resolveUpgradeSource,
   resolveThemeAppStoreAppId,
   satisfiesRequires,
 } from "../app-store.js";
@@ -57,6 +58,13 @@ test("resolvePluginUpgradeSource rejects multiple sources", () => {
       online: true,
     }),
   ).toThrow(/Use only one plugin upgrade source/);
+});
+
+test("resolveUpgradeSource uses custom resource name in errors", () => {
+  expect(() => resolveUpgradeSource({}, "theme")).toThrow(/exactly one theme upgrade source/);
+  expect(() =>
+    resolveUpgradeSource({ url: "https://example.com/theme.zip", online: true }, "theme"),
+  ).toThrow(/only one theme upgrade source/);
 });
 
 test("resolvePluginAppStoreAppId reads store annotation", () => {

@@ -9,7 +9,7 @@ import {
   resolveLatestAppStoreRelease,
   resolveThemeAppStoreAppId,
   resolveThemeUpdates,
-  resolvePluginUpgradeSource,
+  resolveUpgradeSource,
 } from "../../shared/integrations/app-store.js";
 import { tryRunCommandCliRoute } from "../../utils/command-router.js";
 import { confirmDangerousAction } from "../../utils/confirmation.js";
@@ -661,7 +661,7 @@ function buildThemeCli(runtime: RuntimeContext): CAC {
         return;
       }
 
-      const source = resolvePluginUpgradeSource(options);
+      const source = resolveUpgradeSource(options, "theme");
       if (
         source.kind === "url" &&
         !(await confirmThirdPartyPackageSource(

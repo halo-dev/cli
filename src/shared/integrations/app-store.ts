@@ -102,16 +102,22 @@ interface HaloProActivation {
   };
 }
 
-export interface PluginUpgradeSourceOptions {
+export interface UpgradeSourceOptions {
   url?: string;
   file?: string;
   online?: boolean;
 }
 
-export type PluginUpgradeSource =
+/** @deprecated Use UpgradeSourceOptions instead */
+export type PluginUpgradeSourceOptions = UpgradeSourceOptions;
+
+export type UpgradeSource =
   | { kind: "url"; url: string }
   | { kind: "file"; file: string }
   | { kind: "online" };
+
+/** @deprecated Use UpgradeSource instead */
+export type PluginUpgradeSource = UpgradeSource;
 
 async function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
@@ -131,20 +137,23 @@ async function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T
   }
 }
 
-export function resolvePluginUpgradeSource(
-  options: PluginUpgradeSourceOptions,
-): PluginUpgradeSource {
+export function resolveUpgradeSource(
+  options: UpgradeSourceOptions,
+  resourceName = "plugin",
+): UpgradeSource {
   const url = options.url?.trim();
   const file = options.file?.trim();
   const online = Boolean(options.online);
   const sourceCount = Number(Boolean(url)) + Number(Boolean(file)) + Number(online);
 
   if (sourceCount === 0) {
-    throw new CliError("Provide exactly one plugin upgrade source: --url, --file, or --online.");
+    throw new CliError(
+      `Provide exactly one ${resourceName} upgrade source: --url, --file, or --online.`,
+    );
   }
 
   if (sourceCount > 1) {
-    throw new CliError("Use only one plugin upgrade source: --url, --file, or --online.");
+    throw new CliError(`Use only one ${resourceName} upgrade source: --url, --file, or --online.`);
   }
 
   if (url) {
@@ -156,6 +165,10 @@ export function resolvePluginUpgradeSource(
   }
 
   return { kind: "online" };
+}
+
+export function resolvePluginUpgradeSource(options: UpgradeSourceOptions): UpgradeSource {
+  return resolveUpgradeSource(options, "plugin");
 }
 
 export function resolvePluginAppStoreAppId(plugin: Pick<Plugin, "metadata">): string {
