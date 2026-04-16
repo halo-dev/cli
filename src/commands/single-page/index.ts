@@ -473,6 +473,7 @@ function buildSinglePageCli(runtime: RuntimeContext): CAC {
   singlePageCli
     .command("export-json <name>", "Export a single page as JSON")
     .option("--profile <name>", "Halo profile name")
+    .option("--json", "Output JSON")
     .option("--output <path>", "Write JSON to a specific file path")
     .action(async (name: string, options: SinglePageJsonCommandOptions) => {
       const { clients } = await runtime.getClientsForOptions(options);
@@ -480,6 +481,10 @@ function buildSinglePageCli(runtime: RuntimeContext): CAC {
       const outputPath = resolveSinglePageExportOutputPath(name, options.output);
 
       await writeFile(outputPath, stringifyJson(detail));
+      if (options.json) {
+        printJson({ name, outputPath });
+        return;
+      }
       process.stdout.write(`Exported single page ${name} to ${outputPath}.\n`);
     });
 

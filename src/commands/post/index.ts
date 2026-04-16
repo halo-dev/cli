@@ -888,18 +888,24 @@ function buildPostCli(runtime: RuntimeContext): CAC {
   postCli
     .command("export-json <name>", "Export a post as JSON")
     .option("--profile <name>", "Halo profile name")
+    .option("--json", "Output JSON")
     .option("--output <path>", "Write JSON to a specific file path")
     .action(async (name: string, options: PostJsonCommandOptions) => {
       const { clients } = await runtime.getClientsForOptions(options);
       const detail = await loadPostDetail(clients, name);
       const outputPath = resolvePostExportOutputPath(name, options.output);
       await writeFile(outputPath, stringifyJson(detail));
+      if (options.json) {
+        printJson({ name, outputPath });
+        return;
+      }
       process.stdout.write(`Exported post ${name} to ${outputPath}.\n`);
     });
 
   postCli
     .command("export-markdown <name>", "Export a post as a Markdown file")
     .option("--profile <name>", "Halo profile name")
+    .option("--json", "Output JSON")
     .option("--output <path>", "Write Markdown to a specific file path")
     .action(async (name: string, options: PostMarkdownCommandOptions) => {
       const { profile, clients } = await runtime.getClientsForOptions(options);
@@ -907,6 +913,10 @@ function buildPostCli(runtime: RuntimeContext): CAC {
       const outputPath = resolvePostMarkdownExportOutputPath(name, options.output);
 
       await exportMarkdownFile(outputPath, profile.baseUrl, clients, detail);
+      if (options.json) {
+        printJson({ name, outputPath });
+        return;
+      }
       process.stdout.write(`Exported post ${name} to ${outputPath}.\n`);
     });
 
