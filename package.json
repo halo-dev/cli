@@ -32,7 +32,6 @@
     "skills"
   ],
   "type": "module",
-  "types": "./dist/cli.d.mts",
   "publishConfig": {
     "access": "public"
   },
