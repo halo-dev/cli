@@ -5,14 +5,13 @@ import { basename } from "node:path";
 import { AttachmentV1alpha1Api, AttachmentV1alpha1ConsoleApi } from "@halo-dev/api-client";
 import cac, { type CAC } from "cac";
 import { lookup as lookupMimeType } from "mime-types";
-import ora from "ora";
 import prettyBytes from "pretty-bytes";
 
 import { tryRunCommandCliRoute } from "../../utils/command-router.js";
 import { confirmDangerousAction } from "../../utils/confirmation.js";
 import { CliError } from "../../utils/errors.js";
 import { parseNumberOption } from "../../utils/options.js";
-import { printJson } from "../../utils/output.js";
+import { createSpinner, printJson } from "../../utils/output.js";
 import { RuntimeContext } from "../../utils/runtime.js";
 import {
   ensureAttachmentPermalink,
@@ -72,15 +71,6 @@ async function loadFileAsAttachment(filePath: string): Promise<File> {
   return new File([buffer], basename(normalizedPath), {
     type: mediaType,
   });
-}
-
-function createSpinner(enabled: boolean, text: string) {
-  return enabled
-    ? ora({
-        text,
-        discardStdin: false,
-      }).start()
-    : undefined;
 }
 
 function buildAttachmentCli(runtime: RuntimeContext): CAC {

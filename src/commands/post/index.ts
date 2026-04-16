@@ -22,7 +22,7 @@ import {
   parseCsvOption,
   parseNumberOption,
 } from "../../utils/options.js";
-import { printJson, printResourceMutationSuccess } from "../../utils/output.js";
+import { printJson, printResourceMutationSuccess, stringifyJson } from "../../utils/output.js";
 import { type HaloClients, RuntimeContext } from "../../utils/runtime.js";
 import { openUrlInBrowser, resolvePostOpenUrl } from "./browser.js";
 import { buildCategoryCli } from "./category.js";
@@ -199,10 +199,6 @@ async function resolvePostTransferInput(
     payload: parsePostTransferPayload(payload),
     sourceLabel: file ? `JSON file ${file}` : "inline JSON",
   };
-}
-
-function stringifyJson(value: unknown): string {
-  return `${JSON.stringify(value, null, 2)}\n`;
 }
 
 function resolvePostExportOutputPath(name: string, output?: string): string {

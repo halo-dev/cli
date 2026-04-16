@@ -9,7 +9,7 @@ import { confirmDangerousAction } from "../../utils/confirmation.js";
 import { DEFAULT_CONTENT_RAW_TYPE, renderContentByRawType } from "../../utils/content.js";
 import { CliError } from "../../utils/errors.js";
 import { parseBooleanOption, parseNumberOption } from "../../utils/options.js";
-import { printJson, printResourceMutationSuccess } from "../../utils/output.js";
+import { printJson, printResourceMutationSuccess, stringifyJson } from "../../utils/output.js";
 import { type HaloClients, RuntimeContext } from "../../utils/runtime.js";
 import { openUrlInBrowser, resolveSinglePageOpenUrl } from "./browser.js";
 import { printSinglePageDetail, printSinglePageList } from "./format.js";
@@ -174,10 +174,6 @@ async function resolveSinglePageTransferInput(
     payload: parseSinglePageTransferPayload(payload),
     sourceLabel: file ? `JSON file ${file}` : "inline JSON",
   };
-}
-
-function stringifyJson(value: unknown): string {
-  return `${JSON.stringify(value, null, 2)}\n`;
 }
 
 function resolveSinglePageExportOutputPath(name: string, output?: string): string {

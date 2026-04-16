@@ -2,14 +2,13 @@ import { writeFile } from "node:fs/promises";
 
 import { type Backup, BackupV1alpha1Api, MigrationV1alpha1ConsoleApi } from "@halo-dev/api-client";
 import cac, { type CAC } from "cac";
-import ora from "ora";
 import prettyBytes from "pretty-bytes";
 
 import { tryRunCommandCliRoute } from "../../utils/command-router.js";
 import { confirmDangerousAction } from "../../utils/confirmation.js";
 import { CliError } from "../../utils/errors.js";
 import { parseNumberOption } from "../../utils/options.js";
-import { printJson } from "../../utils/output.js";
+import { createSpinner, printJson, sleep } from "../../utils/output.js";
 import { RuntimeContext } from "../../utils/runtime.js";
 import { ensureBackupFilename, resolveBackupDownloadFilePath } from "./files.js";
 import { printBackup, printBackupList } from "./format.js";
@@ -42,21 +41,6 @@ interface BackupCreateOptions extends BackupCommandOptions {
 
 interface BackupDeleteOptions extends BackupCommandOptions {
   force?: boolean;
-}
-
-function createSpinner(enabled: boolean, text: string) {
-  return enabled
-    ? ora({
-        text,
-        discardStdin: false,
-      }).start()
-    : undefined;
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => {
-    setTimeout(resolve, ms);
-  });
 }
 
 export function resolveWaitTimeoutMs(value: string | undefined): number {

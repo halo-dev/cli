@@ -1,8 +1,28 @@
 import { styleText } from "node:util";
 
 import Table from "cli-table3";
+import ora from "ora";
 
 import { resolvePermalinkUrl } from "./browser.js";
+
+export function stringifyJson(value: unknown): string {
+  return `${JSON.stringify(value, null, 2)}\n`;
+}
+
+export function createSpinner(enabled: boolean, text: string) {
+  return enabled
+    ? ora({
+        text,
+        discardStdin: false,
+      }).start()
+    : undefined;
+}
+
+export function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
 
 export interface ExecutionTarget {
   profileName?: string;
