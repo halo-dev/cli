@@ -799,7 +799,6 @@ function buildThemeCli(runtime: RuntimeContext): CAC {
   themeCli.example((bin) => `${bin} get ThemeName`);
   themeCli.example((bin) => `${bin} current`);
   themeCli.example((bin) => `${bin} install --url https://example.com/theme.zip`);
-  themeCli.example((bin) => `${bin} install --url https://example.com/theme.zip`);
   themeCli.example((bin) => `${bin} upgrade ThemeName --online`);
   themeCli.example((bin) => `${bin} activate ThemeName`);
   themeCli.example((bin) => `${bin} delete ThemeName --force`);

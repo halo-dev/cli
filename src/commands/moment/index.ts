@@ -69,10 +69,6 @@ async function ensureMomentsPluginInstalled(clients: HaloClients): Promise<void>
   }
 }
 
-async function resolveMomentContent(content?: string): Promise<string | undefined> {
-  return content;
-}
-
 export function escapeHtml(value: string): string {
   return value
     .replace(/&/g, "&amp;")
@@ -221,8 +217,7 @@ async function buildMomentCli(runtime: RuntimeContext): Promise<CAC> {
     .option("--approved <boolean>", "Initial approval state")
     .action(async (options: MomentMutationOptions) => {
       const { clients } = await getCheckedClients(options);
-      const resolvedContent = await resolveMomentContent(options.content);
-      const content = (await promptForMomentContent(resolvedContent?.trim(), "create"))?.trim();
+      const content = (await promptForMomentContent(options.content?.trim(), "create"))?.trim();
 
       if (!content) {
         throw new CliError(
@@ -250,9 +245,8 @@ async function buildMomentCli(runtime: RuntimeContext): Promise<CAC> {
         `${MOMENT_API_BASE}/${encodeURIComponent(name)}`,
       );
       const existing = existingResponse.data;
-      const resolvedContent = await resolveMomentContent(options.content);
       const nextContent = await promptForMomentContent(
-        resolvedContent?.trim() || existing.spec.content.raw,
+        options.content?.trim() || existing.spec.content.raw,
         "update",
       );
 
