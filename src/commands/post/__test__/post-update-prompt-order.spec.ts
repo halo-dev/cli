@@ -1,26 +1,10 @@
 import { afterEach, expect, test, vi } from "vitest";
 
-const ucPostApiState = vi.hoisted(() => ({
-  implementation: {} as Record<string, unknown>,
-}));
-
 const promptState = vi.hoisted(() => ({
   input: vi.fn(),
   confirm: vi.fn(),
   checkbox: vi.fn(),
 }));
-
-vi.mock("@halo-dev/api-client", async () => {
-  const actual =
-    await vi.importActual<typeof import("@halo-dev/api-client")>("@halo-dev/api-client");
-
-  return {
-    ...actual,
-    PostV1alpha1UcApi: vi.fn(function MockPostV1alpha1UcApi() {
-      return ucPostApiState.implementation;
-    }),
-  };
-});
 
 vi.mock("@inquirer/prompts", () => ({
   input: promptState.input,
@@ -34,7 +18,6 @@ const originalStdinTty = process.stdin.isTTY;
 const originalStdoutTty = process.stdout.isTTY;
 
 afterEach(() => {
-  ucPostApiState.implementation = {};
   promptState.input.mockReset();
   promptState.confirm.mockReset();
   promptState.checkbox.mockReset();
@@ -78,7 +61,7 @@ test("tryRunPostCommand prompts title and slug before categories and tags on upd
     return [];
   });
 
-  const getMyPost = vi
+  const getPost = vi
     .fn()
     .mockResolvedValueOnce({
       data: {
@@ -108,25 +91,12 @@ test("tryRunPostCommand prompts title and slug before categories and tags on upd
         },
       },
     });
-  const getMyPostDraft = vi.fn().mockResolvedValue({
-    data: {
-      metadata: { name: "post-1", annotations: {} },
-      spec: { rawType: "markdown" },
-    },
+  const fetchPostHeadContent = vi.fn().mockResolvedValue({
+    data: { raw: "# Hello Halo", content: "<h1>Hello Halo</h1>", rawType: "markdown" },
   });
-  const updateMyPost = vi.fn().mockResolvedValue({
+  const updateDraftPost = vi.fn().mockResolvedValue({
     data: { metadata: { name: "post-1" } },
   });
-  const updateMyPostDraft = vi.fn().mockResolvedValue(undefined);
-
-  ucPostApiState.implementation = {
-    getMyPost,
-    getMyPostDraft,
-    updateMyPost,
-    updateMyPostDraft,
-    publishMyPost: vi.fn().mockResolvedValue(undefined),
-    unpublishMyPost: vi.fn().mockResolvedValue(undefined),
-  };
 
   const runtimeMock = {
     getClientsForOptions: vi.fn().mockResolvedValue({
@@ -145,6 +115,23 @@ test("tryRunPostCommand prompts title and slug before categories and tags on upd
             throw new Error(`Unexpected axios.get url: ${url}`);
           }),
           post: vi.fn(),
+        },
+        console: {
+          content: {
+            post: {
+              fetchPostHeadContent,
+              updateDraftPost,
+              publishPost: vi.fn().mockResolvedValue(undefined),
+              unpublishPost: vi.fn().mockResolvedValue(undefined),
+            },
+          },
+        },
+        core: {
+          content: {
+            post: {
+              getPost,
+            },
+          },
         },
       },
     }),

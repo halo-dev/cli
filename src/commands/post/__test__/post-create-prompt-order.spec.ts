@@ -1,26 +1,10 @@
 import { afterEach, expect, test, vi } from "vitest";
 
-const ucPostApiState = vi.hoisted(() => ({
-  implementation: {} as Record<string, unknown>,
-}));
-
 const promptState = vi.hoisted(() => ({
   input: vi.fn(),
   confirm: vi.fn(),
   checkbox: vi.fn(),
 }));
-
-vi.mock("@halo-dev/api-client", async () => {
-  const actual =
-    await vi.importActual<typeof import("@halo-dev/api-client")>("@halo-dev/api-client");
-
-  return {
-    ...actual,
-    PostV1alpha1UcApi: vi.fn(function MockPostV1alpha1UcApi() {
-      return ucPostApiState.implementation;
-    }),
-  };
-});
 
 vi.mock("@inquirer/prompts", () => ({
   input: promptState.input,
@@ -34,7 +18,6 @@ const originalStdinTty = process.stdin.isTTY;
 const originalStdoutTty = process.stdout.isTTY;
 
 afterEach(() => {
-  ucPostApiState.implementation = {};
   promptState.input.mockReset();
   promptState.confirm.mockReset();
   promptState.checkbox.mockReset();
@@ -78,19 +61,12 @@ test("tryRunPostCommand prompts title and slug before categories and tags on cre
     return [];
   });
 
-  const createMyPost = vi.fn().mockResolvedValue({
+  const draftPost = vi.fn().mockResolvedValue({
     data: { metadata: { name: "post-1" } },
   });
-  const getMyPost = vi.fn().mockResolvedValue({
+  const getPost = vi.fn().mockResolvedValue({
     data: { metadata: { name: "post-1" } },
   });
-
-  ucPostApiState.implementation = {
-    createMyPost,
-    getMyPost,
-    publishMyPost: vi.fn().mockResolvedValue(undefined),
-    unpublishMyPost: vi.fn().mockResolvedValue(undefined),
-  };
 
   const runtimeMock = {
     getClientsForOptions: vi.fn().mockResolvedValue({
@@ -109,6 +85,22 @@ test("tryRunPostCommand prompts title and slug before categories and tags on cre
             throw new Error(`Unexpected axios.get url: ${url}`);
           }),
           post: vi.fn(),
+        },
+        console: {
+          content: {
+            post: {
+              draftPost,
+              publishPost: vi.fn().mockResolvedValue(undefined),
+              unpublishPost: vi.fn().mockResolvedValue(undefined),
+            },
+          },
+        },
+        core: {
+          content: {
+            post: {
+              getPost,
+            },
+          },
         },
       },
     }),

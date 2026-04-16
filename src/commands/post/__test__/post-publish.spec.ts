@@ -3,37 +3,37 @@ import { expect, test, vi } from "vitest";
 import { syncPostPublishState } from "../index.js";
 
 test("syncPostPublishState publishes posts when requested", async () => {
-  const ucPostApiMock = {
-    publishMyPost: vi.fn().mockResolvedValue(undefined),
-    unpublishMyPost: vi.fn().mockResolvedValue(undefined),
+  const consolePostApiMock = {
+    publishPost: vi.fn().mockResolvedValue(undefined),
+    unpublishPost: vi.fn().mockResolvedValue(undefined),
   };
 
-  await syncPostPublishState(ucPostApiMock as never, "post-1", true);
+  await syncPostPublishState(consolePostApiMock as never, "post-1", true);
 
-  expect(ucPostApiMock.publishMyPost).toHaveBeenCalledWith({ name: "post-1" });
-  expect(ucPostApiMock.unpublishMyPost).not.toHaveBeenCalled();
+  expect(consolePostApiMock.publishPost).toHaveBeenCalledWith({ name: "post-1" });
+  expect(consolePostApiMock.unpublishPost).not.toHaveBeenCalled();
 });
 
 test("syncPostPublishState unpublishes posts when requested", async () => {
-  const ucPostApiMock = {
-    publishMyPost: vi.fn().mockResolvedValue(undefined),
-    unpublishMyPost: vi.fn().mockResolvedValue(undefined),
+  const consolePostApiMock = {
+    publishPost: vi.fn().mockResolvedValue(undefined),
+    unpublishPost: vi.fn().mockResolvedValue(undefined),
   };
 
-  await syncPostPublishState(ucPostApiMock as never, "post-1", false);
+  await syncPostPublishState(consolePostApiMock as never, "post-1", false);
 
-  expect(ucPostApiMock.unpublishMyPost).toHaveBeenCalledWith({ name: "post-1" });
-  expect(ucPostApiMock.publishMyPost).not.toHaveBeenCalled();
+  expect(consolePostApiMock.unpublishPost).toHaveBeenCalledWith({ name: "post-1" });
+  expect(consolePostApiMock.publishPost).not.toHaveBeenCalled();
 });
 
 test("syncPostPublishState skips API calls when publish state is unchanged", async () => {
-  const ucPostApiMock = {
-    publishMyPost: vi.fn().mockResolvedValue(undefined),
-    unpublishMyPost: vi.fn().mockResolvedValue(undefined),
+  const consolePostApiMock = {
+    publishPost: vi.fn().mockResolvedValue(undefined),
+    unpublishPost: vi.fn().mockResolvedValue(undefined),
   };
 
-  await syncPostPublishState(ucPostApiMock as never, "post-1", undefined);
+  await syncPostPublishState(consolePostApiMock as never, "post-1", undefined);
 
-  expect(ucPostApiMock.publishMyPost).not.toHaveBeenCalled();
-  expect(ucPostApiMock.unpublishMyPost).not.toHaveBeenCalled();
+  expect(consolePostApiMock.publishPost).not.toHaveBeenCalled();
+  expect(consolePostApiMock.unpublishPost).not.toHaveBeenCalled();
 });

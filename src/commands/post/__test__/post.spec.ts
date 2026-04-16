@@ -1,13 +1,7 @@
 import { expect, test } from "vitest";
 
 import { renderContentByRawType } from "../../../utils/content.js";
-import {
-  parsePostTransferPayload,
-  resolvePostTransferPayload,
-  toMutationInput,
-  withSerializedContentAnnotation,
-} from "../index.js";
-import { CONTENT_JSON_ANNOTATION } from "../input.js";
+import { parsePostTransferPayload, resolvePostTransferPayload, toMutationInput } from "../index.js";
 
 test("toMutationInput parses primitive mutation fields", () => {
   expect(
@@ -45,31 +39,6 @@ test("toMutationInput parses primitive mutation fields", () => {
     pinned: false,
     allowComment: true,
     priority: 2,
-  });
-});
-
-test("withSerializedContentAnnotation preserves existing annotations", () => {
-  const metadata = withSerializedContentAnnotation(
-    {
-      name: "post-1",
-      annotations: {
-        existing: "value",
-      },
-    },
-    {
-      raw: "# Halo",
-      content: renderContentByRawType("# Halo", "markdown"),
-      rawType: "markdown",
-    },
-  );
-
-  expect(metadata.annotations).toMatchObject({
-    existing: "value",
-    [CONTENT_JSON_ANNOTATION]: JSON.stringify({
-      raw: "# Halo",
-      content: renderContentByRawType("# Halo", "markdown"),
-      rawType: "markdown",
-    }),
   });
 });
 

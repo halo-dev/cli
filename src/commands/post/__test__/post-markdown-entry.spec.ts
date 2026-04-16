@@ -4,26 +4,11 @@ import { join } from "node:path";
 
 import { afterEach, expect, test, vi } from "vitest";
 
-const ucPostApiState = vi.hoisted(() => ({
-  implementation: {} as Record<string, unknown>,
-}));
 const promptState = vi.hoisted(() => ({
   checkbox: vi.fn(),
   input: vi.fn(),
   confirm: vi.fn(),
 }));
-
-vi.mock("@halo-dev/api-client", async () => {
-  const actual =
-    await vi.importActual<typeof import("@halo-dev/api-client")>("@halo-dev/api-client");
-
-  return {
-    ...actual,
-    PostV1alpha1UcApi: vi.fn(function MockPostV1alpha1UcApi() {
-      return ucPostApiState.implementation;
-    }),
-  };
-});
 
 vi.mock("@inquirer/prompts", () => ({
   checkbox: promptState.checkbox,
@@ -32,10 +17,8 @@ vi.mock("@inquirer/prompts", () => ({
 }));
 
 import { tryRunPostCommand } from "../index.js";
-import { CONTENT_JSON_ANNOTATION } from "../input.js";
 
 afterEach(() => {
-  ucPostApiState.implementation = {};
   promptState.checkbox.mockReset();
   promptState.input.mockReset();
   promptState.confirm.mockReset();
@@ -65,16 +48,10 @@ halo:
       "utf8",
     );
 
-    const createMyPost = vi.fn().mockResolvedValue({
+    const draftPost = vi.fn().mockResolvedValue({
       data: { metadata: { name: "post-1" } },
     });
-    const publishMyPost = vi.fn().mockResolvedValue(undefined);
-
-    ucPostApiState.implementation = {
-      createMyPost,
-      publishMyPost,
-      unpublishMyPost: vi.fn(),
-    };
+    const publishPost = vi.fn().mockResolvedValue(undefined);
 
     const getPost = vi.fn().mockResolvedValue({
       data: {
@@ -112,6 +89,8 @@ halo:
           console: {
             content: {
               post: {
+                draftPost,
+                publishPost,
                 fetchPostHeadContent,
               },
             },
@@ -127,12 +106,9 @@ halo:
       ),
     ).resolves.toBe(true);
 
-    expect(createMyPost).toHaveBeenCalledOnce();
-    expect(publishMyPost).toHaveBeenCalledWith({ name: "post-1" });
+    expect(draftPost).toHaveBeenCalledOnce();
+    expect(publishPost).toHaveBeenCalledWith({ name: "post-1" });
     expect(promptState.checkbox).not.toHaveBeenCalled();
-    expect(
-      createMyPost.mock.calls[0]?.[0]?.post?.metadata?.annotations?.[CONTENT_JSON_ANNOTATION],
-    ).toContain('id=\\"hello-halo\\"');
 
     const fileContent = await readFile(filePath, "utf8");
     expect(fileContent).toContain("title: Hello Halo");
@@ -165,61 +141,60 @@ halo:
       "utf8",
     );
 
-    const getMyPost = vi.fn().mockResolvedValue({
-      data: {
-        metadata: { name: "post-1" },
-        spec: {
-          title: "Hello Halo",
-          slug: "hello-halo",
-          categories: [],
-          tags: [],
-          cover: "",
-          excerpt: { autoGenerate: true },
-          publish: false,
-          pinned: false,
-          allowComment: true,
-          deleted: false,
-          priority: 0,
-          visible: "PUBLIC",
+    const getPost = vi
+      .fn()
+      .mockResolvedValueOnce({
+        data: {
+          metadata: { name: "post-1" },
+          spec: {
+            title: "Hello Halo",
+            slug: "hello-halo",
+            categories: [],
+            tags: [],
+            cover: "",
+            excerpt: { autoGenerate: true },
+            publish: false,
+            pinned: false,
+            allowComment: true,
+            deleted: false,
+            priority: 0,
+            visible: "PUBLIC",
+          },
         },
-      },
-    });
-    const getMyPostDraft = vi.fn().mockResolvedValue({
-      data: {
-        metadata: { name: "post-1", annotations: {} },
-        spec: { rawType: "markdown" },
-      },
-    });
-    const updateMyPost = vi.fn().mockResolvedValue({
-      data: { metadata: { name: "post-1" } },
-    });
-    const updateMyPostDraft = vi.fn().mockResolvedValue(undefined);
-    const publishMyPost = vi.fn().mockResolvedValue(undefined);
-
-    ucPostApiState.implementation = {
-      getMyPost,
-      getMyPostDraft,
-      updateMyPost,
-      updateMyPostDraft,
-      createMyPost: vi.fn(),
-      publishMyPost,
-      unpublishMyPost: vi.fn(),
-    };
-
-    const getPost = vi.fn().mockResolvedValue({
-      data: {
-        metadata: { name: "post-1" },
-        spec: {
-          title: "Hello Halo",
-          slug: "hello-halo",
-          excerpt: { autoGenerate: true },
-          cover: "",
-          categories: [],
-          tags: [],
-          publish: true,
+      })
+      .mockResolvedValueOnce({
+        data: {
+          metadata: { name: "post-1" },
+          spec: {
+            title: "Hello Halo",
+            slug: "hello-halo",
+            categories: [],
+            tags: [],
+            cover: "",
+            excerpt: { autoGenerate: true },
+            publish: false,
+            pinned: false,
+            allowComment: true,
+            deleted: false,
+            priority: 0,
+            visible: "PUBLIC",
+          },
         },
-      },
-    });
+      })
+      .mockResolvedValueOnce({
+        data: {
+          metadata: { name: "post-1" },
+          spec: {
+            title: "Hello Halo",
+            slug: "hello-halo",
+            excerpt: { autoGenerate: true },
+            cover: "",
+            categories: [],
+            tags: [],
+            publish: true,
+          },
+        },
+      });
     const fetchPostHeadContent = vi.fn().mockResolvedValue({
       data: {
         raw: "# Updated Body",
@@ -227,6 +202,11 @@ halo:
         rawType: "markdown",
       },
     });
+    const updateDraftPost = vi.fn().mockResolvedValue({
+      data: { metadata: { name: "post-1" } },
+    });
+    const publishPost = vi.fn().mockResolvedValue(undefined);
+
     const runtimeMock = {
       getClientsForOptions: vi.fn().mockResolvedValue({
         profile: { baseUrl: "https://example.com" },
@@ -243,6 +223,9 @@ halo:
             content: {
               post: {
                 fetchPostHeadContent,
+                updateDraftPost,
+                publishPost,
+                unpublishPost: vi.fn(),
               },
             },
           },
@@ -257,9 +240,8 @@ halo:
       ),
     ).resolves.toBe(true);
 
-    expect(updateMyPost).toHaveBeenCalledOnce();
-    expect(updateMyPostDraft).toHaveBeenCalledOnce();
-    expect(publishMyPost).toHaveBeenCalledWith({ name: "post-1" });
+    expect(updateDraftPost).toHaveBeenCalledOnce();
+    expect(publishPost).toHaveBeenCalledWith({ name: "post-1" });
     expect(promptState.checkbox).not.toHaveBeenCalled();
 
     const fileContent = await readFile(filePath, "utf8");
@@ -288,15 +270,9 @@ title: Hello Halo
       "utf8",
     );
 
-    const createMyPost = vi.fn().mockResolvedValue({
+    const draftPost = vi.fn().mockResolvedValue({
       data: { metadata: { name: "post-1" } },
     });
-
-    ucPostApiState.implementation = {
-      createMyPost,
-      publishMyPost: vi.fn().mockResolvedValue(undefined),
-      unpublishMyPost: vi.fn().mockResolvedValue(undefined),
-    };
 
     const getPost = vi.fn().mockResolvedValue({
       data: {
@@ -335,6 +311,9 @@ title: Hello Halo
           console: {
             content: {
               post: {
+                draftPost,
+                publishPost: vi.fn().mockResolvedValue(undefined),
+                unpublishPost: vi.fn().mockResolvedValue(undefined),
                 fetchPostHeadContent,
               },
             },

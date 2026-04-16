@@ -1,7 +1,13 @@
 import { readFile, writeFile } from "node:fs/promises";
 
-import type { Category, CategoryList, Post, Tag, TagList } from "@halo-dev/api-client";
-import { PostV1alpha1UcApi } from "@halo-dev/api-client";
+import type {
+  Category,
+  CategoryList,
+  Post,
+  PostV1alpha1ConsoleApi,
+  Tag,
+  TagList,
+} from "@halo-dev/api-client";
 import { checkbox, input } from "@inquirer/prompts";
 import axios from "axios";
 import cac, { type CAC } from "cac";
@@ -18,18 +24,14 @@ import {
 } from "../../utils/options.js";
 import { printJson, printResourceMutationSuccess } from "../../utils/output.js";
 import { type HaloClients, RuntimeContext } from "../../utils/runtime.js";
-import { normalizeBaseUrl } from "../../utils/url.js";
 import { openUrlInBrowser, resolvePostOpenUrl } from "./browser.js";
 import { buildCategoryCli } from "./category.js";
 import { printPostDetail, printPostList } from "./format.js";
 import {
-  CONTENT_JSON_ANNOTATION,
-  extractDraftContent,
   normalizeCreatePostInput,
   normalizeUpdatePostInput,
   promptCreatePostPrimaryFields,
   promptUpdatePostPrimaryFields,
-  serializeDraftContent,
   slugifyTaxonomyDisplayName,
 } from "./input.js";
 import {
@@ -108,19 +110,6 @@ export function toMutationInput(options: PostCommandOptions) {
     pinned: parseBooleanOption(options.pinned),
     allowComment: parseBooleanOption(options.allowComment),
     priority: parseNumberOption(options.priority),
-  };
-}
-
-export function withSerializedContentAnnotation(
-  metadata: Post["metadata"],
-  content: { content: string; raw: string; rawType: string },
-): Post["metadata"] {
-  return {
-    ...metadata,
-    annotations: {
-      ...metadata.annotations,
-      [CONTENT_JSON_ANNOTATION]: serializeDraftContent(content),
-    },
   };
 }
 
@@ -221,21 +210,8 @@ function resolvePostExportOutputPath(name: string, output?: string): string {
   return normalized && normalized.length > 0 ? normalized : `./${name}.json`;
 }
 
-export async function loadEditablePostState(ucPostApi: PostV1alpha1UcApi, name: string) {
-  const [postResponse, draftResponse] = await Promise.all([
-    ucPostApi.getMyPost({ name }),
-    ucPostApi.getMyPostDraft({ name, patched: true }),
-  ]);
-
-  return {
-    post: postResponse.data,
-    draft: draftResponse.data,
-    content: extractDraftContent(draftResponse.data),
-  };
-}
-
 export async function syncPostPublishState(
-  ucPostApi: PostV1alpha1UcApi,
+  consolePostApi: PostV1alpha1ConsoleApi,
   name: string,
   publish: boolean | undefined,
 ): Promise<void> {
@@ -244,11 +220,11 @@ export async function syncPostPublishState(
   }
 
   if (publish) {
-    await ucPostApi.publishMyPost({ name });
+    await consolePostApi.publishPost({ name });
     return;
   }
 
-  await ucPostApi.unpublishMyPost({ name });
+  await consolePostApi.unpublishPost({ name });
 }
 
 async function listCategories(clients: HaloClients): Promise<Category[]> {
@@ -491,15 +467,18 @@ async function resolveTagDisplayNames(
 }
 
 async function importPostPayload(
-  ucPostApi: PostV1alpha1UcApi,
+  clients: HaloClients,
   options: Pick<PostCommandOptions, "force">,
   payload: PostTransferPayload,
   commandPath: string,
   targetName?: string,
 ): Promise<{ action: "imported" | "updated"; name: string } | undefined> {
+  const consolePostApi = clients.console.content.post;
+
   if (targetName) {
     try {
-      const currentState = await loadEditablePostState(ucPostApi, targetName);
+      const currentPostResponse = await clients.core.content.post.getPost({ name: targetName });
+      const currentPost = currentPostResponse.data;
 
       if (
         !(await confirmDangerousAction(
@@ -516,37 +495,35 @@ async function importPostPayload(
         return undefined;
       }
 
-      const updateResponse = await ucPostApi.updateMyPost({
+      await consolePostApi.updateDraftPost({
         name: targetName,
-        post: {
-          ...payload.post,
-          spec: {
-            ...payload.post.spec,
-            publish: currentState.post.spec.publish,
+        postRequest: {
+          post: {
+            ...currentPost,
+            metadata: {
+              ...currentPost.metadata,
+              ...payload.post.metadata,
+              name: currentPost.metadata.name,
+            },
+            spec: {
+              ...currentPost.spec,
+              ...payload.post.spec,
+              publish: currentPost.spec.publish,
+              headSnapshot: currentPost.spec.headSnapshot,
+              baseSnapshot: currentPost.spec.baseSnapshot,
+              releaseSnapshot: currentPost.spec.releaseSnapshot,
+              owner: currentPost.spec.owner,
+              deleted: currentPost.spec.deleted,
+            },
           },
+          content: payload.content,
         },
       });
 
-      const updatedName = updateResponse.data.metadata.name;
-      const latestDraft = await ucPostApi.getMyPostDraft({
-        name: updatedName,
-        patched: true,
-      });
-
-      latestDraft.data.metadata = withSerializedContentAnnotation(
-        latestDraft.data.metadata,
-        payload.content,
-      );
-
-      await ucPostApi.updateMyPostDraft({
-        name: updatedName,
-        snapshot: latestDraft.data,
-      });
-
-      await syncPostPublishState(ucPostApi, updatedName, payload.post.spec.publish);
+      await syncPostPublishState(consolePostApi, targetName, payload.post.spec.publish);
       return {
         action: "updated",
-        name: updatedName,
+        name: targetName,
       };
     } catch (error) {
       if (!axios.isAxiosError(error) || error.response?.status !== 404) {
@@ -555,22 +532,21 @@ async function importPostPayload(
     }
   }
 
-  const createResponse = await ucPostApi.createMyPost({
-    post: {
-      ...payload.post,
-      metadata: withSerializedContentAnnotation(
-        payload.post.metadata,
-        payload.content,
-      ) as Post["metadata"],
-      spec: {
-        ...payload.post.spec,
-        publish: false,
+  const createResponse = await consolePostApi.draftPost({
+    postRequest: {
+      post: {
+        ...payload.post,
+        spec: {
+          ...payload.post.spec,
+          publish: false,
+        },
       },
+      content: payload.content,
     },
   });
 
   const createdName = createResponse.data.metadata.name;
-  await syncPostPublishState(ucPostApi, createdName, payload.post.spec.publish);
+  await syncPostPublishState(consolePostApi, createdName, payload.post.spec.publish);
   return {
     action: "imported",
     name: createdName,
@@ -750,11 +726,7 @@ function buildPostCli(runtime: RuntimeContext): CAC {
     .option("--priority <number>", "Post priority")
     .action(async (options: PostCommandOptions) => {
       const { profile, clients } = await runtime.getClientsForOptions(options);
-      const ucPostApi = new PostV1alpha1UcApi(
-        undefined,
-        normalizeBaseUrl(profile.baseUrl),
-        clients.axios,
-      );
+      const consolePostApi = clients.console.content.post;
 
       const postRequest = await normalizeCreatePostInput(
         await enrichPostMutationInput(
@@ -763,27 +735,28 @@ function buildPostCli(runtime: RuntimeContext): CAC {
         ),
       );
 
-      const createResponse = await ucPostApi.createMyPost({
-        post: {
-          ...postRequest.post,
-          metadata: withSerializedContentAnnotation(
-            postRequest.post.metadata,
-            postRequest.content,
-          ) as Post["metadata"],
-          spec: {
-            ...postRequest.post.spec,
-            publish: false,
+      const createResponse = await consolePostApi.draftPost({
+        postRequest: {
+          post: {
+            ...postRequest.post,
+            spec: {
+              ...postRequest.post.spec,
+              publish: false,
+            },
           },
+          content: postRequest.content,
         },
       });
 
       await syncPostPublishState(
-        ucPostApi,
+        consolePostApi,
         createResponse.data.metadata.name,
         postRequest.post.spec.publish,
       );
 
-      const latestPost = await ucPostApi.getMyPost({ name: createResponse.data.metadata.name });
+      const latestPost = await clients.core.content.post.getPost({
+        name: createResponse.data.metadata.name,
+      });
 
       if (options.json) {
         printJson(latestPost.data);
@@ -821,16 +794,16 @@ function buildPostCli(runtime: RuntimeContext): CAC {
     .option("--priority <number>", "Post priority")
     .action(async (name: string, options: PostCommandOptions) => {
       const { profile, clients } = await runtime.getClientsForOptions(options);
-      const ucPostApi = new PostV1alpha1UcApi(
-        undefined,
-        normalizeBaseUrl(profile.baseUrl),
-        clients.axios,
-      );
-      const currentState = await loadEditablePostState(ucPostApi, name);
+      const consolePostApi = clients.console.content.post;
+
+      const currentPostResponse = await clients.core.content.post.getPost({ name });
+      const currentPost = currentPostResponse.data;
+      const currentContentResponse = await consolePostApi.fetchPostHeadContent({ name });
+      const currentContent = currentContentResponse.data;
 
       const postRequest = await normalizeUpdatePostInput(
-        currentState.post,
-        currentState.content,
+        currentPost,
+        currentContent,
         await enrichPostMutationInput(
           clients,
           await promptUpdatePostPrimaryFields(
@@ -838,42 +811,31 @@ function buildPostCli(runtime: RuntimeContext): CAC {
               ...toMutationInput(options),
               name: options.newName,
             },
-            currentState.post,
+            currentPost,
           ),
-          currentState.post,
+          currentPost,
         ),
       );
 
-      const updatePostResponse = await ucPostApi.updateMyPost({
+      const updatePostResponse = await consolePostApi.updateDraftPost({
         name,
-        post: {
-          ...postRequest.post,
-          spec: {
-            ...postRequest.post.spec,
-            publish: currentState.post.spec.publish,
+        postRequest: {
+          post: {
+            ...postRequest.post,
+            spec: {
+              ...postRequest.post.spec,
+              publish: currentPost.spec.publish,
+            },
           },
+          content: postRequest.content,
         },
       });
 
       const updatedName = updatePostResponse.data.metadata.name;
-      const latestDraft = await ucPostApi.getMyPostDraft({
-        name: updatedName,
-        patched: true,
-      });
 
-      latestDraft.data.metadata = withSerializedContentAnnotation(
-        latestDraft.data.metadata,
-        postRequest.content,
-      );
+      await syncPostPublishState(consolePostApi, updatedName, postRequest.post.spec.publish);
 
-      await ucPostApi.updateMyPostDraft({
-        name: updatedName,
-        snapshot: latestDraft.data,
-      });
-
-      await syncPostPublishState(ucPostApi, updatedName, postRequest.post.spec.publish);
-
-      const latestPost = await ucPostApi.getMyPost({ name: updatedName });
+      const latestPost = await clients.core.content.post.getPost({ name: updatedName });
 
       if (options.json) {
         printJson(latestPost.data);
@@ -958,13 +920,8 @@ function buildPostCli(runtime: RuntimeContext): CAC {
     .action(async (options: PostJsonCommandOptions) => {
       const { payload, sourceLabel } = await resolvePostTransferInput(options);
       const { profile, clients } = await runtime.getClientsForOptions(options);
-      const ucPostApi = new PostV1alpha1UcApi(
-        undefined,
-        normalizeBaseUrl(profile.baseUrl),
-        clients.axios,
-      );
       const importResult = await importPostPayload(
-        ucPostApi,
+        clients,
         options,
         payload,
         "halo post import-json",
@@ -1006,12 +963,6 @@ function buildPostCli(runtime: RuntimeContext): CAC {
       const markdownPayload = await resolvePostMarkdownImportPayload(options.file);
       assertMarkdownTrackingSite(markdownPayload.trackedSite, profile.baseUrl);
 
-      const ucPostApi = new PostV1alpha1UcApi(
-        undefined,
-        normalizeBaseUrl(profile.baseUrl),
-        clients.axios,
-      );
-
       const normalizedInput = await enrichPostMutationInput(
         clients,
         markdownPayload.mutationInput,
@@ -1020,11 +971,20 @@ function buildPostCli(runtime: RuntimeContext): CAC {
           promptForTaxonomy: false,
         },
       );
-      let currentState: Awaited<ReturnType<typeof loadEditablePostState>> | undefined;
+
+      let currentPost: Post | undefined;
+      let currentContent: import("@halo-dev/api-client").ContentWrapper | undefined;
 
       if (markdownPayload.trackedName) {
         try {
-          currentState = await loadEditablePostState(ucPostApi, markdownPayload.trackedName);
+          const postResponse = await clients.core.content.post.getPost({
+            name: markdownPayload.trackedName,
+          });
+          currentPost = postResponse.data;
+          const contentResponse = await clients.console.content.post.fetchPostHeadContent({
+            name: markdownPayload.trackedName,
+          });
+          currentContent = contentResponse.data;
         } catch (error) {
           if (!axios.isAxiosError(error) || error.response?.status !== 404) {
             throw error;
@@ -1032,8 +992,8 @@ function buildPostCli(runtime: RuntimeContext): CAC {
         }
       }
 
-      const postRequest = currentState
-        ? await normalizeUpdatePostInput(currentState.post, currentState.content, normalizedInput)
+      const postRequest = currentPost
+        ? await normalizeUpdatePostInput(currentPost, currentContent, normalizedInput)
         : await normalizeCreatePostInput(normalizedInput);
 
       const payload: PostTransferPayload = {
@@ -1042,11 +1002,11 @@ function buildPostCli(runtime: RuntimeContext): CAC {
       };
 
       const importResult = await importPostPayload(
-        ucPostApi,
+        clients,
         options,
         payload,
         "halo post import-markdown",
-        currentState?.post.metadata.name,
+        currentPost?.metadata.name,
       );
       if (!importResult) {
         return;

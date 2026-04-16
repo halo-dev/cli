@@ -1,27 +1,9 @@
 import { afterEach, expect, test, vi } from "vitest";
 
 import { renderContentByRawType } from "../../../utils/content.js";
-
-const ucPostApiState = vi.hoisted(() => ({
-  implementation: {} as Record<string, unknown>,
-}));
-
-vi.mock("@halo-dev/api-client", async () => {
-  const actual =
-    await vi.importActual<typeof import("@halo-dev/api-client")>("@halo-dev/api-client");
-
-  return {
-    ...actual,
-    PostV1alpha1UcApi: vi.fn(function MockPostV1alpha1UcApi() {
-      return ucPostApiState.implementation;
-    }),
-  };
-});
-
 import { tryRunPostCommand } from "../index.js";
 
 afterEach(() => {
-  ucPostApiState.implementation = {};
   vi.restoreAllMocks();
 });
 
@@ -32,27 +14,20 @@ function silenceStdout() {
 test("tryRunPostCommand imports json as a new post when it does not exist", async () => {
   silenceStdout();
 
-  const getMyPost = vi.fn().mockRejectedValue({
-    isAxiosError: true,
-    response: { status: 404 },
-  });
-  const createMyPost = vi.fn().mockResolvedValue({
+  const draftPost = vi.fn().mockResolvedValue({
     data: { metadata: { name: "post-1" } },
   });
-  const publishMyPost = vi.fn().mockResolvedValue(undefined);
-  ucPostApiState.implementation = {
-    getMyPost,
-    getMyPostDraft: vi.fn(),
-    updateMyPost: vi.fn(),
-    updateMyPostDraft: vi.fn(),
-    createMyPost,
-    publishMyPost,
-    unpublishMyPost: vi.fn(),
-  };
+  const publishPost = vi.fn().mockResolvedValue(undefined);
 
-  const getPost = vi.fn().mockResolvedValue({
-    data: { metadata: { name: "post-1" } },
-  });
+  const getPost = vi
+    .fn()
+    .mockRejectedValueOnce({
+      isAxiosError: true,
+      response: { status: 404 },
+    })
+    .mockResolvedValueOnce({
+      data: { metadata: { name: "post-1" } },
+    });
   const fetchPostHeadContent = vi.fn().mockResolvedValue({
     data: { raw: "# Halo", content: "<h1>Halo</h1>", rawType: "markdown" },
   });
@@ -71,6 +46,8 @@ test("tryRunPostCommand imports json as a new post when it does not exist", asyn
         console: {
           content: {
             post: {
+              draftPost,
+              publishPost,
               fetchPostHeadContent,
             },
           },
@@ -92,69 +69,42 @@ test("tryRunPostCommand imports json as a new post when it does not exist", asyn
     ),
   ).resolves.toBe(true);
 
-  expect(createMyPost).toHaveBeenCalledOnce();
-  expect(createMyPost).toHaveBeenCalledWith({
-    post: expect.objectContaining({
-      metadata: expect.objectContaining({
-        name: "post-1",
-        annotations: expect.objectContaining({
-          "content.halo.run/content-json": JSON.stringify({
-            raw: "# Halo",
-            content: renderContentByRawType("# Halo", "markdown"),
-            rawType: "markdown",
-          }),
+  expect(draftPost).toHaveBeenCalledOnce();
+  expect(draftPost).toHaveBeenCalledWith({
+    postRequest: expect.objectContaining({
+      post: expect.objectContaining({
+        metadata: expect.objectContaining({
+          name: "post-1",
         }),
+        spec: { publish: false },
       }),
-      spec: { publish: false },
+      content: expect.objectContaining({
+        raw: "# Halo",
+        content: renderContentByRawType("# Halo", "markdown"),
+        rawType: "markdown",
+      }),
     }),
   });
-  expect(publishMyPost).toHaveBeenCalledWith({ name: "post-1" });
+  expect(publishPost).toHaveBeenCalledWith({ name: "post-1" });
 });
 
 test("tryRunPostCommand imports json by updating an existing post", async () => {
   silenceStdout();
 
-  const getMyPost = vi
-    .fn()
-    .mockResolvedValueOnce({
-      data: {
-        metadata: { name: "post-1" },
-        spec: { publish: false },
-      },
-    })
-    .mockResolvedValueOnce({
-      data: {
-        metadata: { name: "post-1" },
-      },
-    });
-  const getMyPostDraft = vi.fn().mockResolvedValue({
-    data: {
-      metadata: { name: "post-1", annotations: {} },
-      spec: { rawType: "markdown" },
-    },
-  });
-  const updateMyPost = vi.fn().mockResolvedValue({
-    data: { metadata: { name: "post-1" } },
-  });
-  const updateMyPostDraft = vi.fn().mockResolvedValue(undefined);
-  const publishMyPost = vi.fn().mockResolvedValue(undefined);
-
-  ucPostApiState.implementation = {
-    getMyPost,
-    getMyPostDraft,
-    updateMyPost,
-    updateMyPostDraft,
-    createMyPost: vi.fn(),
-    publishMyPost,
-    unpublishMyPost: vi.fn(),
-  };
-
   const getPost = vi.fn().mockResolvedValue({
-    data: { metadata: { name: "post-1" } },
+    data: {
+      metadata: { name: "post-1" },
+      spec: { publish: false },
+    },
   });
   const fetchPostHeadContent = vi.fn().mockResolvedValue({
     data: { raw: "# Halo", content: "<h1>Halo</h1>", rawType: "markdown" },
   });
+  const updateDraftPost = vi.fn().mockResolvedValue({
+    data: { metadata: { name: "post-1" } },
+  });
+  const publishPost = vi.fn().mockResolvedValue(undefined);
+
   const runtimeMock = {
     getClientsForOptions: vi.fn().mockResolvedValue({
       profile: { baseUrl: "https://example.com" },
@@ -171,6 +121,9 @@ test("tryRunPostCommand imports json by updating an existing post", async () => 
           content: {
             post: {
               fetchPostHeadContent,
+              updateDraftPost,
+              publishPost,
+              unpublishPost: vi.fn(),
             },
           },
         },
@@ -192,55 +145,49 @@ test("tryRunPostCommand imports json by updating an existing post", async () => 
     ),
   ).resolves.toBe(true);
 
-  expect(updateMyPost).toHaveBeenCalledOnce();
-  expect(updateMyPostDraft).toHaveBeenCalledOnce();
-  expect(updateMyPostDraft).toHaveBeenCalledWith({
+  expect(updateDraftPost).toHaveBeenCalledOnce();
+  expect(updateDraftPost).toHaveBeenCalledWith({
     name: "post-1",
-    snapshot: expect.objectContaining({
-      metadata: expect.objectContaining({
-        annotations: expect.objectContaining({
-          "content.halo.run/content-json": JSON.stringify({
-            raw: "# Halo",
-            content: renderContentByRawType("# Halo", "markdown"),
-            rawType: "markdown",
-          }),
+    postRequest: expect.objectContaining({
+      post: expect.objectContaining({
+        metadata: expect.objectContaining({
+          name: "post-1",
         }),
+        spec: expect.objectContaining({ publish: false }),
+      }),
+      content: expect.objectContaining({
+        raw: "# Halo",
+        content: renderContentByRawType("# Halo", "markdown"),
+        rawType: "markdown",
       }),
     }),
   });
-  expect(publishMyPost).toHaveBeenCalledWith({ name: "post-1" });
+  expect(publishPost).toHaveBeenCalledWith({ name: "post-1" });
 });
 
 test("tryRunPostCommand prints import summary with permalink and inspect command", async () => {
   const stdoutSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
 
-  const getMyPost = vi.fn().mockRejectedValue({
-    isAxiosError: true,
-    response: { status: 404 },
-  });
-  const createMyPost = vi.fn().mockResolvedValue({
+  const getPost = vi
+    .fn()
+    .mockRejectedValueOnce({
+      isAxiosError: true,
+      response: { status: 404 },
+    })
+    .mockResolvedValueOnce({
+      data: {
+        metadata: { name: "post-1" },
+        status: { permalink: "/archives/post-1" },
+      },
+    });
+  const draftPost = vi.fn().mockResolvedValue({
     data: { metadata: { name: "post-1" } },
   });
-  const publishMyPost = vi.fn().mockResolvedValue(undefined);
-  ucPostApiState.implementation = {
-    getMyPost,
-    getMyPostDraft: vi.fn(),
-    updateMyPost: vi.fn(),
-    updateMyPostDraft: vi.fn(),
-    createMyPost,
-    publishMyPost,
-    unpublishMyPost: vi.fn(),
-  };
-
-  const getPost = vi.fn().mockResolvedValue({
-    data: {
-      metadata: { name: "post-1" },
-      status: { permalink: "/archives/post-1" },
-    },
-  });
+  const publishPost = vi.fn().mockResolvedValue(undefined);
   const fetchPostHeadContent = vi.fn().mockResolvedValue({
     data: { raw: "# Halo", content: "<h1>Halo</h1>", rawType: "markdown" },
   });
+
   const runtimeMock = {
     getClientsForOptions: vi.fn().mockResolvedValue({
       profile: { baseUrl: "https://example.com/console" },
@@ -256,6 +203,8 @@ test("tryRunPostCommand prints import summary with permalink and inspect command
         console: {
           content: {
             post: {
+              draftPost,
+              publishPost,
               fetchPostHeadContent,
             },
           },
