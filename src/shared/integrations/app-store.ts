@@ -389,57 +389,53 @@ export async function resolvePluginUpdates(
     return new Map();
   }
 
-  try {
-    const [info, appStoreClient] = await Promise.all([
-      getHaloSystemInfo(clients),
-      createAppStoreClient(clients),
-    ]);
+  const [info, appStoreClient] = await Promise.all([
+    getHaloSystemInfo(clients),
+    createAppStoreClient(clients),
+  ]);
 
-    const haloVersion = info?.build?.version;
-    const response = await appStoreClient.get<AppStoreApplicationSearchResultList>(
-      "/apis/api.store.halo.run/v1alpha1/applications",
-      {
-        params: {
-          type: "PLUGIN",
-          names: appIds,
-        },
+  const haloVersion = info?.build?.version;
+  const response = await appStoreClient.get<AppStoreApplicationSearchResultList>(
+    "/apis/api.store.halo.run/v1alpha1/applications",
+    {
+      params: {
+        type: "PLUGIN",
+        names: appIds,
       },
-    );
+    },
+  );
 
-    const appsById = new Map(
-      response.data.items.map((item) => [item.application?.metadata?.name, item] as const),
-    );
+  const appsById = new Map(
+    response.data.items.map((item) => [item.application?.metadata?.name, item] as const),
+  );
 
-    const updates = new Map<string, PluginUpdateInfo>();
-    for (const plugin of plugins) {
-      const appId = plugin.metadata.annotations?.[STORE_APP_ID_ANNOTATION];
-      if (!appId) {
-        continue;
-      }
-
-      const app = appsById.get(appId);
-      if (!app?.downloadable) {
-        continue;
-      }
-
-      const latestVersion = app.latestRelease?.spec?.version;
-      const requires = app.latestRelease?.spec?.requires;
-      const update = resolvePluginUpdateInfo(
-        plugin.spec.version,
-        latestVersion,
-        haloVersion,
-        requires,
-      );
-
-      if (update) {
-        updates.set(plugin.metadata.name, update);
-      }
+  const updates = new Map<string, PluginUpdateInfo>();
+  for (const plugin of plugins) {
+    const appId = plugin.metadata.annotations?.[STORE_APP_ID_ANNOTATION];
+    if (!appId) {
+      continue;
     }
 
-    return updates;
-  } catch {
-    return new Map();
+    const app = appsById.get(appId);
+    if (!app?.downloadable) {
+      continue;
+    }
+
+    const latestVersion = app.latestRelease?.spec?.version;
+    const requires = app.latestRelease?.spec?.requires;
+    const update = resolvePluginUpdateInfo(
+      plugin.spec.version,
+      latestVersion,
+      haloVersion,
+      requires,
+    );
+
+    if (update) {
+      updates.set(plugin.metadata.name, update);
+    }
   }
+
+  return updates;
 }
 
 export async function resolveThemeUpdates(
@@ -455,57 +451,48 @@ export async function resolveThemeUpdates(
     return new Map();
   }
 
-  try {
-    const [info, appStoreClient] = await Promise.all([
-      getHaloSystemInfo(clients),
-      createAppStoreClient(clients),
-    ]);
+  const [info, appStoreClient] = await Promise.all([
+    getHaloSystemInfo(clients),
+    createAppStoreClient(clients),
+  ]);
 
-    const haloVersion = info?.build?.version;
-    const response = await appStoreClient.get<AppStoreApplicationSearchResultList>(
-      "/apis/api.store.halo.run/v1alpha1/applications",
-      {
-        params: {
-          type: "THEME",
-          names: appIds,
-        },
+  const haloVersion = info?.build?.version;
+  const response = await appStoreClient.get<AppStoreApplicationSearchResultList>(
+    "/apis/api.store.halo.run/v1alpha1/applications",
+    {
+      params: {
+        type: "THEME",
+        names: appIds,
       },
-    );
+    },
+  );
 
-    const appsById = new Map(
-      response.data.items.map((item) => [item.application?.metadata?.name, item] as const),
-    );
+  const appsById = new Map(
+    response.data.items.map((item) => [item.application?.metadata?.name, item] as const),
+  );
 
-    const updates = new Map<string, ThemeUpdateInfo>();
-    for (const theme of themes) {
-      const appId = theme.metadata.annotations?.[STORE_APP_ID_ANNOTATION];
-      if (!appId) {
-        continue;
-      }
-
-      const app = appsById.get(appId);
-      if (!app?.downloadable) {
-        continue;
-      }
-
-      const latestVersion = app.latestRelease?.spec?.version;
-      const requires = app.latestRelease?.spec?.requires;
-      const update = resolveThemeUpdateInfo(
-        theme.spec.version,
-        latestVersion,
-        haloVersion,
-        requires,
-      );
-
-      if (update) {
-        updates.set(theme.metadata.name, update);
-      }
+  const updates = new Map<string, ThemeUpdateInfo>();
+  for (const theme of themes) {
+    const appId = theme.metadata.annotations?.[STORE_APP_ID_ANNOTATION];
+    if (!appId) {
+      continue;
     }
 
-    return updates;
-  } catch {
-    return new Map();
+    const app = appsById.get(appId);
+    if (!app?.downloadable) {
+      continue;
+    }
+
+    const latestVersion = app.latestRelease?.spec?.version;
+    const requires = app.latestRelease?.spec?.requires;
+    const update = resolveThemeUpdateInfo(theme.spec.version, latestVersion, haloVersion, requires);
+
+    if (update) {
+      updates.set(theme.metadata.name, update);
+    }
   }
+
+  return updates;
 }
 
 export async function resolveLatestAppStoreDownloadUrl(

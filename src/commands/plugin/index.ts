@@ -10,6 +10,7 @@ import ora, { type Ora } from "ora";
 import {
   confirmAppStoreReleaseReview,
   createAppStoreClient,
+  type PluginUpdateInfo,
   resolveLatestAppStoreRelease,
   resolvePluginAppStoreAppId,
   resolvePluginUpdates,
@@ -590,7 +591,14 @@ function buildPluginCli(runtime: RuntimeContext): CAC {
         },
       );
 
-      const updates = options.json ? undefined : await resolvePluginUpdates(clients, plugins);
+      let updates: Map<string, PluginUpdateInfo> | undefined;
+      if (!options.json) {
+        try {
+          updates = await resolvePluginUpdates(clients, plugins);
+        } catch {
+          updates = undefined;
+        }
+      }
       printPluginList(plugins, options.json, updates);
     });
 

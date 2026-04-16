@@ -10,6 +10,7 @@ import {
   resolveThemeAppStoreAppId,
   resolveThemeUpdates,
   resolveUpgradeSource,
+  type ThemeUpdateInfo,
 } from "../../shared/integrations/app-store.js";
 import { tryRunCommandCliRoute } from "../../utils/command-router.js";
 import { confirmDangerousAction } from "../../utils/confirmation.js";
@@ -560,7 +561,14 @@ function buildThemeCli(runtime: RuntimeContext): CAC {
         ? undefined
         : await getActivatedThemeNameByClients(clients);
 
-      const updates = options.json ? undefined : await resolveThemeUpdates(clients, items);
+      let updates: Map<string, ThemeUpdateInfo> | undefined;
+      if (!options.json) {
+        try {
+          updates = await resolveThemeUpdates(clients, items);
+        } catch {
+          updates = undefined;
+        }
+      }
       printThemeList(items, options.json, updates, activeThemeName);
     });
 
