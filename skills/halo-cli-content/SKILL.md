@@ -118,25 +118,20 @@ halo post import-json --file ./post.json --force
       "name": "56c6d867-9683-4927-ba94-388fedf87443"
     },
     "spec": {
-      "allowComment": true,
-      "baseSnapshot": "",
-      "categories": ["category-xxx"],
-      "deleted": false,
-      "excerpt": {
-        "autoGenerate": false,
-        "raw": ""
-      },
-      "headSnapshot": "",
-      "owner": "",
-      "pinned": false,
-      "priority": 0,
-      "publish": false,
-      "publishTime": "",
-      "releaseSnapshot": "",
-      "slug": "sample-post",
-      "tags": ["tag-xxx"],
       "title": "Sample Post",
-      "visible": "PUBLIC"
+      "slug": "sample-post",
+      "template": "",
+      "cover": "",
+      "deleted": false,
+      "publish": false,
+      "pinned": false,
+      "allowComment": true,
+      "visible": "PUBLIC",
+      "priority": 0,
+      "excerpt": { "autoGenerate": true, "raw": "" },
+      "categories": ["category-xxx"],
+      "tags": ["tag-xxx"],
+      "htmlMetas": []
     }
   },
   "content": {
@@ -254,26 +249,19 @@ halo single-page import-json --file ./about.json --force
       "name": "373a5f79-f44f-441a-9df1-85a4f553ece8"
     },
     "spec": {
-      "allowComment": true,
-      "baseSnapshot": "",
-      "cover": "",
-      "deleted": false,
-      "excerpt": {
-        "autoGenerate": false,
-        "raw": "This is a custom page for demonstration purposes."
-      },
-      "headSnapshot": "",
-      "htmlMetas": [],
-      "owner": "",
-      "pinned": false,
-      "priority": 0,
-      "publish": false,
-      "publishTime": "",
-      "releaseSnapshot": "",
+      "title": "About Us",
       "slug": "about",
       "template": "",
-      "title": "About Us",
-      "visible": "PUBLIC"
+      "cover": "",
+      "deleted": false,
+      "publish": false,
+      "publishTime": undefined,
+      "pinned": false,
+      "allowComment": true,
+      "visible": "PUBLIC",
+      "priority": 0,
+      "excerpt": { "autoGenerate": true, "raw": "" },
+      "htmlMetas": []
     }
   },
   "content": {
