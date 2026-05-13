@@ -1,7 +1,7 @@
 ---
 name: halo-cli-content
 version: 1.0.0
-description: Use when managing Halo posts or single pages from the terminal, including list, get, create, update, delete, open, export-json, import-json, categories, tags, and content files.
+description: Use when managing Halo posts, single pages, categories, or tags from the terminal. This includes listing, creating, updating, deleting, exporting, importing, or any content management operation for Halo CMS. Trigger this skill whenever the user mentions Halo posts, pages, categories, tags, or content management in a CLI context, even if they do not explicitly mention 'content'.
 references:
   - ../halo-cli-shared
 metadata:
@@ -56,17 +56,38 @@ List and inspect:
 ```bash
 halo post list
 halo post list --keyword halo --publish-phase PUBLISHED
+halo post list --category Technology --page 1 --size 20
 halo post get my-post --json
 ```
 
-Create or update:
+Create:
 
 ```bash
 halo post create --title "Hello Halo" --content "# Hello Halo" --publish true
 halo post create --title "Hello Halo" --content "<h1>Hello Halo</h1>" --raw-type html
+halo post create \
+  --title "Release Notes" \
+  --content "Release notes content" \
+  --slug "release-notes" \
+  --excerpt "A brief summary" \
+  --categories News,CLI \
+  --tags Halo,Release \
+  --cover "https://example.com/cover.png" \
+  --visible PUBLIC \
+  --allow-comment true \
+  --pinned false \
+  --priority 100 \
+  --publish true
+```
+
+Update:
+
+```bash
 halo post update my-post --title "Updated title"
 halo post update my-post --content "Updated content" --publish true
 halo post update my-post --new-name my-post-renamed
+halo post update my-post --slug "new-slug" --excerpt "Updated excerpt" --cover ""
+halo post update my-post --allow-comment false --priority 0
 ```
 
 Taxonomy-aware create/update:
@@ -161,6 +182,7 @@ halo post category list --keyword Technology
 halo post category get category-abc123
 halo post category create --display-name "Technology" --slug "tech"
 halo post category create --display-name "News" --description "Latest news" --priority 100
+halo post category create --display-name "Featured" --slug "featured" --cover "https://example.com/cover.png"
 halo post category update category-abc123 --display-name "Tech News"
 halo post category delete category-abc123 --force
 ```
@@ -174,6 +196,7 @@ halo post tag list
 halo post tag list --keyword Halo
 halo post tag get tag-abc123
 halo post tag create --display-name "Halo" --slug "halo" --color "#1890ff"
+halo post tag create --display-name "Technology" --slug "tech" --color "#52c41a" --cover "https://example.com/tag-cover.png"
 halo post tag update tag-abc123 --display-name "Halo CMS"
 halo post tag delete tag-abc123 --force
 ```
@@ -187,13 +210,30 @@ halo single-page list
 halo single-page get about --json
 ```
 
-Create or update:
+Create:
 
 ```bash
 halo single-page create --title "About" --content "# About" --publish true
 halo single-page create --title "About" --content "<h1>Hello Halo</h1>" --raw-type html
+halo single-page create \
+  --title "Contact Us" \
+  --content "# Contact" \
+  --slug "contact" \
+  --excerpt "Get in touch" \
+  --template "page" \
+  --visible PUBLIC \
+  --allow-comment true \
+  --priority 0 \
+  --publish true
+```
+
+Update:
+
+```bash
 halo single-page update about --title "About Halo"
 halo single-page update about --new-name about-page
+halo single-page update about --slug "about-halo" --excerpt "Updated description"
+halo single-page update about --allow-comment false --template ""
 ```
 
 JSON round-trip:

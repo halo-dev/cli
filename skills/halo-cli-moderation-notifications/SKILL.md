@@ -1,7 +1,7 @@
 ---
 name: halo-cli-moderation-notifications
 version: 1.0.0
-description: Use when moderating Halo comments or replies, creating official replies, listing unread notifications, deleting notifications, or marking notifications as read.
+description: Use when moderating Halo comments or replies, creating official replies, managing notifications, listing unread notifications, deleting notifications, or marking notifications as read. Trigger this skill whenever the user mentions Halo comments, comment replies, or notifications in a terminal context.
 references:
   - ../halo-cli-shared
 metadata:

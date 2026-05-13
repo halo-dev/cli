@@ -1,7 +1,7 @@
 ---
 name: halo-cli-shared
 version: 1.0.0
-description: Use when a task broadly involves Halo CLI and the correct command area is not yet clear, or when you need shared rules for profiles, JSON output, help discovery, config paths, and destructive actions.
+description: Use when a task involves Halo CLI, Halo CMS command-line operations, or terminal-based Halo management. Also use when you need shared rules for profiles, JSON output, help discovery, config paths, and destructive actions. Trigger this skill whenever the user mentions 'halo', 'Halo CLI', or terminal operations for Halo CMS, even if the specific command area is not yet clear.
 metadata:
   openclaw:
     category: developer-tools
@@ -48,6 +48,7 @@ halo --help
 - `moment`
 - `comment`
 - `notification`
+- `completion <shell>` — Generate shell completion script (bash, zsh, fish, powershell)
 
 ## Shared Rules
 

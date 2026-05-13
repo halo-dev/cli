@@ -1,7 +1,7 @@
 ---
 name: halo-cli-auth
 version: 1.0.0
-description: Use when working with Halo CLI login, bearer token or basic auth, profile setup, profile switching, current profile inspection, or fixing missing keyring credentials.
+description: Use when working with Halo CLI authentication, login, bearer token or basic auth, profile setup, profile switching, current profile inspection, or fixing missing keyring credentials. Trigger this skill whenever the user needs to log into Halo, manage Halo CLI profiles, switch profiles, or diagnose authentication issues.
 references:
   - ../halo-cli-shared
 metadata:

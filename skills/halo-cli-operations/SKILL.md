@@ -1,7 +1,7 @@
 ---
 name: halo-cli-operations
 version: 1.0.0
-description: Use when operating Halo themes, plugins, attachments, backups, or moments from the terminal, including install, upgrade, activate, upload, download, create, delete, and batch maintenance flows.
+description: Use when operating Halo themes, plugins, attachments, backups, or moments from the terminal. This includes install, upgrade, activate, enable, disable, upload, download, create, delete, reload, and batch maintenance flows. Trigger this skill whenever the user mentions Halo themes, plugins, attachments, backups, moments, or any Halo CMS maintenance operation in a CLI context.
 references:
   - ../halo-cli-shared
 metadata:
@@ -37,7 +37,8 @@ halo theme install --url https://example.com/theme.zip
 halo theme activate <name>
 halo theme reload <name>
 halo theme upgrade <name>
-halo theme upgrade --all
+halo theme upgrade <name> --online
+halo theme upgrade --all --online --yes
 halo theme delete <name> --force
 ```
 
@@ -46,7 +47,7 @@ Rules:
 - `theme list` marks the active theme in table output.
 - Local theme install uses `--file`.
 - `theme install --url` and `theme upgrade --url` prompt for confirmation when the remote host is not `www.halo.run`; use `--yes` to bypass that prompt in automation or other non-interactive runs.
-- `upgrade --all` is for App Store-aware upgrades, not direct `--file` or `--url` sources.
+- App Store upgrades use `--online`. `upgrade --all --online --yes` upgrades all themes from the App Store without prompting.
 
 ## Plugins
 
@@ -55,16 +56,19 @@ halo plugin list
 halo plugin get <name>
 halo plugin install --file ./plugin.jar
 halo plugin install --url https://example.com/plugin.jar
+halo plugin install --app-id app-SnwWD
 halo plugin enable <name>
 halo plugin disable <name> --force
 halo plugin upgrade <name>
-halo plugin upgrade --all
+halo plugin upgrade <name> --online
+halo plugin upgrade --all --online --yes
 halo plugin uninstall <name> --force
 ```
 
 Rules:
 
-- Plugin upgrades can use App Store-aware logic.
+- Install from the Halo App Store with `--app-id`.
+- App Store upgrades use `--online`. `upgrade --all --online --yes` upgrades all plugins from the App Store without prompting.
 - `plugin install --url` and `plugin upgrade --url` prompt for confirmation when the remote host is not `www.halo.run`; use `--yes` to bypass that prompt in automation or other non-interactive runs.
 - Treat `disable`, `upgrade`, and `uninstall` as mutating operations.
 
@@ -90,15 +94,20 @@ Rules:
 halo backup list
 halo backup get <name>
 halo backup create
+halo backup create my-backup
 halo backup create --wait
 halo backup create --wait --wait-timeout 300
+halo backup create --format zip --expires-at "2026-12-31T23:59:59Z"
 halo backup download <name> --output ./backup.zip
 halo backup delete <name> --force
 ```
 
-Rule:
+Rules:
 
+- `backup create [name]` accepts an optional backup name.
 - `backup create --wait` polls until completion or timeout.
+- `--format` sets the backup format (default: `zip`).
+- `--expires-at` sets an expiration time in ISO-8601 format.
 
 ## Moments
 
@@ -106,11 +115,18 @@ Rule:
 halo moment list
 halo moment get <name>
 halo moment create --content "Hello from Halo CLI"
+halo moment create --content "<p>Hello Halo</p>" --visible PUBLIC --tags life,cli --approved true
 halo moment update <name> --content "Updated content"
+halo moment update <name> --visible PRIVATE --tags updated
 halo moment delete <name> --force
 ```
 
-Useful options include `--visible`, `--tags`, and release-time related flags.
+Rules:
+
+- `--visible` accepts `PUBLIC` or `PRIVATE`.
+- `--tags` is comma-separated.
+- `--release-time` accepts ISO-8601 datetime.
+- `--approved` accepts `true` or `false`.
 
 ## Safety And Automation
 

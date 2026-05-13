@@ -1,7 +1,7 @@
 ---
 name: halo-cli
 version: 1.0.0
-description: Use when the task is to operate Halo CLI in general, or may involve login, profiles, posts, single pages, search, plugins, themes, attachments, backups, moments, comments, or notifications.
+description: Use when the task involves Halo CLI, Halo CMS terminal operations, or any command-line interaction with Halo. This includes login, profiles, posts, single pages, search, plugins, themes, attachments, backups, moments, comments, notifications, or shell completion. Trigger this skill whenever the user mentions 'halo', 'Halo CLI', or wants to manage Halo from the terminal, even if the exact command area is unclear.
 references:
   - ../halo-cli-shared
   - ../halo-cli-auth
@@ -49,6 +49,7 @@ halo backup --help
 halo moment --help
 halo comment --help
 halo notification --help
+halo completion --help
 ```
 
 ## Shared Defaults

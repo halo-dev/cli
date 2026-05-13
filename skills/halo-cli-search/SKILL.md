@@ -1,7 +1,7 @@
 ---
 name: halo-cli-search
 version: 1.0.0
-description: Use when searching public content on a Halo site with Halo CLI, especially for keyword search, site URL based search, result limits, or search without authenticated console access.
+description: Use when searching public content on a Halo site with Halo CLI. This includes keyword search, site URL based search, result limits, or any search that does not require authenticated console access. Trigger this skill whenever the user wants to search a Halo site from the terminal, even if they do not explicitly mention 'search'.
 references:
   - ../halo-cli-shared
 metadata:
