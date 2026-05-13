@@ -86,6 +86,55 @@ halo post export-json my-post --output ./post.json
 halo post import-json --file ./post.json --force
 ```
 
+`import-json` payload example (for creating a new post):
+
+```json
+{
+  "post": {
+    "apiVersion": "content.halo.run/v1alpha1",
+    "kind": "Post",
+    "metadata": {
+      "name": "56c6d867-9683-4927-ba94-388fedf87443"
+    },
+    "spec": {
+      "allowComment": true,
+      "baseSnapshot": "",
+      "categories": ["category-xxx"],
+      "deleted": false,
+      "excerpt": {
+        "autoGenerate": false,
+        "raw": ""
+      },
+      "headSnapshot": "",
+      "owner": "",
+      "pinned": false,
+      "priority": 0,
+      "publish": false,
+      "publishTime": "",
+      "releaseSnapshot": "",
+      "slug": "sample-post",
+      "tags": ["tag-xxx"],
+      "title": "Sample Post",
+      "visible": "PUBLIC"
+    }
+  },
+  "content": {
+    "raw": "# Hello World\n\nThis is a sample post content in **Markdown**.\n",
+    "content": "<h1 id=\"hello-world\">Hello World</h1>\n<p>This is a sample post content in <strong>Markdown</strong>.</p>\n",
+    "rawType": "markdown"
+  }
+}
+```
+
+Content fields:
+
+- `rawType`: source format, supports `markdown` or `html`.
+- `raw`: the source content. Use Markdown text when `rawType` is `markdown`; use HTML text when `rawType` is `html`.
+- `content`: the rendered result. Use HTML text when `rawType` is `markdown` (converted from Markdown); use HTML text when `rawType` is `html`.
+
+- `baseSnapshot`, `headSnapshot`, `releaseSnapshot` and `owner` must be left empty (do not construct manually).
+- `categories` and `tags` values are the `metadata.name` of existing categories/tags in the system. Query them first with `halo post category list` and `halo post tag list`; create any missing ones before importing.
+
 Markdown round-trip:
 
 ```bash
@@ -153,6 +202,55 @@ JSON round-trip:
 halo single-page export-json about --output ./about.json
 halo single-page import-json --file ./about.json --force
 ```
+
+`import-json` payload example (for creating a new single page):
+
+```json
+{
+  "page": {
+    "apiVersion": "content.halo.run/v1alpha1",
+    "kind": "SinglePage",
+    "metadata": {
+      "name": "373a5f79-f44f-441a-9df1-85a4f553ece8"
+    },
+    "spec": {
+      "allowComment": true,
+      "baseSnapshot": "",
+      "cover": "",
+      "deleted": false,
+      "excerpt": {
+        "autoGenerate": false,
+        "raw": "This is a custom page for demonstration purposes."
+      },
+      "headSnapshot": "",
+      "htmlMetas": [],
+      "owner": "",
+      "pinned": false,
+      "priority": 0,
+      "publish": false,
+      "publishTime": "",
+      "releaseSnapshot": "",
+      "slug": "about",
+      "template": "",
+      "title": "About Us",
+      "visible": "PUBLIC"
+    }
+  },
+  "content": {
+    "raw": "<h1>About Us</h1><p>This is a <strong>custom page</strong> content.</p>",
+    "content": "<h1>About Us</h1><p>This is a <strong>custom page</strong> content.</p>",
+    "rawType": "HTML"
+  }
+}
+```
+
+Content fields:
+
+- `rawType`: source format, supports `markdown` or `html`.
+- `raw`: the source content. Use Markdown text when `rawType` is `markdown`; use HTML text when `rawType` is `html`.
+- `content`: the rendered result. Use HTML text when `rawType` is `markdown` (converted from Markdown); use HTML text when `rawType` is `html`.
+
+- `baseSnapshot`, `headSnapshot`, `releaseSnapshot` and `owner` must be left empty (do not construct manually).
 
 Rules:
 
