@@ -1,99 +1,26 @@
-<!--VITE PLUS START-->
+# AGENTS.md
 
-# Using Vite+, the Unified Toolchain for the Web
+This file follows the open AGENTS.md convention from https://agents.md. Treat it as
+the agent-facing README for this repository: use it to get oriented, make changes
+in the existing style, and run the right checks before handing work back.
 
-This project is using Vite+, a unified toolchain built on top of Vite, Rolldown, Vitest, tsdown, Oxlint, Oxfmt, and Vite Task. Vite+ wraps runtime management, package management, and frontend tooling in a single global CLI called `vp`. Vite+ is distinct from Vite, but it invokes Vite through `vp dev` and `vp build`.
+## Project Overview
 
-## Vite+ Workflow
-
-`vp` is a global binary that handles the full development lifecycle. Run `vp help` to print a list of commands and `vp <command> --help` for information about a specific command.
-
-### Start
-
-- create - Create a new project from a template
-- migrate - Migrate an existing project to Vite+
-- config - Configure hooks and agent integration
-- staged - Run linters on staged files
-- install (`i`) - Install dependencies
-- env - Manage Node.js versions
-
-### Develop
-
-- dev - Run the development server
-- check - Run format, lint, and TypeScript type checks
-- lint - Lint code
-- fmt - Format code
-- test - Run tests
-
-### Execute
-
-- run - Run monorepo tasks
-- exec - Execute a command from local `node_modules/.bin`
-- dlx - Execute a package binary without installing it as a dependency
-- cache - Manage the task cache
-
-### Build
-
-- build - Build for production
-- pack - Build libraries
-- preview - Preview production build
-
-### Manage Dependencies
-
-Vite+ automatically detects and wraps the underlying package manager such as pnpm, npm, or Yarn through the `packageManager` field in `package.json` or package manager-specific lockfiles.
-
-- add - Add packages to dependencies
-- remove (`rm`, `un`, `uninstall`) - Remove packages from dependencies
-- update (`up`) - Update packages to latest versions
-- dedupe - Deduplicate dependencies
-- outdated - Check for outdated packages
-- list (`ls`) - List installed packages
-- why (`explain`) - Show why a package is installed
-- info (`view`, `show`) - View package information from the registry
-- link (`ln`) / unlink - Manage local package links
-- pm - Forward a command to the package manager
-
-### Maintain
-
-- upgrade - Update `vp` itself to the latest version
-
-These commands map to their corresponding tools. For example, `vp dev --port 3000` runs Vite's dev server and works the same as Vite. `vp test` runs JavaScript tests through the bundled Vitest. The version of all tools can be checked using `vp --version`. This is useful when researching documentation, features, and bugs.
-
-## Common Pitfalls
-
-- **Using the package manager directly:** Do not use pnpm, npm, or Yarn directly. Vite+ can handle all package manager operations.
-- **Always use Vite commands to run tools:** Don't attempt to run `vp vitest` or `vp oxlint`. They do not exist. Use `vp test` and `vp lint` instead.
-- **Running scripts:** Vite+ built-in commands (`vp dev`, `vp build`, `vp test`, etc.) always run the Vite+ built-in tool, not any `package.json` script of the same name. To run a custom script that shares a name with a built-in command, use `vp run <script>`. For example, if you have a custom `dev` script that runs multiple services concurrently, run it with `vp run dev`, not `vp dev` (which always starts Vite's dev server).
-- **Do not install Vitest, Oxlint, Oxfmt, or tsdown directly:** Vite+ wraps these tools. They must not be installed directly. You cannot upgrade these tools by installing their latest versions. Always use Vite+ commands.
-- **Use Vite+ wrappers for one-off binaries:** Use `vp dlx` instead of package-manager-specific `dlx`/`npx` commands.
-- **Import JavaScript modules from `vite-plus`:** Instead of importing from `vite` or `vitest`, all modules should be imported from the project's `vite-plus` dependency. For example, `import { defineConfig } from 'vite-plus';` or `import { expect, test, vi } from 'vite-plus/test';`. You must not install `vitest` to import test utilities.
-- **Type-Aware Linting:** There is no need to install `oxlint-tsgolint`, `vp lint --type-aware` works out of the box.
-
-## Review Checklist for Agents
-
-- [ ] Run `vp install` after pulling remote changes and before getting started.
-- [ ] Run `vp check` and `vp test` to validate changes.
-<!--VITE PLUS END-->
-
-# Project Status
-
-This repository is a TypeScript CLI for managing Halo instances.
-
-## Runtime and Packaging
+`@halo-dev/cli` is a TypeScript, ESM-based CLI for managing Halo instances.
 
 - Runtime: Node.js >= 22
-- Language: TypeScript, ESM
-- CLI entry: `src/cli.ts`
 - Published binary: `halo`
+- Source entry: `src/cli.ts`
 - Local development entry: `tsx src/cli.ts`
 - Build output: `dist/cli.mjs`
+- Package manager: Vite+ wraps the underlying package manager; prefer `vp`
+  commands for project tooling.
 
-## Current Command Surface
-
-The root CLI currently registers these business areas:
+The root CLI currently exposes these business areas:
 
 - `auth`
 - `post`
+- `single-page`
 - `search`
 - `plugin`
 - `theme`
@@ -102,206 +29,200 @@ The root CLI currently registers these business areas:
 - `moment`
 - `comment`
 - `notification`
+- `completion`
+
+## Setup Commands
+
+- Install dependencies after pulling changes: `vp install`
+- Run the CLI from source: `vp exec tsx src/cli.ts --help`
+- Run a command from source: `vp exec tsx src/cli.ts <command> ...`
+- Build the published CLI: `vp build`
+
+Do not use `pnpm`, `npm`, or `yarn` directly for dependency management unless the
+user explicitly asks for it. Vite+ is the project toolchain wrapper.
+
+## Validation Commands
+
+Use the smallest useful check while iterating, then run broader checks before
+finishing a meaningful change.
+
+- Fast TypeScript regression check: `pnpm typecheck`
+- Lint: `vp lint`
+- Full project check: `vp check`
+- Tests: `vp test`
+- Build: `vp build`
+
+`pnpm typecheck` is intentionally kept here because it is currently the fastest
+way to catch TypeScript regressions in this CLI. For Vite+, do not run commands
+such as `vp vitest` or `vp oxlint`; use `vp test` and `vp lint`.
+
+## Vite+ Rules
+
+This project uses Vite+, a unified toolchain built on top of Vite, Rolldown,
+Vitest, tsdown, Oxlint, Oxfmt, and Vite Task.
+
+- Run `vp help` or `vp <command> --help` for command details.
+- Use `vp run <script>` when you need a `package.json` script whose name
+  conflicts with a Vite+ built-in command.
+- Use `vp dlx` for one-off package binaries.
+- Import Vite+ APIs from `vite-plus`, for example
+  `import { defineConfig } from "vite-plus";`.
+- Import test APIs from `vite-plus/test`, for example
+  `import { expect, test, vi } from "vite-plus/test";`.
+- Do not add direct dependencies on Vitest, Oxlint, Oxfmt, or tsdown just to use
+  their CLIs or APIs.
+- Type-aware linting is available through `vp lint --type-aware`; do not add
+  `oxlint-tsgolint` for that purpose.
 
 ## Command Architecture
 
-This project no longer implements large nested command trees directly on the root `cac` instance.
+Keep the root `cac` instance small. Do not implement large nested command trees
+directly in `src/cli.ts`.
 
-Use this pattern instead:
+For each business area:
 
-1. Register a placeholder root command in `src/cli.ts` via `registerXxxCommands(cli)`.
-2. Implement a dedicated sub-CLI in `src/commands/xxx/index.ts` with its own `cac("halo xxx")` instance.
-3. Export `tryRunXxxCommand(args, runtime)`.
-4. In `src/cli.ts`, dispatch in order by calling `tryRunXxxCommand(...)` before the final root parse.
+1. Register only a placeholder root command in `src/cli.ts` via
+   `registerXxxCommands(cli)`.
+2. Put the real command implementation in `src/commands/<area>/index.ts`.
+3. Create a dedicated sub-CLI with `cac("halo <area>")`.
+4. Export `tryRunXxxCommand(args, runtime)`.
+5. Dispatch from `src/cli.ts` by calling each `tryRunXxxCommand(...)` before the
+   final root parse.
 
-This pattern is important because it gives correct help output for:
+This pattern preserves correct help output for `halo <area>`,
+`halo <area> --help`, and nested namespaces such as `halo comment reply`.
 
-- `halo xxx`
-- `halo xxx --help`
-- nested subcommands like `halo comment reply`
+If a business area needs a nested namespace, create another dedicated sub-CLI for
+that branch. Avoid manual help handling inside one large command tree.
 
-If a business area has a nested namespace, create another dedicated sub-CLI for that nested branch instead of trying to handle help manually in a single root command.
+## File Organization
 
-Within a command area, prefer colocating command-specific helpers with the command itself, for example:
+Prefer command-local files for command-local behavior:
 
-- `src/commands/post/index.ts`
-- `src/commands/post/format.ts`
-- `src/commands/post/input.ts`
-- `src/commands/post/types.ts`
-- `src/commands/post/__test__/...`
+- Command entry: `src/commands/<area>/index.ts`
+- Formatting: `src/commands/<area>/format.ts`
+- Input parsing or prompts: `src/commands/<area>/input.ts`
+- Types: `src/commands/<area>/types.ts`
+- Browser or file helpers: colocate under the owning command directory
+- Tests: `src/commands/<area>/__test__/`
 
-Do not move command-local types, input parsing, browser helpers, file helpers, or tests back into shared roots unless they are reused across multiple business areas.
+Use shared modules only for behavior reused across command areas:
 
-## Runtime and Auth Model
+- Auth and profiles: `src/shared/profile.ts`
+- Runtime client construction: `src/utils/runtime.ts`
+- Generic output helpers: `src/utils/output.ts`
+- Config storage: `src/utils/config-store.ts`
+- Credential storage: `src/utils/credential-store.ts`
+- URL normalization: `src/utils/url.ts`
+- Package upload helpers: `src/utils/package-file.ts`
 
-Authentication and HTTP clients are centralized in `src/utils/runtime.ts`.
+Do not move command-local types, prompts, browser helpers, file helpers, or tests
+back into shared roots unless at least two command areas actually need them.
 
-- `RuntimeContext` is intentionally narrow: it resolves profiles and constructs clients.
-- `RuntimeContext.getClientsForOptions(...)` returns:
-  - `clients.axios`
-  - `clients.console`
-  - `clients.core`
-- Shared auth/config models live in `src/shared/profile.ts`
-- Auth supports:
-  - Basic Auth
-  - Bearer token
-- Profile storage is handled by `src/utils/config-store.ts`
-- Profile metadata is stored in `config.json`, but actual basic/bearer credentials are stored in the system keyring via `@napi-rs/keyring`
-- URL normalization lives in `src/utils/url.ts`
-- Package upload helpers live in `src/utils/package-file.ts`
-- Config path defaults to:
-  - `$HALO_CLI_CONFIG_DIR/config.json` if set
-  - otherwise `$XDG_CONFIG_HOME/halo/config.json`
-  - otherwise `~/.config/halo/config.json`
+## Runtime And Auth
 
-## Implemented Business Areas
+Authentication and HTTP client construction are centralized in
+`src/utils/runtime.ts`.
 
-### `auth`
+- Keep `RuntimeContext` narrow: it resolves profiles and constructs clients.
+- `RuntimeContext.getClientsForOptions(...)` returns `clients.axios`,
+  `clients.console`, and `clients.core`.
+- Shared profile models live in `src/shared/profile.ts`.
+- Auth supports Basic Auth and bearer tokens.
+- Profile metadata is stored in `config.json`.
+- Credentials are stored in the system keyring via `@napi-rs/keyring`.
+- Deleting a profile must also delete the corresponding keyring credentials.
+- `auth profile doctor` should remain useful for diagnosing config/keyring drift.
 
-- login
-- current
-- profile list/current/get/use/delete/doctor
-- supports multi-profile management
-- deleting a profile must also remove its stored credentials from the system keyring
-- `profile doctor` validates configured profiles against available keyring credentials and should be kept useful for recovery workflows
+Config path precedence:
 
-### `post`
+1. `$HALO_CLI_CONFIG_DIR/config.json`
+2. `$XDG_CONFIG_HOME/halo/config.json`
+3. `~/.config/halo/config.json`
 
-- list/get/create/update/delete/open/import-json/export-json
-- uses Halo UC post APIs
-- draft content is persisted through content annotations
-- create/update support taxonomy resolution and creation for categories/tags
-- `import-json` / `export-json` use the same `{ post, content }` shape returned by `post get --json`
-- importing checks `metadata.name`; if the post already exists, it requires confirmation before updating unless `--force` is used
-- `export-json` writes the same payload to `./<post-name>.json` by default; `--output <path>` overrides the destination
+## API Usage
 
-### `search`
+When implementing or extending a command:
 
-- public site search
-- does not require authenticated console access when `--url` is provided
+1. Check whether `@halo-dev/api-client` exposes the needed console, core, UC, or
+   public API.
+2. Prefer the SDK when it has the required API.
+3. If the SDK does not expose the API, inspect upstream references under
+   `current-repos/` and use manual `axios` requests.
+4. Keep manual HTTP clients behind the command area or a clearly shared helper.
 
-### `plugin`
+Current upstream reference repositories:
 
-- list/get/enable/disable/install/uninstall/upgrade and related management flows
-- includes App Store-aware upgrade logic
+- `current-repos/halo/`
+- `current-repos/plugin-app-store/`
+- `current-repos/plugin-moments/`
+- `current-repos/vscode-extension-halo/`
 
-### `theme`
+Use these as references for API behavior, Console behavior, and feature parity.
 
-- list/get/current/install/upgrade/activate/reload/delete
-- uses Halo theme console/core APIs
-- includes App Store-aware upgrade logic similar to `plugin`
-- local installation uses multipart upload to the theme install endpoint because the generated SDK install signature is not file-parameter-friendly
-- `list` marks the currently activated theme in table output
+## Output Conventions
 
-### `attachment`
+- JSON output is controlled by `--json`.
+- Table output uses `cli-table3`.
+- Time formatting uses `dayjs`.
+- Byte formatting uses `pretty-bytes`.
+- Generic JSON/detail helpers belong in `src/utils/output.ts`.
+- Business-specific formatters should live in the owning command area, usually
+  `src/commands/<area>/format.ts`.
 
-- list/get/delete/upload/download
-- upload/download include progress feedback in TTY mode
+Avoid raw object printing in command files. Route business output through a
+command-local formatter first, and use `src/utils/output.ts` only for generic
+helpers.
 
-### `backup`
+## UX And Safety
 
-- list/get/create/download/delete
-- `create --wait` polls until completion
+- Use `CliError` for user-facing validation errors.
+- Use `@inquirer/prompts` only for interactive flows in TTY mode.
+- Dangerous operations must require explicit confirmation in TTY mode.
+- Dangerous non-interactive operations must require `--force`.
+- Treat delete, uninstall, disable, and similar mutating operations as dangerous.
+- Keep success, cancel, and delete messages consistent with nearby commands.
+- Use `ora` for long-running upload, download, or polling flows only when stdout
+  is a TTY and `--json` is not enabled.
+- Preserve machine-readable output when `--json` is set.
 
-### `moment`
+## Testing Instructions
 
-- list/get/create/update/delete
-- does not use `@halo-dev/api-client` for business APIs
-- uses manual `axios` requests against the moments plugin UC endpoints
-- this was necessary because the main Halo SDK does not expose moments business APIs
+- Co-locate command tests under `src/commands/<area>/__test__/`.
+- Keep cross-cutting utility tests under `src/utils/__test__/`.
+- Keep shared integration tests under `src/shared/**/__test__/`.
+- When moving command logic into a command folder, move its tests with it.
+- Add or update tests for changed behavior, especially parsing, output shape,
+  confirmation behavior, and command dispatch/help behavior.
+- Prefer focused tests while developing; run `vp test` before finishing
+  behavior changes.
 
-### `comment`
+## Command Area Notes
 
-- `comment list`
-- `comment get`
-- `comment approve`
-- `comment delete`
-- `comment create-reply`
-- `comment reply list`
-- `comment reply get`
-- `comment reply approve`
-- `comment reply delete`
+- `post` and `single-page` use Halo UC content APIs and persist draft content
+  through content annotations.
+- `post import-json` and `post export-json` use the `{ post, content }` payload
+  shape returned by `post get --json`.
+- `plugin` and `theme` include App Store-aware upgrade logic.
+- `theme install` uses multipart upload because the generated SDK install
+  signature is not file-parameter-friendly.
+- `attachment` upload/download commands include progress feedback in TTY mode.
+- `backup create --wait` polls until completion.
+- `moment` uses manual `axios` requests against the moments plugin UC endpoints
+  because the main Halo SDK does not expose moments business APIs.
+- `comment` approval follows Halo Console behavior with JSON Patch through the
+  core comment/reply APIs.
+- `comment create-reply` uses the console API and creates an already approved
+  reply in console context.
+- `notification get` filters the authenticated user's notification list by
+  `metadata.name`.
 
-Comment approval behavior follows the Halo console frontend:
+## Pull Request Checklist
 
-- approving a comment uses `core.content.comment.patchComment` with JSON Patch
-- approving a reply uses `core.content.reply.patchReply` with JSON Patch
-- creating a reply uses `console.content.comment.createReply`, which creates an already approved reply in console context
+Before handing off a non-trivial change:
 
-### `notification`
-
-- `notification list`
-- `notification get`
-- `notification delete`
-- `notification mark-as-read`
-- `notification mark-as-read --all`
-
-Notification management uses the Halo user-space UC notification APIs exposed in `@halo-dev/api-client`.
-Single-notification lookup is implemented by filtering the authenticated user's notification list by `metadata.name`.
-
-## Formatting and Output Conventions
-
-Shared output helpers live in `src/utils/output.ts`.
-
-- Prefer adding business-specific `printXxxList(...)` and `printXxx(...)` helpers in the owning command area, usually `src/commands/<module>/format.ts`
-- Keep `src/utils/output.ts` limited to generic JSON/detail rendering helpers such as `printJson(...)` and `printDetailObject(...)`
-- Table output is standardized via `cli-table3`
-- Time formatting uses `dayjs`
-- Byte formatting uses `pretty-bytes`
-- JSON output is controlled by `--json`
-
-When adding a new business area, keep raw object printing out of command files as much as possible and route business formatting through the command-local formatter first, falling back to `src/utils/output.ts` only for generic helpers.
-
-## Testing Conventions
-
-- Co-locate command tests under `src/commands/<module>/__test__/`
-- Keep cross-cutting utility tests under `src/utils/__test__/`
-- Keep shared integration tests under `src/shared/**/__test__/`
-- When moving command logic into a command folder, move its tests with it rather than leaving them in a shared `src/commands/__test__/` root
-
-## UX Conventions
-
-- Use `@inquirer/prompts` for interactive flows only when running in TTY mode
-- Use `CliError` for user-facing validation errors
-- Any dangerous operation must require an explicit confirmation step in TTY mode before execution. This applies not only to delete/uninstall flows, but also to other risky state-changing actions such as disable or similar mutating operations.
-- Require `--force` for dangerous operations in non-interactive mode so confirmation can be skipped explicitly and consistently.
-- Prefer consistent success/cancel/delete messaging with existing commands
-- For long-running upload/download/polling flows, use `ora` when stdout is a TTY and `--json` is not enabled
-
-## Validation Workflow
-
-For dependency management and general project tooling, prefer Vite+ as described above.
-
-For this CLI specifically, the most useful validation commands are:
-
-- `pnpm typecheck`
-- `vp lint`
-- `vp check`
-- `vp test`
-
-`pnpm typecheck` is currently the fastest way to catch TypeScript regressions during command development.
-
-## Extension Guidance
-
-When implementing a new command area:
-
-1. Check whether `@halo-dev/api-client` already exposes the needed console/core/public API.
-2. If it does, prefer the SDK over manual HTTP.
-3. If it does not, inspect upstream Halo or plugin code under `current-repos/` and implement with manual `axios` requests.
-4. Keep root command registration minimal and put real logic in a dedicated sub-CLI file under `src/commands/`.
-5. Add command-local helpers such as `format.ts`, `types.ts`, `input.ts`, or `files.ts` under the owning command directory when they are not shared across business areas.
-6. Put command tests under `src/commands/<module>/__test__/`.
-7. Use `src/utils/output.ts` only for generic output helpers shared across multiple areas.
-8. Use `src/shared/` for true shared models or integrations, for example `src/shared/profile.ts` or `src/shared/integrations/app-store.ts`.
-9. Validate with typecheck and lint before finishing.
-
-## Upstream Reference Repositories
-
-The workspace currently includes reference repos under `current-repos/`:
-
-- `halo/`
-- `plugin-app-store/`
-- `plugin-moments/`
-- `vscode-extension-halo/`
-
-These are used as implementation references for API behavior, frontend console behavior, and feature parity.
+- Confirm the implementation follows the dedicated sub-CLI architecture.
+- Confirm command-local helpers and tests stayed in the owning command folder.
+- Run `pnpm typecheck` for TypeScript changes.
+- Run `vp lint`, `vp check`, or `vp test` when the change scope justifies it.
+- Mention any checks that were not run and why.
