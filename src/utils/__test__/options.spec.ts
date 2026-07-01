@@ -1,4 +1,4 @@
-import { expect, test } from "vitest";
+import { expect, test } from "vite-plus/test";
 
 import { parseBooleanOption, parseCsvOption, parseNumberOption } from "../options.js";
 

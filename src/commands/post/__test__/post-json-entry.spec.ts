@@ -1,4 +1,4 @@
-import { afterEach, expect, test, vi } from "vitest";
+import { afterEach, expect, test, vi } from "vite-plus/test";
 
 import { renderContentByRawType } from "../../../utils/content.js";
 import { tryRunPostCommand } from "../index.js";

@@ -1,5 +1,5 @@
 import { AxiosError } from "axios";
-import { expect, test } from "vitest";
+import { expect, test } from "vite-plus/test";
 
 import { CliError, formatError, toCliError } from "../errors.js";
 

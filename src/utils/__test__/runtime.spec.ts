@@ -1,4 +1,4 @@
-import { afterEach, expect, test, vi } from "vitest";
+import { afterEach, expect, test, vi } from "vite-plus/test";
 
 import type { HaloProfile } from "../../shared/profile.js";
 import { buildAuthHeader, RuntimeContext } from "../runtime.js";
