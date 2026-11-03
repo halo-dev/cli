@@ -3,7 +3,7 @@ import { basename } from "node:path";
 
 import type { Post } from "@halo-dev/api-client";
 import matter from "gray-matter";
-import yaml from "js-yaml";
+import { dump, load, visit } from "js-yaml";
 
 import { renderContentByRawType } from "../../utils/content.js";
 import { CliError } from "../../utils/errors.js";
@@ -47,10 +47,16 @@ export function resolvePostMarkdownExportOutputPath(name: string, output?: strin
 const frontMatterOptions = {
   engines: {
     yaml: {
-      parse: (input: string) => (yaml.load(input) as Record<string, unknown> | undefined) ?? {},
+      parse: (input: string) => (load(input) as Record<string, unknown> | undefined) ?? {},
       stringify: (data: object) =>
-        yaml.dump(data, {
-          styles: { "!!null": "empty" },
+        dump(data, {
+          // Render null values as empty scalars instead of the literal `null`.
+          transform: (documents) =>
+            visit(documents, (node) => {
+              if (node.kind === "scalar" && node.tag === "tag:yaml.org,2002:null") {
+                node.value = "";
+              }
+            }),
         }),
     },
   },

@@ -3,10 +3,12 @@ packages:
 allowBuilds:
   esbuild: true
 catalog:
+  "@vitest/coverage-v8": 5.0.5
   vite: npm:@voidzero-dev/vite-plus-core@1.4.0
   vite-plus: 1.4.0
   vitest: 5.0.5
-  "@vitest/coverage-v8": 5.0.5
+minimumReleaseAgeExclude:
+  - semver@7.8.6
 overrides:
   vite@*: "catalog:"
   vitest@*: "catalog:"

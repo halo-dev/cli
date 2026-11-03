@@ -37,7 +37,7 @@ The root CLI currently exposes these business areas:
 - Install dependencies after pulling changes: `vp install`
 - Run the CLI from source: `vp exec tsx src/cli.ts --help`
 - Run a command from source: `vp exec tsx src/cli.ts <command> ...`
-- Build the published CLI: `vp build`
+- Build the published CLI: `vp run build`
 
 Do not use `pnpm`, `npm`, or `yarn` directly for dependency management unless the
 user explicitly asks for it. Vite+ is the project toolchain wrapper.
@@ -51,7 +51,7 @@ finishing a meaningful change.
 - Lint: `vp lint`
 - Full project check: `vp check`
 - Tests: `vp test`
-- Build: `vp build`
+- Build: `vp run build`
 
 `pnpm typecheck` is intentionally kept here because it is currently the fastest
 way to catch TypeScript regressions in this CLI. For Vite+, do not run commands

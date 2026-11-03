@@ -111,3 +111,13 @@ test("stringifyPostMarkdownDocument writes round-trip Halo metadata", () => {
   expect(markdown).toContain("name: post-1");
   expect(markdown).toContain("publish: true");
 });
+
+test("stringifyPostMarkdownDocument renders null front matter fields as empty scalars", () => {
+  const markdown = stringifyPostMarkdownDocument("# Hello Halo", {
+    title: "Hello Halo",
+    excerpt: null,
+  } as never);
+
+  expect(markdown).toContain("excerpt:\n");
+  expect(markdown).not.toContain("excerpt: null");
+});
