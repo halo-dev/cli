@@ -268,6 +268,7 @@ const COMPLETION_TREE: CompletionNode = {
       flags: HELP_FLAGS,
       subcommands: {
         status: { flags: PROFILE_JSON_FLAGS },
+        doctor: { flags: PROFILE_JSON_FLAGS },
         product: {
           flags: HELP_FLAGS,
           subcommands: {

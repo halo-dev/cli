@@ -188,6 +188,14 @@ function validateCouponRequest(request: CouponRequest): void {
   if (request.discountValue === undefined) {
     throw new CliError("Coupon discount value is required. Use --discount-value.");
   }
+  const discountValue = parseMoneyOption(request.discountValue, "Coupon discount value");
+  if (discountValue === undefined) {
+    throw new CliError("Coupon discount value must be a non-negative number.");
+  }
+  if (request.calculationType === "PERCENTAGE" && discountValue > 100) {
+    throw new CliError("Percentage coupon discount value must be between 0 and 100.");
+  }
+  request.discountValue = discountValue;
   if (request.scope === undefined) {
     throw new CliError("Coupon scope is required. Use --scope.");
   }

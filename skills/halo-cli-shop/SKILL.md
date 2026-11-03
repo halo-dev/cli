@@ -21,10 +21,14 @@ Manage the Halo shop area through the `console.api.ecommerce.halo.run/v1alpha1` 
 The shop API only exists on Halo Pro / Halo Commercial instances with the shop feature enabled.
 
 ```bash
-halo shop status --json
+halo shop doctor --json
 ```
 
-Check `commercialActivated` and `shopApiAvailable` before running shop commands. If `shopApiAvailable` is false, do not retry the same command; the instance does not expose the shop API.
+Run `doctor` before a shop workflow. It reports edition, activation, `shopApiAvailable`, `shopApiStatus` (`available`, `denied`, `unavailable`, or `unknown`), per-feature readability, read/write permissions for each shop resource, configuration counts, and actionable `warnings`.
+
+Use `shopApiStatus` rather than the boolean alone: `denied` means the API exists but the current profile lacks permission, while `unavailable` means the instance does not expose the shop API. A `features` entry is true only when the current profile can read that resource; use `warnings` to distinguish `PERMISSION_DENIED` from `RESOURCE_UNAVAILABLE`. If a warning uses `PERMISSION_DENIED`, `PERMISSIONS_UNAVAILABLE`, or `READ_ONLY_ACCESS`, adjust the profile or token instead of retrying.
+
+`halo shop status --json` is a lighter check that only reports edition, activation, and API availability.
 
 All commands accept `--profile <name>` and `--json`. Prefer `--json` for agent workflows.
 
@@ -32,6 +36,7 @@ All commands accept `--profile <name>` and `--json`. Prefer `--json` for agent w
 
 ```bash
 halo shop status
+halo shop doctor
 
 halo shop product list|get|create|update|publish|unpublish|delete
 halo shop category list|get|create|update|delete
@@ -115,6 +120,8 @@ halo shop config set --guest-checkout true
 halo shop config set --group payment --file payment.json
 ```
 
+`config set --group` merges the file over the current group payload. Nested objects are replaced; omitted top-level groups are preserved.
+
 ## JSON Payloads
 
 Payloads follow the Halo console API schemas. Common shapes:
@@ -151,7 +158,7 @@ FIXED variants require a `price`; only `pricingType: "INQUIRY"` variants may omi
 ## Safety
 
 - `product delete`, `category delete`, `coupon delete`, `discount delete`, `order cancel`, `order mark-paid`, `order fulfill`, `product unpublish`, `product update --status DRAFT|ARCHIVED`, `product update --variant-status DRAFT|ARCHIVED` on a published product, `coupon update --enabled false`, `discount update --enabled false`, `coupon distribute --all`, and `customer update --status BLOCKED` require interactive confirmation or `--force` in non-interactive mode.
-- `product update --file` follows full-array replacement for `productVariants`: removing a published variant (including sending an empty array) archives it and requires confirmation.
+- `product update --file` follows full-array replacement for `productVariants`: removing any variant (including a draft variant, or sending an empty array) while the product is published requires confirmation.
 - `order fulfill --all` skips subscription order lines. Subscription lines are fulfilled by the integrator and cannot be fulfilled manually. Use `--provider MANUAL`; the current backend does not expose a VIRTUAL fulfillment provider. Fulfillment cannot be reversed through the API, so confirm before using `--force`.
 - Prefer `--json` and inspect the returned resource after every mutation.
 - Do not print or send payment secrets from `shop config get --group payment`; treat them as credentials.

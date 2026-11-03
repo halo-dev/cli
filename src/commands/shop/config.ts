@@ -85,7 +85,15 @@ export function buildConfigCli(runtime: RuntimeContext): CAC {
           throw new CliError("Use --file or --stdin to provide the config group payload.");
         }
 
-        const config = await api.updateConfigGroup(options.group, filePayload);
+        const current = await api.getConfigGroup(options.group);
+        if (!current || typeof current !== "object" || Array.isArray(current)) {
+          throw new CliError(`Config group "${options.group}" did not return a JSON object.`);
+        }
+
+        const config = await api.updateConfigGroup(options.group, {
+          ...(current as Record<string, unknown>),
+          ...filePayload,
+        });
 
         if (options.json) {
           printJson(config ?? { group: options.group, updated: true });

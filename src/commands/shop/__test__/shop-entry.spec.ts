@@ -142,6 +142,13 @@ function notFoundError() {
   });
 }
 
+function httpError(status: number) {
+  return Object.assign(new Error(`HTTP ${status}`), {
+    isAxiosError: true,
+    response: { status },
+  });
+}
+
 test("shop status tolerates missing edition and license APIs", async () => {
   const stdoutSpy = silenceStdout();
 
@@ -177,6 +184,292 @@ test("shop status surfaces authentication failures", async () => {
   await expect(tryRunShopCommand(["shop", "status", "--json"], runtime as never)).rejects.toThrow(
     "401 Unauthorized",
   );
+});
+
+const SHOP_DOCTOR_PROBES: Record<string, unknown> = {
+  "/apis/console.api.ecommerce.halo.run/v1alpha1/products?page=1&size=1": {
+    content: [],
+    totalElements: 3,
+  },
+  "/apis/console.api.ecommerce.halo.run/v1alpha1/product-categories?tree=false": [],
+  "/apis/console.api.ecommerce.halo.run/v1alpha1/orders?page=1&size=1": {
+    content: [],
+    totalElements: 2,
+  },
+  "/apis/console.api.ecommerce.halo.run/v1alpha1/customers?page=1&size=1": {
+    content: [],
+    totalElements: 1,
+  },
+  "/apis/console.api.ecommerce.halo.run/v1alpha1/coupons?page=1&size=1": {
+    content: [],
+    totalElements: 0,
+  },
+  "/apis/console.api.ecommerce.halo.run/v1alpha1/discounts?page=1&size=1": {
+    content: [],
+    totalElements: 0,
+  },
+  "/apis/console.api.ecommerce.halo.run/v1alpha1/digital-resources": [],
+  "/apis/console.api.ecommerce.halo.run/v1alpha1/virtual-delivery-configs": [],
+  "/apis/console.api.ecommerce.halo.run/v1alpha1/cdks?page=1&size=1": {
+    content: [],
+    totalElements: 0,
+  },
+  "/apis/console.api.ecommerce.halo.run/v1alpha1/subscriptions?page=1&size=1": {
+    content: [],
+    totalElements: 0,
+  },
+  "/apis/console.api.ecommerce.halo.run/v1alpha1/statistics/orders/daily": [],
+  "/apis/console.api.ecommerce.halo.run/v1alpha1/ecommerceconfigs/shop": {},
+  "/apis/console.api.ecommerce.halo.run/v1alpha1/payment-providers": [{}, {}],
+  "/apis/console.api.ecommerce.halo.run/v1alpha1/payment-methods": [{}],
+  "/apis/console.api.ecommerce.halo.run/v1alpha1/shipping-profiles": [{}],
+  "/apis/console.api.ecommerce.halo.run/v1alpha1/sales-channels": [{}],
+  "/apis/console.api.ecommerce.halo.run/v1alpha1/fulfillment-methods": [{}],
+  "/apis/console.api.ecommerce.halo.run/v1alpha1/product-spec-templates?page=1&size=1": {
+    content: [],
+    totalElements: 0,
+  },
+};
+
+function createDoctorGet(rules: Array<Record<string, unknown>>) {
+  return vi.fn((url: string) => {
+    if (url === "/actuator/info") {
+      return Promise.resolve({
+        data: { build: { name: "halo-pro", version: "2.28.0" } },
+      });
+    }
+    if (url === "/apis/console.api.license.pro.halo.run/v1alpha1/activations") {
+      return Promise.resolve({
+        data: [
+          {
+            spec: { productName: "product-halo-commercial" },
+            status: { state: "active" },
+          },
+        ],
+      });
+    }
+    if (url === "/apis/uc.api.halo.run/v1alpha1/users/-/permissions") {
+      return Promise.resolve({
+        data: {
+          roles: [{ metadata: { name: "super-role" } }],
+          permissions: [{ metadata: { name: "role-template-shop-admin" }, rules }],
+        },
+      });
+    }
+    if (url in SHOP_DOCTOR_PROBES) {
+      return Promise.resolve({ data: SHOP_DOCTOR_PROBES[url] });
+    }
+    return Promise.reject(notFoundError());
+  });
+}
+
+test("shop doctor reports capabilities, permissions, and configuration", async () => {
+  const stdoutSpy = silenceStdout();
+  const get = createDoctorGet([
+    {
+      apiGroups: ["console.api.ecommerce.halo.run"],
+      resources: ["*"],
+      verbs: ["*"],
+    },
+  ]);
+  const request = vi.fn().mockResolvedValue({ data: { content: [], totalElements: 1 } });
+  const runtime = createRuntimeMock({ get, request });
+
+  await expect(tryRunShopCommand(["shop", "doctor", "--json"], runtime as never)).resolves.toBe(
+    true,
+  );
+
+  const result = JSON.parse(readStdout(stdoutSpy));
+  expect(result).toMatchObject({
+    profile: "local",
+    baseUrl: "https://example.com",
+    edition: "halo-pro",
+    version: "2.28.0",
+    commercialActivated: true,
+    activationState: "active",
+    shopApiAvailable: true,
+    shopApiStatus: "available",
+    permissions: {
+      roles: ["super-role"],
+      write: {
+        products: true,
+        categories: true,
+        orders: true,
+        statistics: true,
+      },
+    },
+    configuration: {
+      paymentProviders: 2,
+      paymentMethods: 1,
+      shippingProfiles: 1,
+      salesChannels: 1,
+      fulfillmentMethods: 1,
+      specTemplates: 0,
+    },
+    warnings: [],
+  });
+  expect(Object.values(result.features)).toEqual(Array(18).fill(true));
+  expect(runtime.getClientsForOptions).toHaveBeenCalledTimes(1);
+});
+
+test("shop doctor reports read-only permissions and missing configuration", async () => {
+  const stdoutSpy = silenceStdout();
+  const get = createDoctorGet([
+    {
+      apiGroups: ["console.api.ecommerce.halo.run"],
+      resources: ["*"],
+      verbs: ["get", "list"],
+    },
+  ]);
+  const getWithEmptyConfiguration = vi.fn((url: string) => {
+    if (url === "/apis/console.api.ecommerce.halo.run/v1alpha1/cdks?page=1&size=1") {
+      return Promise.reject(notFoundError());
+    }
+    if (
+      url === "/apis/console.api.ecommerce.halo.run/v1alpha1/payment-providers" ||
+      url === "/apis/console.api.ecommerce.halo.run/v1alpha1/payment-methods" ||
+      url === "/apis/console.api.ecommerce.halo.run/v1alpha1/shipping-profiles" ||
+      url === "/apis/console.api.ecommerce.halo.run/v1alpha1/sales-channels" ||
+      url === "/apis/console.api.ecommerce.halo.run/v1alpha1/fulfillment-methods"
+    ) {
+      return Promise.resolve({ data: [] });
+    }
+    return get(url);
+  });
+  const request = vi.fn().mockResolvedValue({ data: { content: [], totalElements: 0 } });
+  const runtime = createRuntimeMock({ get: getWithEmptyConfiguration, request });
+
+  await expect(tryRunShopCommand(["shop", "doctor", "--json"], runtime as never)).resolves.toBe(
+    true,
+  );
+
+  const result = JSON.parse(readStdout(stdoutSpy));
+  expect(Object.values(result.permissions.write)).toEqual(Array(18).fill(false));
+  expect(result.warnings.map((warning: { code: string }) => warning.code)).toEqual(
+    expect.arrayContaining([
+      "READ_ONLY_ACCESS",
+      "NO_PAYMENT_PROVIDERS",
+      "NO_PAYMENT_METHODS",
+      "NO_SHIPPING_PROFILES",
+      "NO_SALES_CHANNELS",
+      "NO_FULFILLMENT_METHODS",
+    ]),
+  );
+});
+
+test("shop doctor reports unknown write access when permissions are unavailable", async () => {
+  const stdoutSpy = silenceStdout();
+  const get = createDoctorGet([]);
+  const getWithForbiddenPermissions = vi.fn((url: string) => {
+    if (url === "/apis/uc.api.halo.run/v1alpha1/users/-/permissions") {
+      return Promise.reject(
+        Object.assign(new Error("forbidden"), {
+          isAxiosError: true,
+          response: { status: 403 },
+        }),
+      );
+    }
+    return get(url);
+  });
+  const request = vi.fn().mockResolvedValue({ data: { content: [], totalElements: 0 } });
+  const runtime = createRuntimeMock({ get: getWithForbiddenPermissions, request });
+
+  await expect(tryRunShopCommand(["shop", "doctor", "--json"], runtime as never)).resolves.toBe(
+    true,
+  );
+
+  const result = JSON.parse(readStdout(stdoutSpy));
+  expect(Object.values(result.permissions.write)).toEqual(Array(18).fill(null));
+  expect(result.warnings.map((warning: { code: string }) => warning.code)).toContain(
+    "PERMISSIONS_UNAVAILABLE",
+  );
+});
+
+test("shop doctor keeps probing when product listing is denied", async () => {
+  const stdoutSpy = silenceStdout();
+  const get = createDoctorGet([
+    {
+      apiGroups: ["console.api.ecommerce.halo.run"],
+      resources: ["*"],
+      verbs: ["get", "list"],
+    },
+  ]);
+  const getWithDeniedProbes = vi.fn((url: string) => {
+    if (url.startsWith("/apis/console.api.ecommerce.halo.run/v1alpha1/")) {
+      return Promise.reject(httpError(403));
+    }
+    return get(url);
+  });
+  const request = vi.fn().mockRejectedValue(httpError(403));
+  const runtime = createRuntimeMock({ get: getWithDeniedProbes, request });
+
+  await expect(tryRunShopCommand(["shop", "doctor", "--json"], runtime as never)).resolves.toBe(
+    true,
+  );
+
+  const result = JSON.parse(readStdout(stdoutSpy));
+  expect(result).toMatchObject({
+    shopApiAvailable: false,
+    shopApiStatus: "denied",
+  });
+  const codes = result.warnings.map((warning: { code: string }) => warning.code);
+  expect(codes).toContain("PERMISSION_DENIED");
+  expect(codes).toContain("READ_ONLY_ACCESS");
+  expect(codes).not.toContain("SHOP_API_UNAVAILABLE");
+});
+
+test("shop doctor reports probe failures without aborting the diagnosis", async () => {
+  const stdoutSpy = silenceStdout();
+  const get = createDoctorGet([
+    {
+      apiGroups: ["console.api.ecommerce.halo.run"],
+      resources: ["*"],
+      verbs: ["*"],
+    },
+  ]);
+  const request = vi.fn().mockRejectedValue(httpError(500));
+  const runtime = createRuntimeMock({ get, request });
+
+  await expect(tryRunShopCommand(["shop", "doctor", "--json"], runtime as never)).resolves.toBe(
+    true,
+  );
+
+  const result = JSON.parse(readStdout(stdoutSpy));
+  expect(result).toMatchObject({
+    shopApiAvailable: false,
+    shopApiStatus: "unknown",
+  });
+  expect(result.features.products).toBe(false);
+  expect(result.features.orders).toBe(true);
+  const codes = result.warnings.map((warning: { code: string }) => warning.code);
+  expect(codes).toContain("PROBE_FAILED");
+  expect(codes).not.toContain("SHOP_API_UNAVAILABLE");
+});
+
+test("shop doctor reports shop API unavailability", async () => {
+  const stdoutSpy = silenceStdout();
+  const get = vi.fn().mockRejectedValue(notFoundError());
+  const request = vi.fn().mockRejectedValue(notFoundError());
+  const runtime = createRuntimeMock({ get, request });
+
+  await expect(tryRunShopCommand(["shop", "doctor", "--json"], runtime as never)).resolves.toBe(
+    true,
+  );
+
+  const result = JSON.parse(readStdout(stdoutSpy));
+  expect(result).toMatchObject({
+    shopApiAvailable: false,
+    shopApiStatus: "unavailable",
+    permissions: {
+      roles: [],
+    },
+    warnings: [
+      {
+        code: "SHOP_API_UNAVAILABLE",
+      },
+    ],
+  });
+  expect(Object.values(result.features)).toEqual(Array(18).fill(false));
 });
 
 test("shop product create posts the request and prints JSON", async () => {
@@ -684,6 +977,62 @@ test("shop coupon create maps marketing flags", async () => {
       }),
     }),
   );
+});
+
+test("shop coupon create rejects a percentage above 100", async () => {
+  silenceStdout();
+
+  const request = vi.fn();
+  const runtime = createRuntimeMock({ request });
+
+  await expect(
+    tryRunShopCommand(
+      [
+        "shop",
+        "coupon",
+        "create",
+        "--name",
+        "Too much",
+        "--calculation-type",
+        "PERCENTAGE",
+        "--discount-value",
+        "101",
+        "--scope",
+        "ALL",
+        "--valid-days",
+        "30",
+        "--json",
+      ],
+      runtime as never,
+    ),
+  ).rejects.toThrow("between 0 and 100");
+
+  expect(request).not.toHaveBeenCalled();
+});
+
+test("shop coupon create rejects a non-scalar discount value from a file", async () => {
+  silenceStdout();
+
+  const { file, cleanup } = await writeJsonFile({
+    name: "Invalid value",
+    calculationType: "AMOUNT",
+    discountValue: [10],
+    scope: "ALL",
+    validDays: 30,
+  });
+
+  try {
+    const request = vi.fn();
+    const runtime = createRuntimeMock({ request });
+
+    await expect(
+      tryRunShopCommand(["shop", "coupon", "create", "--file", file, "--json"], runtime as never),
+    ).rejects.toThrow("Coupon discount value must be a non-negative number");
+
+    expect(request).not.toHaveBeenCalled();
+  } finally {
+    await cleanup();
+  }
 });
 
 test("shop discount create requires an application type", async () => {
@@ -1846,6 +2195,40 @@ test("shop product update requires confirmation when one published variant is re
   }
 });
 
+test("shop product update requires confirmation when a draft variant is removed", async () => {
+  silenceStdout();
+
+  const { file, cleanup } = await writeJsonFile({
+    productVariants: [{ id: 11, price: 10, status: "PUBLISHED" }],
+  });
+
+  try {
+    const current = {
+      id: 7,
+      title: "Published product",
+      productType: "PHYSICAL",
+      status: "PUBLISHED",
+      productVariants: [
+        { id: 11, price: 10, status: "PUBLISHED" },
+        { id: 12, price: 20, status: "DRAFT" },
+      ],
+    };
+    const request = vi.fn().mockResolvedValueOnce({ data: current });
+    const runtime = createRuntimeMock({ request });
+
+    await expect(
+      tryRunShopCommand(
+        ["shop", "product", "update", "7", "--file", file, "--json"],
+        runtime as never,
+      ),
+    ).rejects.toThrow("requires confirmation in interactive mode or use --force");
+
+    expect(request).toHaveBeenCalledOnce();
+  } finally {
+    await cleanup();
+  }
+});
+
 test("shop product update requires confirmation for lowercase variant status via --file", async () => {
   silenceStdout();
 
@@ -2489,13 +2872,16 @@ test("shop discount delete --force deletes the discount", async () => {
   );
 });
 
-test("shop config set --group sends the group payload", async () => {
+test("shop config set --group merges the group payload over the current config", async () => {
   silenceStdout();
 
   const { file, cleanup } = await writeJsonFile({ provider: "stripe" });
 
   try {
-    const request = vi.fn().mockResolvedValue({ data: { provider: "stripe" } });
+    const request = vi
+      .fn()
+      .mockResolvedValueOnce({ data: { provider: "stripe", currency: "USD" } })
+      .mockResolvedValue({ data: "" });
     const runtime = createRuntimeMock({ request });
 
     await expect(
@@ -2505,11 +2891,19 @@ test("shop config set --group sends the group payload", async () => {
       ),
     ).resolves.toBe(true);
 
-    expect(request).toHaveBeenCalledWith(
+    expect(request).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        method: "GET",
+        url: expect.stringContaining("/ecommerceconfigs/payment"),
+      }),
+    );
+    expect(request).toHaveBeenNthCalledWith(
+      2,
       expect.objectContaining({
         method: "PUT",
         url: expect.stringContaining("/ecommerceconfigs/payment"),
-        data: { provider: "stripe" },
+        data: { provider: "stripe", currency: "USD" },
       }),
     );
   } finally {

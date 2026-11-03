@@ -560,16 +560,16 @@ async function buildUpdateRequest(
 
 interface ProductUpdateDanger {
   unpublish: boolean;
+  removedVariantIds: number[];
   disabledVariantIds: number[];
 }
 
 function detectProductUpdateDanger(current: Product, request: ProductRequest): ProductUpdateDanger {
+  const guardVariants = current.status === "PUBLISHED" && request.status === "PUBLISHED";
   return {
     unpublish: current.status === "PUBLISHED" && request.status !== "PUBLISHED",
-    disabledVariantIds:
-      current.status === "PUBLISHED" && request.status === "PUBLISHED"
-        ? findDisabledVariantIds(current, request)
-        : [],
+    removedVariantIds: guardVariants ? findRemovedVariantIds(current, request) : [],
+    disabledVariantIds: guardVariants ? findDisabledVariantIds(current, request) : [],
   };
 }
 
@@ -587,6 +587,23 @@ async function confirmProductUpdateDanger(
           resourceLabel: "product",
           resourceName: String(productId),
           cancellationVerb: "unpublishing",
+        },
+        options,
+      ))
+    ) {
+      return false;
+    }
+  }
+
+  if (danger.removedVariantIds.length > 0) {
+    if (
+      !(await confirmDangerousAction(
+        {
+          commandPath: "halo shop product update",
+          actionLabel: "Remove",
+          resourceLabel: "variants of product",
+          resourceName: `${productId}: ${danger.removedVariantIds.join(", ")}`,
+          cancellationVerb: "removing",
         },
         options,
       ))
@@ -616,7 +633,9 @@ async function confirmProductUpdateDanger(
 }
 
 function hasProductUpdateDanger(danger: ProductUpdateDanger): boolean {
-  return danger.unpublish || danger.disabledVariantIds.length > 0;
+  return (
+    danger.unpublish || danger.removedVariantIds.length > 0 || danger.disabledVariantIds.length > 0
+  );
 }
 
 function newProductUpdateDanger(
@@ -625,6 +644,9 @@ function newProductUpdateDanger(
 ): ProductUpdateDanger {
   return {
     unpublish: next.unpublish && !previous.unpublish,
+    removedVariantIds: next.removedVariantIds.filter(
+      (id) => !previous.removedVariantIds.includes(id),
+    ),
     disabledVariantIds: next.disabledVariantIds.filter(
       (id) => !previous.disabledVariantIds.includes(id),
     ),
@@ -637,8 +659,28 @@ function mergeProductUpdateDanger(
 ): ProductUpdateDanger {
   return {
     unpublish: previous.unpublish || next.unpublish,
+    removedVariantIds: [...new Set([...previous.removedVariantIds, ...next.removedVariantIds])],
     disabledVariantIds: [...new Set([...previous.disabledVariantIds, ...next.disabledVariantIds])],
   };
+}
+
+function findRemovedVariantIds(current: Product, request: ProductRequest): number[] {
+  if (current.productType === "SUBSCRIPTION") {
+    return [];
+  }
+
+  const requestedVariants = request.productVariants;
+  if (!Array.isArray(requestedVariants)) {
+    return [];
+  }
+
+  const requestedIds = new Set(
+    requestedVariants.flatMap((variant) => (variant.id === undefined ? [] : [variant.id])),
+  );
+
+  return (current.productVariants ?? []).flatMap((variant) =>
+    variant.id !== undefined && !requestedIds.has(variant.id) ? [variant.id] : [],
+  );
 }
 
 function findDisabledVariantIds(current: Product, request: ProductRequest): number[] {
@@ -663,7 +705,7 @@ function findDisabledVariantIds(current: Product, request: ProductRequest): numb
     }
 
     if (!nextStatus.has(variant.id)) {
-      return [variant.id];
+      return [];
     }
 
     const status = nextStatus.get(variant.id);
