@@ -2229,6 +2229,40 @@ test("shop product update requires confirmation when a draft variant is removed"
   }
 });
 
+test("shop product update requires confirmation when a draft product variant is removed", async () => {
+  silenceStdout();
+
+  const { file, cleanup } = await writeJsonFile({
+    productVariants: [{ id: 11, price: 10 }],
+  });
+
+  try {
+    const current = {
+      id: 7,
+      title: "Draft product",
+      productType: "PHYSICAL",
+      status: "DRAFT",
+      productVariants: [
+        { id: 11, price: 10, status: "DRAFT" },
+        { id: 12, price: 20, status: "PUBLISHED" },
+      ],
+    };
+    const request = vi.fn().mockResolvedValueOnce({ data: current });
+    const runtime = createRuntimeMock({ request });
+
+    await expect(
+      tryRunShopCommand(
+        ["shop", "product", "update", "7", "--file", file, "--json"],
+        runtime as never,
+      ),
+    ).rejects.toThrow("requires confirmation in interactive mode or use --force");
+
+    expect(request).toHaveBeenCalledOnce();
+  } finally {
+    await cleanup();
+  }
+});
+
 test("shop product update requires confirmation for lowercase variant status via --file", async () => {
   silenceStdout();
 

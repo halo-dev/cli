@@ -158,7 +158,7 @@ FIXED variants require a `price`; only `pricingType: "INQUIRY"` variants may omi
 ## Safety
 
 - `product delete`, `category delete`, `coupon delete`, `discount delete`, `order cancel`, `order mark-paid`, `order fulfill`, `product unpublish`, `product update --status DRAFT|ARCHIVED`, `product update --variant-status DRAFT|ARCHIVED` on a published product, `coupon update --enabled false`, `discount update --enabled false`, `coupon distribute --all`, and `customer update --status BLOCKED` require interactive confirmation or `--force` in non-interactive mode.
-- `product update --file` follows full-array replacement for `productVariants`: removing any variant (including a draft variant, or sending an empty array) while the product is published requires confirmation.
+- `product update --file` follows full-array replacement for `productVariants`: removing any variant (including a draft variant, or sending an empty array) requires confirmation, regardless of the product's status.
 - `order fulfill --all` skips subscription order lines. Subscription lines are fulfilled by the integrator and cannot be fulfilled manually. Use `--provider MANUAL`; the current backend does not expose a VIRTUAL fulfillment provider. Fulfillment cannot be reversed through the API, so confirm before using `--force`.
 - Prefer `--json` and inspect the returned resource after every mutation.
 - Do not print or send payment secrets from `shop config get --group payment`; treat them as credentials.

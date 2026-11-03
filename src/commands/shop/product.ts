@@ -568,7 +568,9 @@ function detectProductUpdateDanger(current: Product, request: ProductRequest): P
   const guardVariants = current.status === "PUBLISHED" && request.status === "PUBLISHED";
   return {
     unpublish: current.status === "PUBLISHED" && request.status !== "PUBLISHED",
-    removedVariantIds: guardVariants ? findRemovedVariantIds(current, request) : [],
+    // The specifications endpoint archives every variant omitted from the
+    // replacement array, regardless of the product's publication status.
+    removedVariantIds: findRemovedVariantIds(current, request),
     disabledVariantIds: guardVariants ? findDisabledVariantIds(current, request) : [],
   };
 }
@@ -600,10 +602,10 @@ async function confirmProductUpdateDanger(
       !(await confirmDangerousAction(
         {
           commandPath: "halo shop product update",
-          actionLabel: "Remove",
+          actionLabel: "Archive",
           resourceLabel: "variants of product",
           resourceName: `${productId}: ${danger.removedVariantIds.join(", ")}`,
-          cancellationVerb: "removing",
+          cancellationVerb: "archiving",
         },
         options,
       ))
