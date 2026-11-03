@@ -133,6 +133,8 @@ test("tryRunAuthCommand keeps auth login --json free of target banners", async (
                 metadata: { name: "admin" },
                 spec: { displayName: "Admin" },
               },
+              roles: [],
+              passwordSet: true,
             },
           }),
         },
@@ -162,6 +164,56 @@ test("tryRunAuthCommand keeps auth login --json free of target banners", async (
   expect(runtimeMock.getClientsForResolvedProfile).toHaveBeenCalledOnce();
   expect(writeSpy).toHaveBeenCalledWith(expect.stringContaining('"profile": {'));
   expect(writeSpy).not.toHaveBeenCalledWith(expect.stringContaining("TARGET"));
+});
+
+test("tryRunAuthCommand rejects anonymous sessions instead of saving a broken profile", async () => {
+  silenceStdout();
+
+  const runtimeMock = {
+    configStore: {
+      getStoredProfile: vi.fn().mockResolvedValue(undefined),
+      upsertProfile: vi.fn(),
+    },
+    getClientsForResolvedProfile: vi.fn().mockReturnValue({
+      console: {
+        user: {
+          getCurrentUserDetail: vi.fn().mockResolvedValue({
+            data: {
+              user: {
+                metadata: { name: "anonymousUser" },
+                spec: { displayName: "Anonymous User" },
+              },
+              roles: [],
+              passwordSet: false,
+            },
+          }),
+        },
+      },
+    }),
+  };
+
+  await expect(
+    tryRunAuthCommand(
+      [
+        "auth",
+        "login",
+        "--profile",
+        "local",
+        "--url",
+        "https://demo.halo.run",
+        "--auth-type",
+        "basic",
+        "--username",
+        "admin",
+        "--password",
+        "wrong",
+        "--json",
+      ],
+      runtimeMock as never,
+    ),
+  ).rejects.toThrow("Authentication failed");
+
+  expect(runtimeMock.configStore.upsertProfile).not.toHaveBeenCalled();
 });
 
 test("tryRunAuthCommand shows help for bare profile subcommands", async () => {

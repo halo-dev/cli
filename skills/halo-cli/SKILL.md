@@ -1,7 +1,7 @@
 ---
 name: halo-cli
 version: 1.0.0
-description: Use when the task involves Halo CLI, Halo CMS terminal operations, or any command-line interaction with Halo. This includes login, profiles, posts, single pages, search, plugins, themes, attachments, backups, moments, comments, notifications, or shell completion. Trigger this skill whenever the user mentions 'halo', 'Halo CLI', or wants to manage Halo from the terminal, even if the exact command area is unclear.
+description: Use when the task involves Halo CLI, Halo CMS terminal operations, or any command-line interaction with Halo. This includes login, profiles, posts, single pages, search, plugins, themes, attachments, backups, moments, comments, notifications, shop operations, or shell completion. Trigger this skill whenever the user mentions 'halo', 'Halo CLI', or wants to manage Halo from the terminal, even if the exact command area is unclear.
 references:
   - ../halo-cli-shared
   - ../halo-cli-auth
@@ -9,6 +9,7 @@ references:
   - ../halo-cli-search
   - ../halo-cli-operations
   - ../halo-cli-moderation-notifications
+  - ../halo-cli-shop
 metadata:
   openclaw:
     category: developer-tools
@@ -31,6 +32,7 @@ If the request only says "use Halo CLI" or mixes multiple areas, start here, the
 - `halo-cli-search`: public site search
 - `halo-cli-operations`: themes, plugins, attachments, backups, moments
 - `halo-cli-moderation-notifications`: comments, replies, notifications
+- `halo-cli-shop`: Halo Pro/Commercial shop products, orders, customers, coupons, discounts, statistics, and configuration
 
 ## Fast Routing
 
@@ -49,6 +51,7 @@ halo backup --help
 halo moment --help
 halo comment --help
 halo notification --help
+halo shop --help
 halo completion --help
 ```
 

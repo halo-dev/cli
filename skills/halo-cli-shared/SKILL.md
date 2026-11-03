@@ -48,6 +48,7 @@ halo --help
 - `moment`
 - `comment`
 - `notification`
+- `shop` — Halo Pro/Commercial shop management
 - `completion <shell>` — Generate shell completion script (bash, zsh, fish, powershell)
 
 ## Shared Rules
@@ -86,3 +87,4 @@ Credentials are stored in the system keyring.
 - Use `halo-cli-search` for public site search.
 - Use `halo-cli-operations` for themes, plugins, attachments, backups, and moments.
 - Use `halo-cli-moderation-notifications` for comments, replies, and notifications.
+- Use `halo-cli-shop` for products, orders, customers, coupons, discounts, shop statistics, and shop configuration.

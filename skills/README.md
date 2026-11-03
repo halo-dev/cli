@@ -12,6 +12,7 @@ Recommended loading order for agents:
    - `halo-cli-search`
    - `halo-cli-operations`
    - `halo-cli-moderation-notifications`
+   - `halo-cli-shop`
 
 Design goals:
 
