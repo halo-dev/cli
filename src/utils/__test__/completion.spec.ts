@@ -41,6 +41,18 @@ test("getCompletionCandidates suggests flags when current token starts with dash
   );
 });
 
+test("getCompletionCandidates suggests shop commands and flags", () => {
+  expect(getCompletionCandidates(["shop"], "")).toEqual(
+    expect.arrayContaining(["status", "doctor", "product", "order", "coupon"]),
+  );
+  expect(getCompletionCandidates(["shop", "order"], "")).toEqual(
+    expect.arrayContaining(["fulfill", "cancel", "mark-paid"]),
+  );
+  expect(getCompletionCandidates(["shop", "order", "fulfill"], "--")).toEqual(
+    expect.arrayContaining(["--force", "--item", "--all"]),
+  );
+});
+
 test("renderBashCompletion emits a complete function", () => {
   const script = renderBashCompletion();
   expect(script).toContain("complete -F _halo_completion halo");

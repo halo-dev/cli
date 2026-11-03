@@ -16,6 +16,7 @@ import {
 import { registerPluginCommands, tryRunPluginCommand } from "./commands/plugin/index.js";
 import { registerPostCommands, tryRunPostCommand } from "./commands/post/index.js";
 import { registerSearchCommands, tryRunSearchCommand } from "./commands/search/index.js";
+import { registerShopCommands, tryRunShopCommand } from "./commands/shop/index.js";
 import {
   registerSinglePageCommands,
   tryRunSinglePageCommand,
@@ -72,6 +73,10 @@ const commandModules = [
   {
     register: registerNotificationCommands,
     tryRun: tryRunNotificationCommand,
+  },
+  {
+    register: registerShopCommands,
+    tryRun: tryRunShopCommand,
   },
 ] as const;
 

@@ -29,6 +29,7 @@ The root CLI currently exposes these business areas:
 - `moment`
 - `comment`
 - `notification`
+- `shop`
 - `completion`
 
 ## Setup Commands
@@ -216,6 +217,10 @@ helpers.
   reply in console context.
 - `notification get` filters the authenticated user's notification list by
   `metadata.name`.
+- `shop` targets the Halo Pro/Commercial ecommerce Console API group
+  `console.api.ecommerce.halo.run/v1alpha1`. The published
+  `@halo-dev/api-client` package does not include these APIs, so the command area
+  uses manual `axios` requests through `src/commands/shop/api.ts`.
 
 ## Pull Request Checklist
 

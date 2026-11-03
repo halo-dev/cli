@@ -105,6 +105,7 @@ Commands:
   moment        Moment management commands
   comment       Comment management commands
   notification  Notification management commands
+  shop          Shop management commands (Halo Pro/Commercial)
 
 For more info, run any command with the `--help` flag:
   $ halo auth --help
@@ -118,6 +119,7 @@ For more info, run any command with the `--help` flag:
   $ halo moment --help
   $ halo comment --help
   $ halo notification --help
+  $ halo shop --help
 
 Options:
   -h, --help     Display this message
@@ -174,6 +176,7 @@ halo comment reply <TAB>
 - `moment`
 - `comment`
 - `notification`
+- `shop` — Halo Pro/Commercial 商城管理
 
 更多细节请使用 `--help` 查看。
 
@@ -190,6 +193,7 @@ halo comment reply <TAB>
 - `halo-cli-search`
 - `halo-cli-operations`
 - `halo-cli-moderation-notifications`
+- `halo-cli-shop`
 
 可以通过下面的方式添加 skills：
 

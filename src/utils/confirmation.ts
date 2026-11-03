@@ -21,7 +21,7 @@ export async function confirmDangerousAction(
   config: DangerousActionConfig,
   options: DangerousActionOptions,
 ): Promise<boolean> {
-  if (options.force) {
+  if (options.force === true) {
     return true;
   }
 

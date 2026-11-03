@@ -75,7 +75,15 @@ async function validateProfile(profile: HaloProfile, runtime: RuntimeContext, js
   );
   const clients = runtime.getClientsForResolvedProfile(profile);
   const response = await clients.console.user.getCurrentUserDetail();
-  return response.data;
+  const user = response.data;
+
+  if (!user.user?.metadata?.name || user.user.metadata.name === "anonymousUser") {
+    throw new CliError(
+      "Authentication failed. Check the username, password, or token, and verify that the selected authentication method is enabled on the Halo server.",
+    );
+  }
+
+  return user;
 }
 
 export function resolveAuthProfileUseName(

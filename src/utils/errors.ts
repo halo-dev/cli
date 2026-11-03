@@ -16,7 +16,7 @@ function pickApiErrorMessage(data: unknown): string | undefined {
   }
 
   const maybeData = data as Record<string, unknown>;
-  const fields = ["message", "error", "title", "detail"];
+  const fields = ["detail", "message", "error", "title"];
 
   for (const field of fields) {
     const value = maybeData[field];
